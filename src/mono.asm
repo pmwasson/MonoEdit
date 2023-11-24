@@ -30,8 +30,6 @@ BOX_LOWER_LEFT  = $1e
 BOX_LOWER_RIGHT = $1f
 BOX_BLANK       = $20
 
-MAX_TILES       = 128
-
 ;------------------------------------------------
 
 .segment "CODE"
@@ -54,10 +52,16 @@ MAX_TILES       = 128
     jsr     inline_print
     StringCR    "DHGR Monochrome tile editor - ? for help"
 
+    ; default to 7x8
+    lda     #0
+    jsr     setTileSize
     jsr     initMonochrome  ; Turn on monochrome dhgr
-    jsr     clearScreen
+
 
 reset_loop:
+    jsr     clearScreen
+
+refresh_loop:
     jsr     drawCanvas
     jsr     drawPreview
 
@@ -159,7 +163,7 @@ down_good:
     jsr     eraseBox
     lda     tileIndex
     bne     previous_continue
-    lda     #MAX_TILES
+    lda     tileMax
     sta     tileIndex
 previous_continue:
     dec     tileIndex
@@ -167,7 +171,7 @@ previous_continue:
     jsr     PRBYTE
     lda     #13
     jsr     COUT
-    jmp     reset_loop
+    jmp     refresh_loop
 :
     ;------------------
     ; _ = Previous 8
@@ -183,13 +187,13 @@ previous_continue:
     sbc     #8
     bpl     previous8_continue
     clc
-    adc     #MAX_TILES
+    adc     tileMax
 previous8_continue:
     sta     tileIndex
     jsr     PRBYTE
     lda     #13
     jsr     COUT
-    jmp     reset_loop
+    jmp     refresh_loop
 :
     ;------------------
     ; = = Next
@@ -202,7 +206,7 @@ previous8_continue:
     jsr     eraseBox
     inc     tileIndex
     lda     tileIndex
-    cmp     #MAX_TILES
+    cmp     tileMax
     bne     next_continue
     lda     #0
     sta     tileIndex
@@ -210,7 +214,7 @@ next_continue:
     jsr     PRBYTE
     lda     #13
     jsr     COUT
-    jmp     reset_loop
+    jmp     refresh_loop
 :
     ;------------------
     ; + = Next 8
@@ -224,16 +228,16 @@ next_continue:
     lda     tileIndex
     clc
     adc     #8
-    cmp     #MAX_TILES
+    cmp     tileMax
     bmi     next_continue8
     sec
-    sbc     #MAX_TILES
+    sbc     tileMax
 next_continue8:
     sta     tileIndex
     jsr     PRBYTE
     lda     #13
     jsr     COUT
-    jmp     reset_loop
+    jmp     refresh_loop
 :
     ;------------------
     ; SP = Toggle Pixel
@@ -289,7 +293,56 @@ next_continue8:
     jsr     inline_print
     StringCR "Paste tile from clipboard"
     jsr     pasteTile
+    jmp     refresh_loop
+:
+
+    ;------------------
+    ; ^F = Fill Color
+    ;------------------
+    cmp     #KEY_CTRL_F
+    bne     :+
+    jsr     inline_print
+
+
+    .byte   "Fill Color. Pick color (0=black 1=white):",0
+    lda     #2
+    jsr     getInputNumber
+    bmi     fill_cancel
+    jsr     fillPixels
+    lda     #13
+    jsr     COUT
+    jmp     refresh_loop
+fill_cancel:
+    jmp     command_loop
+:
+
+    ;------------------
+    ; ^T = Tile Size
+    ;------------------
+    cmp     #KEY_CTRL_T
+    bne     :+
+    jsr     inline_print
+    StringCont "Tile size"
+    StringCont "(0=7x8  1=14x8  2=28x8  3=56x8,"
+    String     " 4=7x16 5=14x16 6=28x16 7=56x16):"
+    lda     #8
+    jsr     getInputNumber
+    bmi     tileSizeCancel
+    jsr     setTileSize
+    ; output size
+    jsr     inline_print
+    String  ": "
+    lda     tileWidth
+    jsr     PRBYTE
+    lda     #$80 + 'x'
+    jsr     COUT
+    lda     tileHeight
+    jsr     PRBYTE
+    lda     #13
+    jsr     COUT
     jmp     reset_loop
+tileSizeCancel:
+    jmp     command_loop
 :
     ;------------------
     ; ! = Dump
@@ -373,6 +426,35 @@ finish_move:
 .endproc
 
 ;-----------------------------------------------------------------------------
+; getInputNumber
+;   Get input for a number 0..max+1, where A == max+1
+;   Display number or cancel and return result in A (-1 for cancel)
+;-----------------------------------------------------------------------------
+.proc getInputNumber
+    clc
+    adc     #$80 + '0'  ; convert A to ascii number
+    sta     max_digit     
+    jsr     getInput
+    cmp     #$80 + '0'
+    bmi     cancel
+    cmp     max_digit
+    bpl     cancel
+    jsr     COUT
+    sec
+    sbc     #$80 + '0'
+    rts
+cancel:
+    jsr     inline_print
+    .byte   "Cancel",13,0
+    lda     #$ff
+    rts
+
+; local variable
+max_digit:  .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
 ; printHelp
 ;-----------------------------------------------------------------------------
 .proc printHelp
@@ -401,7 +483,7 @@ finish_move:
 .proc printDump
 
     lda     tileIndex
-    jsr     setTilePointer_7x8
+    jsr     setTilePointer
 
     jsr     inline_print
     .byte   ".byte ",0
@@ -439,12 +521,70 @@ dump_count: .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
+; setTileSize
+;   size passed in A  as an ASCII number
+;       0:7x8  1:14x8  2:28x8  3:56x8
+;       4:7x16 5:14x15 6:28x16 7:56x16
+;-----------------------------------------------------------------------------
+.proc setTileSize
+    sta     tileSize
+    tax
+    lda     sizeWidth,x
+    sta     tileWidth
+    lda     sizeWidthBytes,x
+    sta     tileWidthBytes
+    lda     sizeHeight,x
+    sta     tileHeight
+    lda     sizeLength,x
+    sta     tileLength
+    lda     sizeMax,x
+    sta     tileMax
+    rts
+
+.align 8
+sizeWidth:      .byte   7, 14, 28, 56, 7,  14, 28, 56
+sizeWidthBytes: .byte   1, 2,  4,  8,  1,  2,  4,  8
+sizeHeight:     .byte   8, 8,  8,  8,  16, 16, 16, 16
+sizeLength:     .byte   8, 16, 32, 64, 16, 32, 64, 128
+sizeMax:        .byte   128, 64, 64, 64, 64, 64, 64, 64
+.endproc
+
+;-----------------------------------------------------------------------------
+; Fill pixels
+;   Set all pixel to A (0=black, 1=white)
+;-----------------------------------------------------------------------------
+
+.proc fillPixels
+
+    sta     color
+    beq     :+
+    lda     #$7f
+    sta     color
+:
+    lda     tileIndex
+    jsr     setTilePointer
+
+    lda     color
+    ldy     #0
+:
+    sta     (bgPtr0),y
+
+    iny
+    cpy     tileLength
+    bne     :-
+    rts
+
+color:      .byte 0
+
+.endproc
+
+;-----------------------------------------------------------------------------
 ; copyTile
 ;-----------------------------------------------------------------------------
 .proc copyTile
 
     lda     tileIndex
-    jsr     setTilePointer_7x8
+    jsr     setTilePointer
 
     ldy     #0
 :
@@ -463,7 +603,7 @@ dump_count: .byte   0
 .proc pasteTile
 
     lda     tileIndex
-    jsr     setTilePointer_7x8
+    jsr     setTilePointer
 
     ldy     #0
 :
@@ -480,7 +620,42 @@ dump_count: .byte   0
 ; drawPreview
 ;
 ;-----------------------------------------------------------------------------
+
 .proc drawPreview
+    ; dispatched based on size
+    lda     tileSize
+    bne     :+
+    jmp     drawPreview_7x8
+:
+    cmp     #1
+    bne     :+
+    jmp     drawPreview_14x8
+:
+    cmp     #2
+    bne     :+
+    jmp     drawPreview_28x8
+:
+    brk
+
+drawPreview_14x8:
+    lda     #20
+    sta     tileX
+    lda     #0
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_14x8
+    rts
+
+drawPreview_28x8:
+    lda     #20
+    sta     tileX
+    lda     #0
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_28x8
+    rts
+
+drawPreview_7x8:
 
     ; Draw all tiles
     lda     #0
@@ -760,6 +935,120 @@ drawLoop:
 
     rts    
 
+.endproc
+
+;-----------------------------------------------------------------------------
+; drawTile_14x8
+;
+;   Always starts in AUX memory
+;
+;-----------------------------------------------------------------------------
+.proc drawTile_14x8
+
+    ; tile index passes in A
+    jsr     setTilePointer_14x8
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX           ; interpreting x as x*2
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    lda     linePage,x
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+
+drawLoop:
+    ; Byte 0 in AUX memory
+    sta     RAMWRTON
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; Bytes 1 in MAIN memory
+    inc     bgPtr0
+    sta     RAMWRTOFF
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    inc     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+    rts    
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; drawTile_28x8
+;
+;   Always starts in AUX memory
+;
+;-----------------------------------------------------------------------------
+.proc drawTile_28x8
+
+    ; tile index passes in A
+    jsr     setTilePointer_28x8
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX           ; index by half - tiles in X
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    lda     linePage,x
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+
+drawLoop:
+    ; Byte 0,1 in AUX memory
+    sta     RAMWRTON
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; Bytes 2,3 in MAIN memory
+    inc     bgPtr0
+    inc     bgPtr0
+    sta     RAMWRTOFF
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    inc     bgPtr0
+    inc     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+    rts    
 
 .endproc
 
@@ -768,8 +1057,26 @@ drawLoop:
 ;
 ;   Index passed in A
 ;-----------------------------------------------------------------------------
-.proc setTilePointer_7x8
+.proc setTilePointer
+    ; Dispatch
+    ldy     tileSize
+    bne     :+
+    jmp     setTilePointer_7x8
+:   
+    cpy     #1
+    bne     :+
+    jmp     setTilePointer_14x8
+:   
+    cpy     #2
+    bne     :+
+    jmp     setTilePointer_28x8
+:   
+    brk
 
+.endproc
+
+.proc setTilePointer_7x8
+    ; 8 bytes
     tay     ; copy A
     ; calculate tile pointer
     asl                     ; *8
@@ -790,6 +1097,72 @@ drawLoop:
 
 .endproc
 
+.proc setTilePointer_14x8
+    ; 16 bytes
+    tay     ; copy A
+    ; calculate tile pointer
+    asl                     ; *16
+    asl
+    asl
+    asl
+    sta     bgPtr0
+    tya     ; restore A
+    lsr                     ; /16
+    lsr
+    lsr
+    lsr
+    clc
+    adc     currentSheet_14x8+1
+    sta     bgPtr1
+
+    rts
+
+.endproc
+
+.proc setTilePointer_28x8
+    ; 32 bytes
+    tay     ; copy A
+    ; calculate tile pointer
+    asl                     ; *32
+    asl
+    asl
+    asl
+    asl
+    sta     bgPtr0
+    tya     ; restore A
+    lsr                     ; /8
+    lsr
+    lsr
+    clc
+    adc     currentSheet_28x8+1
+    sta     bgPtr1
+
+    rts
+
+.endproc
+
+.proc setTilePointer_56x8
+    ; 64 bytes
+    tay     ; copy A
+    ; calculate tile pointer
+    asl                     ; *64
+    asl
+    asl
+    asl
+    asl
+    asl
+    sta     bgPtr0
+    tya     ; restore A
+    lsr                     ; /4
+    lsr
+    clc
+    adc     currentSheet_56x8+1
+    sta     bgPtr1
+
+    rts
+
+.endproc
+
 ;-----------------------------------------------------------------------------
 ; getPixel
 ;
@@ -799,7 +1172,7 @@ drawLoop:
 
 .proc getPixel
     lda     tileIndex
-    jsr     setTilePointer_7x8
+    jsr     setTilePointer
     jsr     getPixelOffset
     and     (bgPtr0),y
     rts
@@ -807,7 +1180,7 @@ drawLoop:
 
 .proc setPixel
     lda     tileIndex
-    jsr     setTilePointer_7x8
+    jsr     setTilePointer
     jsr     getPixelOffset
     ora     (bgPtr0),y
     sta     (bgPtr0),y
@@ -816,7 +1189,7 @@ drawLoop:
 
 .proc clearPixel
     lda     tileIndex
-    jsr     setTilePointer_7x8
+    jsr     setTilePointer
     jsr     getPixelOffset
     eor     #$ff
     and     (bgPtr0),y
@@ -826,7 +1199,7 @@ drawLoop:
 
 .proc togglePixel
     lda     tileIndex
-    jsr     setTilePointer_7x8
+    jsr     setTilePointer
     jsr     getPixelOffset
     eor     (bgPtr0),y
     sta     (bgPtr0),y
@@ -835,15 +1208,21 @@ drawLoop:
 
 ;-----------------------------------------------------------------------------
 ; getPixelOffset
-;
-;  y = offset to byte in pixel array
-;  a = bitmask within byte
+;   input: curX, curY
+;   y = offset to byte in pixel array
+;   a = bitmask within byte
 ;-----------------------------------------------------------------------------
 
 .proc getPixelOffset
 
+    clc
+    ldx     curX
+    lda     pixelByteOffset,x
+    adc     tileWidthBytes
+    tax     
+    lda     pixelInterLeaveOffset,x
+
     ; multiply y by width in bytes
-    lda     #0
     ldx     curY
     beq     multY
 :
@@ -851,14 +1230,10 @@ drawLoop:
     dex
     bne     :-
 multY:
-    ; a = y * width in bytes
-
-    ldx     curX
-    clc
-    adc     pixelByteOffset,x
-    ; a = y * width in bytes + x/7
+    ; a = y * width in bytes + x/7(interleaved)
     tay
 
+    ldx     curX
     lda     pixelByteMask,x
     rts
 .endproc
@@ -1172,10 +1547,13 @@ curX:               .byte   0
 curY:               .byte   0
 
 tileIndex:          .byte   0
-tileWidth:          .byte   7
-tileWidthBytes:     .byte   1
-tileHeight:         .byte   8
-tileLength:         .byte   1*8
+tileMax:            .byte   0
+tileSize:           .byte   0
+tileWidth:          .byte   0
+tileWidthBytes:     .byte   0
+tileHeight:         .byte   0
+tileLength:         .byte   0
+
 
 canvasX:            .byte   0
 canvasY:            .byte   0
@@ -1183,6 +1561,13 @@ canvasY:            .byte   0
 ; General
 
 currentSheet_7x8:   .word   tileSheet_7x8
+currentSheet_14x8:  .word   tileSheet_2k
+currentSheet_28x8:  .word   tileSheet_2k
+currentSheet_56x8:  .word   tileSheet_2k
+currentSheet_7x16:  .word   tileSheet_2k
+currentSheet_14x16: .word   tileSheet_2k
+currentSheet_28x16: .word   tileSheet_2k
+currentSheet_56x16: .word   tileSheet_2k
 
 ; Box routine   
 boxLeft:            .byte   0
@@ -1250,6 +1635,7 @@ linePage:
 
 .align      128
 
+; 56 bytes
 pixelByteOffset:                ; x / 7
     .byte   0,0,0,0,0,0,0
     .byte   1,1,1,1,1,1,1
@@ -1258,7 +1644,17 @@ pixelByteOffset:                ; x / 7
     .byte   4,4,4,4,4,4,4
     .byte   5,5,5,5,5,5,5
     .byte   6,6,6,6,6,6,6
+    .byte   7,7,7,7,7,7,7
 
+; 16 bytes
+pixelInterLeaveOffset:
+    .byte   255                 ; 0:     not used
+    .byte   0                   ; 1:     size 1 + (0)
+    .byte   0,1                 ; 2..3:  size 2 + (0..1)
+    .byte   0,2,1,3             ; 4..7:  size 4 + (0..3)
+    .byte   0,4,1,5,2,6,3,7     ; 8..15: size 8 + (0..7)
+
+; 56 bytes
 pixelByteMask:                  ; 1 << (x % 7)
     .byte   $01,$02,$04,$08,$10,$20,$40
     .byte   $01,$02,$04,$08,$10,$20,$40
@@ -1277,4 +1673,7 @@ tileSheet_7x8:
 
 .include "font7x8_apple2.asm"
 
+.align 256
+tileSheet_2k:
+    .res    2048
 
