@@ -84,7 +84,6 @@ toggle_text_off:
     bit     TXTCLR    
     jmp     skip_prompt
 :
-
     ;------------------
     ; RIGHT (arrow)
     ;------------------
@@ -101,7 +100,6 @@ toggle_text_off:
 right_good:
     jmp     finish_move
 :
-
     ;------------------
     ; LEFT (arrow)
     ;------------------
@@ -118,7 +116,6 @@ right_good:
 left_good:
     jmp     finish_move
 :
-
     ;------------------
     ; UP (arrow)
     ;------------------
@@ -151,8 +148,6 @@ up_good:
 down_good:
     jmp     finish_move
 :
-
-
     ;------------------
     ; - = Previous
     ;------------------
@@ -174,7 +169,6 @@ previous_continue:
     jsr     COUT
     jmp     reset_loop
 :
-
     ;------------------
     ; _ = Previous 8
     ;------------------
@@ -197,7 +191,6 @@ previous8_continue:
     jsr     COUT
     jmp     reset_loop
 :
-
     ;------------------
     ; = = Next
     ;------------------
@@ -219,7 +212,6 @@ next_continue:
     jsr     COUT
     jmp     reset_loop
 :
-
     ;------------------
     ; + = Next 8
     ;------------------
@@ -243,7 +235,6 @@ next_continue8:
     jsr     COUT
     jmp     reset_loop
 :
-
     ;------------------
     ; SP = Toggle Pixel
     ;------------------
@@ -256,7 +247,6 @@ next_continue8:
     jsr     drawPreview
     jmp     command_loop
 :
-
     ;------------------
     ; 0 = Clear Pixel
     ;------------------
@@ -269,7 +259,6 @@ next_continue8:
     jsr     drawPreview
     jmp     command_loop
 :
-
     ;------------------
     ; 1 = Set Pixel
     ;------------------
@@ -282,7 +271,26 @@ next_continue8:
     jsr     drawPreview
     jmp     command_loop
 :
-
+    ;------------------
+    ; ^C = Copy Tile
+    ;------------------
+    cmp     #KEY_CTRL_C
+    bne     :+
+    jsr     inline_print
+    StringCR "Copy tile to clipboard"
+    jsr     copyTile
+    jmp     command_loop
+:
+    ;------------------
+    ; ^V = Paste Tile
+    ;------------------
+    cmp     #KEY_CTRL_V
+    bne     :+
+    jsr     inline_print
+    StringCR "Paste tile from clipboard"
+    jsr     pasteTile
+    jmp     reset_loop
+:
     ;------------------
     ; ! = Dump
     ;------------------
@@ -371,13 +379,15 @@ finish_move:
     bit     TXTSET
     jsr     inline_print
     StringCont  "  Arrows:  Move cursor"
-    StringCont  "  Space:   Toggle pixel"
     StringCont  "  0:       Clear pixel"
     StringCont  "  1:       Set pixel"
+    StringCont  "  Space:   Toggle pixel"
+    StringCont  "  Ctrl-C:  Copy tile to clipboard"
+    StringCont  "  Ctrl-V:  Paste tile from clipboard (overwrites current tile)"
+    StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
     StringCont  "  !:       Dump bytes"
     StringCont  "  ?:       This help screen"
     StringCont  "  \:       Monitor"
-    StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
     StringCont  "  Ctrl-Q:  Quit"
     StringCont  "  Escape:  Toggle text/graphics"
     .byte   0
@@ -427,6 +437,45 @@ dump_finish:
 dump_count: .byte   0
 
 .endproc
+
+;-----------------------------------------------------------------------------
+; copyTile
+;-----------------------------------------------------------------------------
+.proc copyTile
+
+    lda     tileIndex
+    jsr     setTilePointer_7x8
+
+    ldy     #0
+:
+    lda     (bgPtr0),y
+    sta     clipboardData,y
+
+    iny
+    cpy     tileLength
+    bne     :-
+    rts
+.endproc
+
+;-----------------------------------------------------------------------------
+; pasteTile
+;-----------------------------------------------------------------------------
+.proc pasteTile
+
+    lda     tileIndex
+    jsr     setTilePointer_7x8
+
+    ldy     #0
+:
+    lda     clipboardData,y
+    sta     (bgPtr0),y
+
+    iny
+    cpy     tileLength
+    bne     :-
+    rts
+.endproc
+
 ;-----------------------------------------------------------------------------
 ; drawPreview
 ;
@@ -1140,6 +1189,8 @@ boxLeft:            .byte   0
 boxRight:           .byte   0
 boxTop:             .byte   0
 boxBottom:          .byte   0
+
+clipboardData:      .res    8*16
 
 ; Lookup tables
 ;-----------------------------------------------------------------------------
