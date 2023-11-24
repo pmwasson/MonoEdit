@@ -15,12 +15,21 @@
 ; Constants
 ;------------------------------------------------
 
-BOX_HORZ        = $45
-BOX_VERT        = BOX_HORZ+1
-BOX_UPPER_LEFT  = BOX_HORZ+2
-BOX_UPPER_RIGHT = BOX_HORZ+3
-BOX_LOWER_LEFT  = BOX_HORZ+4
-BOX_LOWER_RIGHT = BOX_HORZ+5
+CURSOR          = $02
+
+PIXEL_BLACK     = $20           ; Space
+PIXEL_WHITE     = $0e
+PIXEL_BG_EVEN   = $16
+PIXEL_BG_ODD    = $17
+
+BOX_HORZ        = $13
+BOX_VERT        = $7c
+BOX_UPPER_LEFT  = $1c
+BOX_UPPER_RIGHT = $1d
+BOX_LOWER_LEFT  = $1e
+BOX_LOWER_RIGHT = $1f
+
+MAX_TILES       = 128
 
 ;------------------------------------------------
 
@@ -40,41 +49,484 @@ BOX_LOWER_RIGHT = BOX_HORZ+5
     sta     CV
     jsr     VTAB
 
-    jsr     initMonochrome  ; Turn on monochrome dhgr
-    jsr     clearScreen
-
     ; display a greeting
     jsr     inline_print
     StringCR    "DHGR Monochrome tile editor - ? for help"
 
+    jsr     initMonochrome  ; Turn on monochrome dhgr
+    jsr     clearScreen
 
-    ; Draw letters
+reset_loop:
+    jsr     drawCanvas
 
-    lda     #0
-    sta     tileX
-    sta     tileY
-
-    jsr     drawString
-    String  "TILE:00 SIZE:7X8"
-
-    ; Edit Box
-    lda     #0
-    sta     boxLeft
-    lda     #8
-    sta     boxRight
-    lda     #1
-    sta     boxTop
-    lda     #10
-    sta     boxBottom
-    jsr     drawBox
-
+command_loop:
     jsr     inline_print
-    StringCR    "Exit to monitor"
+    String  "Command:"
 
+skip_prompt:
+    jsr     getInput    ; wait for keypress
+
+    ; Parse command
+
+    ;------------------
+    ; ESC = Toggle Text
+    ;------------------
+    cmp     #KEY_ESC
+    bne     :+
+    ; dont display anything
+    lda     TEXTMODE
+    bmi     toggle_text_off
+    bit     TXTSET    
+    jmp     skip_prompt
+toggle_text_off:
+    bit     TXTCLR    
+    jmp     skip_prompt
+:
+
+    ;------------------
+    ; RIGHT (arrow)
+    ;------------------
+    cmp     #KEY_RIGHT
+    bne     :+
+    jsr     inline_print
+    .byte   "Right ",0
+    inc     curX
+    lda     tileWidth
+    cmp     curX
+    bne     right_good
+    lda     #0
+    sta     curX
+right_good:
+    jmp     finish_move
+:
+
+    ;------------------
+    ; LEFT (arrow)
+    ;------------------
+    cmp     #KEY_LEFT
+    bne     :+
+    jsr     inline_print
+    .byte   "Left  ",0
+    dec     curX
+    lda     curX
+    bpl     left_good
+    lda     tileWidth
+    sta     curX
+    dec     curX
+left_good:
+    jmp     finish_move
+:
+
+    ;------------------
+    ; UP (arrow)
+    ;------------------
+    cmp     #KEY_UP
+    bne     :+
+    jsr     inline_print
+    .byte   "Up    ",0
+    dec     curY
+    lda     curY
+    bpl     up_good
+    lda     tileHeight
+    sta     curY
+    dec     curY
+up_good:
+    jmp     finish_move
+:
+    ;------------------
+    ; DOWN (arrow)
+    ;------------------
+    cmp     #KEY_DOWN
+    bne     :+
+    jsr     inline_print
+    .byte   "Down  ",0
+    inc     curY
+    lda     tileHeight
+    cmp     curY
+    bne     down_good
+    lda     #0
+    sta     curY
+down_good:
+    jmp     finish_move
+:
+
+
+    ;------------------
+    ; - = Previous
+    ;------------------
+    cmp     #$80 | '-'
+    bne     :+
+    jsr     inline_print
+    .byte   "Previous tile: ",0
+
+    lda     tileIndex
+    bne     previous_continue
+    lda     #MAX_TILES
+    sta     tileIndex
+previous_continue:
+    dec     tileIndex
+    lda     tileIndex
+    jsr     PRBYTE
+    lda     #13
+    jsr     COUT
+    jmp     reset_loop
+:
+
+    ;------------------
+    ; _ = Previous 8
+    ;------------------
+    cmp     #$80 | '_'
+    bne     :+
+    jsr     inline_print
+    .byte   "Previous 8 tiles: ",0
+
+    lda     tileIndex
+    sec     
+    sbc     #8
+    bpl     previous8_continue
+    clc
+    adc     #MAX_TILES
+previous8_continue:
+    sta     tileIndex
+    jsr     PRBYTE
+    lda     #13
+    jsr     COUT
+    jmp     reset_loop
+:
+
+    ;------------------
+    ; = = Next
+    ;------------------
+    cmp     #$80 | '='
+    bne     :+
+    jsr     inline_print
+    .byte   "Next tile: ",0
+
+    inc     tileIndex
+    lda     tileIndex
+    cmp     #MAX_TILES
+    bne     next_continue
+    lda     #0
+    sta     tileIndex
+next_continue:
+    jsr     PRBYTE
+    lda     #13
+    jsr     COUT
+    jmp     reset_loop
+:
+
+    ;------------------
+    ; + = Next 8
+    ;------------------
+    cmp     #$80 | '+'
+    bne     :+
+    jsr     inline_print
+    .byte   "Next 8 tiles: ",0
+
+    lda     tileIndex
+    clc
+    adc     #8
+    cmp     #MAX_TILES
+    bmi     next_continue8
+    sec
+    sbc     #MAX_TILES
+next_continue8:
+    sta     tileIndex
+    jsr     PRBYTE
+    lda     #13
+    jsr     COUT
+    jmp     reset_loop
+:
+
+    ;------------------
+    ; SP = Toggle Pixel
+    ;------------------
+    cmp     #KEY_SPACE
+    bne     :+
+    jsr     inline_print
+    StringCR "Toggle Pixel"
+    jsr     togglePixel
+    jsr     drawPixel
+    jmp     command_loop
+:
+
+    ;------------------
+    ; 0 = Clear Pixel
+    ;------------------
+    cmp     #$80 | '0'
+    bne     :+
+    jsr     inline_print
+    StringCR "Clear Pixel"
+    jsr     clearPixel
+    jsr     drawPixel
+    jmp     command_loop
+:
+
+    ;------------------
+    ; 1 = Set Pixel
+    ;------------------
+    cmp     #$80 | '1'
+    bne     :+
+    jsr     inline_print
+    StringCR "Set Pixel"
+    jsr     setPixel
+    jsr     drawPixel
+    jmp     command_loop
+:
+
+    ;------------------
+    ; Q = QUIT
+    ;------------------
+    cmp     #KEY_CTRL_Q
+    bne     :+
+    jsr     inline_print
+    .byte   "Quit",13,0
+    bit     TXTSET
+    jmp     quit
+:
+
+    ;------------------
+    ; \ = Monitor
+    ;------------------
+    cmp     #$80 | '\'
+    bne     :+
+    jsr     inline_print
+    .byte   "Monitor",13,"(enter CTRL-Y to return)",13,0
+
+    ; Set ctrl-y vector
+    lda     #$4c        ; JMP
+    sta     $3f8
+    lda     #<main
+    sta     $3f9
+    lda     #>main
+    sta     $3fa
+
+    bit     TXTSET
     jmp     MONZ        ; enter monitor
+:
+
+    ;------------------
+    ; ? = HELP
+    ;------------------
+    cmp     #$80 + '?'
+    bne     :+
+    jsr     inline_print
+    .byte   "Help (ESC when done)",13,0
+    jsr     printHelp
+    jmp     command_loop
+:
+
+    ;------------------
+    ; Unknown
+    ;------------------
+    jsr     inline_print
+    .byte   "Unknown command (? for help)",13,0
+    jmp     command_loop
+
+; jump to after changing coordinates to display
+finish_move:
+    jsr     inline_print
+    .byte   "X/Y:",0
+    lda     curX
+    jsr     PRBYTE
+    lda     #$80 + ','
+    jsr     COUT
+    lda     curY
+    jsr     PRBYTE
+    lda     #13
+    jsr     COUT
+    jmp     command_loop
 
 .endproc
 
+;-----------------------------------------------------------------------------
+; printHelp
+;-----------------------------------------------------------------------------
+.proc printHelp
+    bit     TXTSET
+    jsr     inline_print
+    StringCont  "  Arrows:  Move cursor"
+    StringCont  "  Space:   Toggle pixel"
+    StringCont  "  0:       Clear pixel"
+    StringCont  "  1:       Set pixel"
+    StringCont  "  ?:       This help screen"
+    StringCont  "  \:       Monitor"
+    StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
+    StringCont  "  Ctrl-Q:  Quit"
+    StringCont  "  Escape:  Toggle text/graphics"
+    .byte   0
+
+    rts
+.endproc
+
+;-----------------------------------------------------------------------------
+; DrawCanvas
+;
+;-----------------------------------------------------------------------------
+.proc drawCanvas
+
+    ; Draw outline
+    lda     canvasX
+    sta     boxLeft
+    sec
+    adc     tileWidth
+    sta     boxRight    ; right = left + width + 1
+    lda     canvasY
+    sta     boxTop
+    sec
+    adc     tileHeight
+    sta     boxBottom   ; bottom = top + height + 1
+    jsr     drawBox
+
+    ; save cursor
+    lda     curX
+    sta     tempX
+    lda     curY
+    sta     tempY
+
+yloop:
+    lda     #0
+    sta     curX
+xloop:
+    jsr     drawPixel
+
+    inc     curX
+    lda     curX
+    cmp     tileWidth
+    bne     xloop
+
+    inc     curY
+    lda     curY
+    cmp     tileHeight
+    bne     yloop
+
+    ; restore cursor
+    lda     tempX
+    sta     curX
+    lda     tempY
+    sta     curY
+
+    rts
+
+tempX:  .byte   0
+tempY:  .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; getInput
+;   Blink cursors and wait for keypress
+;   Return key in A (upper bit set)
+;-----------------------------------------------------------------------------
+.proc getInput
+    
+cursor_loop:
+    ; Display cursor
+    lda     #$FF
+    jsr     COUT
+
+    jsr     drawCursor
+
+    ; Wait (on)
+    jsr     wait
+
+    ; Restore
+    lda     #$88        ; backspace
+    jsr     COUT
+    lda     #$A0        ; space
+    jsr     COUT
+    lda     #$88        ; backspace
+    jsr     COUT
+
+    jsr     drawPixel
+
+    ; check for keypress
+    lda     KBD 
+    bmi     exit
+
+    ; Wait (off)
+    jsr     wait
+
+    ; check for keypress
+    lda     KBD 
+    bpl     cursor_loop
+
+exit:
+    bit     KBDSTRB     ; clean up
+
+    rts
+
+; Wait loop that can be interrupted by key-press
+wait:
+    ldx     #$80
+wait_x:
+    ldy     #0
+wait_y:
+    lda     KBD
+    bmi     waitExit
+    dey
+    bne     wait_y
+    dex
+    bne     wait_x
+waitExit:
+    rts
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; DrawPixel
+;   Based on curX, curY and color
+;-----------------------------------------------------------------------------
+.proc drawPixel
+
+    ; set location
+    lda     curY
+    sec
+    adc     canvasY
+    sta     tileY
+
+    lda     curX
+    sec
+    adc     canvasX
+    sta     tileX
+
+    jsr     getPixel
+    bne     :+
+    lda     #PIXEL_BLACK
+    jmp     cont
+:
+    lda     #PIXEL_WHITE
+
+cont:
+    jsr     drawTile_7x8
+
+    rts
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; DrawCursor
+;   Based on curX, curY
+;-----------------------------------------------------------------------------
+.proc drawCursor
+
+    ; set location
+    lda     curY
+    sec
+    adc     canvasY
+    sta     tileY
+
+    lda     curX
+    sec
+    adc     canvasX
+    sta     tileX
+
+    lda     #CURSOR
+    jsr     drawTile_7x8
+
+    rts
+
+.endproc
 
 ;-----------------------------------------------------------------------------
 ; drawTile_7x8
@@ -89,7 +541,7 @@ BOX_LOWER_RIGHT = BOX_HORZ+5
     ; tile index passes in A
     jsr     setTilePointer_7x8
 
-    sta     CLR80COL        ; Use RAMWRT for aux mem
+    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
 
     ; calculate screen pointer
     ldx     tileY
@@ -129,7 +581,11 @@ drawLoop:
 
 .endproc
 
-; Index passed in A
+;-----------------------------------------------------------------------------
+; setTilePointer
+;
+;   Index passed in A
+;-----------------------------------------------------------------------------
 .proc setTilePointer_7x8
 
     tay     ; copy A
@@ -150,6 +606,79 @@ drawLoop:
 
     rts
 
+.endproc
+
+;-----------------------------------------------------------------------------
+; getPixel
+;
+;  Read single pixel from tile passed in A using curX and curY
+;
+;-----------------------------------------------------------------------------
+
+.proc getPixel
+    lda     tileIndex
+    jsr     setTilePointer_7x8
+    jsr     getPixelOffset
+    and     (bgPtr0),y
+    rts
+.endproc
+
+.proc setPixel
+    lda     tileIndex
+    jsr     setTilePointer_7x8
+    jsr     getPixelOffset
+    ora     (bgPtr0),y
+    sta     (bgPtr0),y
+    rts
+.endproc
+
+.proc clearPixel
+    lda     tileIndex
+    jsr     setTilePointer_7x8
+    jsr     getPixelOffset
+    eor     #$ff
+    and     (bgPtr0),y
+    sta     (bgPtr0),y
+    rts
+.endproc
+
+.proc togglePixel
+    lda     tileIndex
+    jsr     setTilePointer_7x8
+    jsr     getPixelOffset
+    eor     (bgPtr0),y
+    sta     (bgPtr0),y
+    rts
+.endproc
+
+;-----------------------------------------------------------------------------
+; getPixelOffset
+;
+;  y = offset to byte in pixel array
+;  a = bitmask within byte
+;-----------------------------------------------------------------------------
+
+.proc getPixelOffset
+
+    ; multiply y by width in bytes
+    lda     #0
+    ldx     curY
+    beq     multY
+:
+    adc     tileWidthBytes
+    dex
+    bne     :-
+multY:
+    ; a = y * width in bytes
+
+    ldx     curX
+    clc
+    adc     pixelByteOffset,x
+    ; a = y * width in bytes + x/7
+    tay
+
+    lda     pixelByteMask,x
+    rts
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -187,7 +716,7 @@ printLoop:
     sta     tileX
     jmp     continue
 :
-    and     #$3f
+    and     #$7f
     jsr     drawTile_7x8
 
     inc     tileX
@@ -383,6 +912,23 @@ quit_params:
 
 ; Global Variables
 ;-----------------------------------------------------------------------------
+
+; Edit
+
+color:              .byte   0
+curX:               .byte   0
+curY:               .byte   0
+
+tileIndex:          .byte   0
+tileWidth:          .byte   7
+tileWidthBytes:     .byte   1
+tileHeight:         .byte   8
+
+canvasX:            .byte   0
+canvasY:            .byte   0
+
+; General
+
 currentSheet_7x8:   .word   tileSheet_7x8
 
 ; Box routine   
@@ -447,6 +993,26 @@ linePage:
     .byte   >$2350
     .byte   >$23D0
 
+.align      128
+
+pixelByteOffset:                ; x / 7
+    .byte   0,0,0,0,0,0,0
+    .byte   1,1,1,1,1,1,1
+    .byte   2,2,2,2,2,2,2
+    .byte   3,3,3,3,3,3,3
+    .byte   4,4,4,4,4,4,4
+    .byte   5,5,5,5,5,5,5
+    .byte   6,6,6,6,6,6,6
+
+pixelByteMask:                  ; 1 << (x % 7)
+    .byte   $01,$02,$04,$08,$10,$20,$40
+    .byte   $01,$02,$04,$08,$10,$20,$40
+    .byte   $01,$02,$04,$08,$10,$20,$40
+    .byte   $01,$02,$04,$08,$10,$20,$40
+    .byte   $01,$02,$04,$08,$10,$20,$40
+    .byte   $01,$02,$04,$08,$10,$20,$40
+    .byte   $01,$02,$04,$08,$10,$20,$40
+    .byte   $01,$02,$04,$08,$10,$20,$40
 
 ; Tiles
 ;-----------------------------------------------------------------------------
@@ -454,81 +1020,6 @@ linePage:
 .align 256
 tileSheet_7x8:
 
-    .byte $1C, $22, $2A, $3A, $1A, $02, $3C, $00    ; 0x40 @ 
-    .byte $08, $14, $22, $22, $3E, $22, $22, $00    ; 0x41 A 
-    .byte $1E, $22, $22, $1E, $22, $22, $1E, $00    ; 0x42 B 
-    .byte $1C, $22, $02, $02, $02, $22, $1C, $00    ; 0x43 C 
-    .byte $1E, $22, $22, $22, $22, $22, $1E, $00    ; 0x44 D 
-    .byte $3E, $02, $02, $1E, $02, $02, $3E, $00    ; 0x45 E 
-    .byte $3E, $02, $02, $1E, $02, $02, $02, $00    ; 0x46 F 
-    .byte $3C, $02, $02, $02, $32, $22, $3C, $00    ; 0x47 G 
-    .byte $22, $22, $22, $3E, $22, $22, $22, $00    ; 0x48 H 
-    .byte $1C, $08, $08, $08, $08, $08, $1C, $00    ; 0x49 I 
-    .byte $20, $20, $20, $20, $20, $22, $1C, $00    ; 0x4A J 
-    .byte $22, $12, $0A, $06, $0A, $12, $22, $00    ; 0x4B K 
-    .byte $02, $02, $02, $02, $02, $02, $3E, $00    ; 0x4C L 
-    .byte $22, $36, $2A, $2A, $22, $22, $22, $00    ; 0x4D M 
-    .byte $22, $22, $26, $2A, $32, $22, $22, $00    ; 0x4E N 
-    .byte $1C, $22, $22, $22, $22, $22, $1C, $00    ; 0x4F O 
-    .byte $1E, $22, $22, $1E, $02, $02, $02, $00    ; 0x50 P 
-    .byte $1C, $22, $22, $22, $2A, $12, $2C, $00    ; 0x51 Q 
-    .byte $1E, $22, $22, $1E, $0A, $12, $22, $00    ; 0x52 R 
-    .byte $1C, $22, $02, $1C, $20, $22, $1C, $00    ; 0x53 S 
-    .byte $3E, $08, $08, $08, $08, $08, $08, $00    ; 0x54 T 
-    .byte $22, $22, $22, $22, $22, $22, $1C, $00    ; 0x55 U 
-    .byte $22, $22, $22, $22, $22, $14, $08, $00    ; 0x56 V 
-    .byte $22, $22, $22, $2A, $2A, $36, $22, $00    ; 0x57 W 
-    .byte $22, $22, $14, $08, $14, $22, $22, $00    ; 0x58 X 
-    .byte $22, $22, $14, $08, $08, $08, $08, $00    ; 0x59 Y 
-    .byte $3E, $20, $10, $08, $04, $02, $3E, $00    ; 0x5A Z 
-    .byte $3E, $06, $06, $06, $06, $06, $3E, $00    ; 0x5B [ 
-    .byte $00, $02, $04, $08, $10, $20, $00, $00    ; 0x5C \ 
-    .byte $3E, $30, $30, $30, $30, $30, $3E, $00    ; 0x5D ] 
-    .byte $00, $00, $08, $14, $22, $00, $00, $00    ; 0x5E ^ 
-    .byte $00, $00, $00, $00, $00, $00, $00, $7F    ; 0x5F _ 
-    .byte $00, $00, $00, $00, $00, $00, $00, $00    ; 0x20   
-    .byte $08, $08, $08, $08, $08, $00, $08, $00    ; 0x21 ! 
-    .byte $14, $14, $14, $00, $00, $00, $00, $00    ; 0x22 " 
-    .byte $14, $14, $3E, $14, $3E, $14, $14, $00    ; 0x23 # 
-    .byte $08, $3C, $0A, $1C, $28, $1E, $08, $00    ; 0x24 $ 
-    .byte $06, $26, $10, $08, $04, $32, $30, $00    ; 0x25 % 
-    .byte $04, $0A, $0A, $04, $2A, $12, $2C, $00    ; 0x26 & 
-    .byte $08, $08, $08, $00, $00, $00, $00, $00    ; 0x27 ' 
-    .byte $08, $04, $02, $02, $02, $04, $08, $00    ; 0x28 ( 
-    .byte $08, $10, $20, $20, $20, $10, $08, $00    ; 0x29 ) 
-    .byte $08, $2A, $1C, $08, $1C, $2A, $08, $00    ; 0x2A * 
-    .byte $00, $08, $08, $3E, $08, $08, $00, $00    ; 0x2B + 
-    .byte $00, $00, $00, $00, $08, $08, $04, $00    ; 0x2C , 
-    .byte $00, $00, $00, $3E, $00, $00, $00, $00    ; 0x2D - 
-    .byte $00, $00, $00, $00, $00, $00, $08, $00    ; 0x2E . 
-    .byte $00, $20, $10, $08, $04, $02, $00, $00    ; 0x2F / 
-    .byte $1C, $22, $32, $2A, $26, $22, $1C, $00    ; 0x30 0 
-    .byte $08, $0C, $08, $08, $08, $08, $1C, $00    ; 0x31 1 
-    .byte $1C, $22, $20, $18, $04, $02, $3E, $00    ; 0x32 2 
-    .byte $3E, $20, $10, $18, $20, $22, $1C, $00    ; 0x33 3 
-    .byte $10, $18, $14, $12, $3E, $10, $10, $00    ; 0x34 4 
-    .byte $3E, $02, $1E, $20, $20, $22, $1C, $00    ; 0x35 5 
-    .byte $38, $04, $02, $1E, $22, $22, $1C, $00    ; 0x36 6 
-    .byte $3E, $20, $10, $08, $04, $04, $04, $00    ; 0x37 7 
-    .byte $1C, $22, $22, $1C, $22, $22, $1C, $00    ; 0x38 8 
-    .byte $1C, $22, $22, $3C, $20, $10, $0E, $00    ; 0x39 9 
-    .byte $00, $00, $08, $00, $08, $00, $00, $00    ; 0x3A : 
-    .byte $00, $00, $08, $00, $08, $08, $04, $00    ; 0x3B ; 
-    .byte $10, $08, $04, $02, $04, $08, $10, $00    ; 0x3C < 
-    .byte $00, $00, $3E, $00, $3E, $00, $00, $00    ; 0x3D = 
-    .byte $04, $08, $10, $20, $10, $08, $04, $00    ; 0x3E > 
-    .byte $1C, $22, $10, $08, $08, $00, $08, $00    ; 0x3F ? 
+.include "font7x8_apple2.asm"
 
-    ; Screen elements starting at 0x40 (no lower case)
 
-    .byte $55, $2a, $55, $2a, $55, $2a, $55, $2a    ; Background pixel - even
-    .byte $2a, $55, $2a, $55, $2a, $55, $2a, $55    ; Background pixel - odd
-    .byte $00, $00, $00, $00, $00, $00, $00, $00    ; Black pixel
-    .byte $7f, $7f, $7f, $7f, $7f, $7f, $7f, $7f    ; White pixel
-    .byte $41, $22, $14, $08, $08, $14, $22, $41    ; X cursor
-    .byte $00, $00, $00, $7F, $00, $00, $00, $00    ; Horizontal line 
-    .byte $08, $08, $08, $08, $08, $08, $08, $08    ; Vertical line 
-    .byte $00, $00, $00, $F8, $08, $08, $08, $08    ; Box NW Corner
-    .byte $00, $00, $00, $0F, $08, $08, $08, $08    ; Box NE Corner 
-    .byte $08, $08, $08, $F8, $00, $00, $00, $00    ; Box SW Corner 
-    .byte $08, $08, $08, $0F, $00, $00, $00, $00    ; Box SE Corner
