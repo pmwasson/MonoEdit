@@ -28,6 +28,7 @@ BOX_UPPER_LEFT  = $1c
 BOX_UPPER_RIGHT = $1d
 BOX_LOWER_LEFT  = $1e
 BOX_LOWER_RIGHT = $1f
+BOX_BLANK       = $20
 
 MAX_TILES       = 128
 
@@ -37,7 +38,7 @@ MAX_TILES       = 128
 .org    $4000
 
 ;=============================================================================
-; Initial jump vector
+; Main
 ;=============================================================================
 
 .proc main
@@ -58,6 +59,7 @@ MAX_TILES       = 128
 
 reset_loop:
     jsr     drawCanvas
+    jsr     drawPreview
 
 command_loop:
     jsr     inline_print
@@ -159,6 +161,7 @@ down_good:
     jsr     inline_print
     .byte   "Previous tile: ",0
 
+    jsr     eraseBox
     lda     tileIndex
     bne     previous_continue
     lda     #MAX_TILES
@@ -180,6 +183,7 @@ previous_continue:
     jsr     inline_print
     .byte   "Previous 8 tiles: ",0
 
+    jsr     eraseBox
     lda     tileIndex
     sec     
     sbc     #8
@@ -202,6 +206,7 @@ previous8_continue:
     jsr     inline_print
     .byte   "Next tile: ",0
 
+    jsr     eraseBox
     inc     tileIndex
     lda     tileIndex
     cmp     #MAX_TILES
@@ -223,6 +228,7 @@ next_continue:
     jsr     inline_print
     .byte   "Next 8 tiles: ",0
 
+    jsr     eraseBox
     lda     tileIndex
     clc
     adc     #8
@@ -247,6 +253,7 @@ next_continue8:
     StringCR "Toggle Pixel"
     jsr     togglePixel
     jsr     drawPixel
+    jsr     drawPreview
     jmp     command_loop
 :
 
@@ -259,6 +266,7 @@ next_continue8:
     StringCR "Clear Pixel"
     jsr     clearPixel
     jsr     drawPixel
+    jsr     drawPreview
     jmp     command_loop
 :
 
@@ -271,6 +279,23 @@ next_continue8:
     StringCR "Set Pixel"
     jsr     setPixel
     jsr     drawPixel
+    jsr     drawPreview
+    jmp     command_loop
+:
+
+    ;------------------
+    ; ! = Dump
+    ;------------------
+    cmp     #$80 + '!' 
+    bne     :+
+    bit     TXTSET
+    jsr     inline_print
+    .byte   "Dump Tile ",0
+    lda     tileIndex
+    jsr     PRBYTE
+    jsr     inline_print
+    .byte   " (ESC when done) ",13,0
+    jsr     printDump
     jmp     command_loop
 :
 
@@ -349,6 +374,7 @@ finish_move:
     StringCont  "  Space:   Toggle pixel"
     StringCont  "  0:       Clear pixel"
     StringCont  "  1:       Set pixel"
+    StringCont  "  !:       Dump bytes"
     StringCont  "  ?:       This help screen"
     StringCont  "  \:       Monitor"
     StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
@@ -357,6 +383,110 @@ finish_move:
     .byte   0
 
     rts
+.endproc
+
+;-----------------------------------------------------------------------------
+; printDump
+;-----------------------------------------------------------------------------
+.proc printDump
+
+    lda     tileIndex
+    jsr     setTilePointer_7x8
+
+    jsr     inline_print
+    .byte   ".byte ",0
+
+    lda     #0
+    sta     dump_count
+    jmp     dump_loop
+dump_comma:
+    lda     #$80 + ','
+    jsr     COUT
+dump_loop:
+    lda     #$80 + '$'
+    jsr     COUT
+    ldy     dump_count
+    lda     (bgPtr0),y
+    jsr     PRBYTE
+    inc     dump_count
+    lda     dump_count
+    cmp     tileLength
+    beq     dump_finish
+    lda     dump_count
+    and     #$f
+    bne     dump_comma
+    jsr     inline_print
+    .byte   13,".byte ",0
+    jmp     dump_loop
+
+dump_finish:
+    lda     #13
+    jsr     COUT
+    rts
+
+dump_count: .byte   0
+
+.endproc
+;-----------------------------------------------------------------------------
+; drawPreview
+;
+;-----------------------------------------------------------------------------
+.proc drawPreview
+
+    ; Draw all tiles
+    lda     #0
+    sta     index
+
+    lda     #1
+    sta     tileY
+
+yloop:
+    lda     #79-16*2        ; 16 across
+    sta     tileX
+
+xloop:
+    lda     index
+    jsr     drawTile_7x8
+    inc     index
+
+    inc     tileX
+    inc     tileX
+    lda     tileX
+    cmp     #79
+    bne     xloop
+
+    inc     tileY
+    inc     tileY
+    lda     tileY
+    cmp     #1+8*2          ; 8 high
+    bne     yloop 
+
+    ; Draw box around current tile
+    lda     tileIndex
+    lsr
+    lsr                    
+    lsr
+    and     #$fe            ; /16 * 2 -> /8 and mask bit 0        
+    sta     boxTop
+    clc
+    adc     #2
+    sta     boxBottom
+
+    lda     tileIndex
+    and     #$f
+    asl
+    clc
+    adc     #78-16*2
+    sta     boxLeft
+    clc
+    adc     #2
+    sta     boxRight
+    jsr     drawBox
+
+    rts
+
+index:      .byte 0
+
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -383,6 +513,9 @@ finish_move:
     sta     tempX
     lda     curY
     sta     tempY
+
+    lda     #0
+    sta     curY
 
 yloop:
     lda     #0
@@ -818,6 +951,76 @@ offset: .byte   0
 
 .endproc
 
+.proc eraseBox
+
+    ; Draw corners
+    lda     boxLeft
+    sta     tileX
+    lda     boxTop
+    sta     tileY
+    lda     #BOX_BLANK
+    jsr     drawTile_7x8
+
+    lda     boxRight
+    sta     tileX    
+    lda     #$20
+    jsr     drawTile_7x8
+
+    lda     boxBottom
+    sta     tileY
+    lda     #BOX_BLANK
+    jsr     drawTile_7x8
+
+    lda     boxLeft
+    sta     tileX
+    lda     #BOX_BLANK
+    jsr     drawTile_7x8
+
+    ; Draw horizontal
+
+    inc     tileX
+:
+    lda     boxTop
+    sta     tileY
+    lda     #BOX_BLANK
+    jsr     drawTile_7x8
+    
+    lda     boxBottom
+    sta     tileY
+    lda     #BOX_BLANK
+    jsr     drawTile_7x8
+    
+    inc     tileX
+    lda     boxRight
+    cmp     tileX
+    bne     :-
+
+    ; Draw vertical
+
+    lda     boxTop
+    sta     tileY
+    inc     tileY
+
+:
+    lda     boxLeft
+    sta     tileX
+    lda     #BOX_BLANK
+    jsr     drawTile_7x8
+    
+    lda     boxRight
+    sta     tileX
+    lda     #BOX_BLANK
+    jsr     drawTile_7x8
+    
+    inc     tileY
+    lda     boxBottom
+    cmp     tileY
+    bne     :-
+
+    rts
+
+.endproc
+
 ;-----------------------------------------------------------------------------
 ; DHGR clear screen
 ;-----------------------------------------------------------------------------
@@ -923,6 +1126,7 @@ tileIndex:          .byte   0
 tileWidth:          .byte   7
 tileWidthBytes:     .byte   1
 tileHeight:         .byte   8
+tileLength:         .byte   1*8
 
 canvasX:            .byte   0
 canvasY:            .byte   0

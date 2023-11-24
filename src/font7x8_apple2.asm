@@ -22,9 +22,9 @@
     .byte $7F, $00, $00, $00, $00, $00, $00, $00    ; $0C ^L 
     .byte $40, $40, $40, $44, $46, $7F, $06, $04    ; $0D ^M 
 
-    ; Modify white box to fill in all pixels (could also use inverse space, but don't have inverse yet)
+    ; Modify white box
     ; .byte $3F, $3F, $3F, $3F, $3F, $3F, $3F, $3F    ; $0E ^N
-    .byte $7F, $7F, $7F, $7F, $7F, $7F, $7F, $7F    ; white-pixel
+    .byte $3F, $3F, $3F, $3F, $3F, $3F, $3F, $00    ; white-pixel
 
     .byte $13, $18, $1C, $7E, $1C, $18, $10, $6F    ; $0F ^O 
     .byte $64, $0C, $1C, $3F, $1C, $0C, $04, $7B    ; $10 ^P 
