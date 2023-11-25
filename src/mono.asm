@@ -160,7 +160,6 @@ down_good:
     jsr     inline_print
     .byte   "Previous tile: ",0
 
-    jsr     eraseBox
     lda     tileIndex
     bne     previous_continue
     lda     tileMax
@@ -181,7 +180,6 @@ previous_continue:
     jsr     inline_print
     .byte   "Previous 8 tiles: ",0
 
-    jsr     eraseBox
     lda     tileIndex
     sec     
     sbc     #8
@@ -203,7 +201,6 @@ previous8_continue:
     jsr     inline_print
     .byte   "Next tile: ",0
 
-    jsr     eraseBox
     inc     tileIndex
     lda     tileIndex
     cmp     tileMax
@@ -224,7 +221,6 @@ next_continue:
     jsr     inline_print
     .byte   "Next 8 tiles: ",0
 
-    jsr     eraseBox
     lda     tileIndex
     clc
     adc     #8
@@ -539,6 +535,22 @@ dump_count: .byte   0
     sta     tileLength
     lda     sizeMax,x
     sta     tileMax
+
+    ; check that cursor is still in range
+    lda     tileWidth
+    cmp     curX
+    bpl     :+
+    lda     tileWidth
+    sta     curX
+    dec     curX
+:     
+    lda     tileHeight
+    cmp     curY
+    bpl     :+
+    lda     tileHeight
+    sta     curY
+    dec     curY
+:
     rts
 
 .align 8
@@ -546,7 +558,19 @@ sizeWidth:      .byte   7, 14, 28, 56, 7,  14, 28, 56
 sizeWidthBytes: .byte   1, 2,  4,  8,  1,  2,  4,  8
 sizeHeight:     .byte   8, 8,  8,  8,  16, 16, 16, 16
 sizeLength:     .byte   8, 16, 32, 64, 16, 32, 64, 128
-sizeMax:        .byte   128, 64, 64, 64, 64, 64, 64, 64
+
+; Tile max should be <= 4K
+; size  bytes/tile  4k/x    max    
+; 7x8   8           512     128
+; 14x8  16          256     64
+; 28x8  32          128     64
+; 56x8  64          64      64
+; 7x16  16          256     64
+; 14x16 32          128     64
+; 28x16 64          64      64
+; 56x16 128         32      32
+
+sizeMax:        .byte   128, 64, 32, 32, 64, 64, 64, 32
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -622,6 +646,17 @@ color:      .byte 0
 ;-----------------------------------------------------------------------------
 
 .proc drawPreview
+
+    ; title
+    lda     #72
+    sta     tileX
+    lda     #0
+    sta     tileY
+    jsr     drawString
+    String  "Tile:"
+    lda     tileIndex
+    jsr     drawNumber
+
     ; dispatched based on size
     lda     tileSize
     bne     :+
@@ -635,37 +670,39 @@ color:      .byte 0
     bne     :+
     jmp     drawPreview_28x8
 :
+    cmp     #3
+    bne     :+
+    jmp     drawPreview_56x8
+:
     brk
+.endproc
 
-drawPreview_14x8:
-    lda     #20
+.proc drawPreview_56x8
+    lda     #30
     sta     tileX
     lda     #0
     sta     tileY
     lda     tileIndex
-    jsr     drawTile_14x8
+    jsr     drawTile_56x8
     rts
+.endproc
 
-drawPreview_28x8:
-    lda     #20
-    sta     tileX
-    lda     #0
-    sta     tileY
-    lda     tileIndex
-    jsr     drawTile_28x8
-    rts
+.proc drawPreview_7x8
 
-drawPreview_7x8:
+    ; erase previous box
+    lda     prevIndex
+    jsr     setupBox_7x8
+    jsr     eraseBox
 
     ; Draw all tiles
     lda     #0
     sta     index
 
-    lda     #1
+    lda     #2
     sta     tileY
 
 yloop:
-    lda     #79-16*2        ; 16 across
+    lda     #40+1
     sta     tileX
 
 xloop:
@@ -676,40 +713,195 @@ xloop:
     inc     tileX
     inc     tileX
     lda     tileX
-    cmp     #79
+    cmp     #40+1+16*2
     bne     xloop
 
     inc     tileY
     inc     tileY
     lda     tileY
-    cmp     #1+8*2          ; 8 high
+    cmp     #2+8*2          ; 8 high
     bne     yloop 
 
-    ; Draw box around current tile
     lda     tileIndex
-    lsr
-    lsr                    
-    lsr
-    and     #$fe            ; /16 * 2 -> /8 and mask bit 0        
-    sta     boxTop
-    clc
-    adc     #2
-    sta     boxBottom
-
-    lda     tileIndex
-    and     #$f
-    asl
-    clc
-    adc     #78-16*2
-    sta     boxLeft
-    clc
-    adc     #2
-    sta     boxRight
+    sta     prevIndex
+    jsr     setupBox_7x8
     jsr     drawBox
 
     rts
 
+setupBox_7x8:
+    tax
+    ; Draw box around current tile
+    lsr
+    lsr                    
+    lsr
+    and     #$fe            ; /16 * 2 -> /8 and mask bit 0
+    clc
+    adc     #1       
+    sta     boxTop
+    sec
+    adc     #1              ; 1 (7x*) tile high
+    sta     boxBottom
+    txa
+
+    and     #$f
+    asl                     ; %16 * 2
+    clc
+    adc     #40
+    sta     boxLeft
+    sec
+    adc     #1              ; 1 (7x8) tile wide
+    sta     boxRight
+    rts
+
+
 index:      .byte 0
+prevIndex:  .byte 0
+
+.endproc
+
+.proc drawPreview_14x8
+
+    ; erase previous box
+    lda     prevIndex
+    jsr     setupBox_14x8
+    jsr     eraseBox
+
+    ; Draw all tiles
+    lda     #0
+    sta     index
+
+    lda     #2
+    sta     tileY
+
+yloop:
+    lda     #20+1
+    sta     tileX
+
+xloop:
+    lda     index
+    jsr     drawTile_14x8
+    inc     index
+
+    inc     tileX
+    inc     tileX
+    lda     tileX
+    cmp     #20+1+8*2
+    bne     xloop
+
+    inc     tileY
+    inc     tileY
+    lda     tileY
+    cmp     #2+8*2          ; 8 high
+    bne     yloop 
+
+    lda     tileIndex
+    sta     prevIndex
+    jsr     setupBox_14x8
+    jsr     drawBox
+
+    rts
+
+setupBox_14x8:
+    tax
+    ; Draw box around current tile
+    lsr
+    lsr                    
+    and     #$fe            ; /8 * 2 -> /4 and mask bit 0 
+    clc
+    adc     #1 
+    sta     boxTop
+    sec
+    adc     #1              ; 1 (7x*) tile high
+    sta     boxBottom
+    txa
+
+    and     #$7
+    asl                     ; %8 * 4
+    asl
+    clc
+    adc     #41
+    sta     boxLeft
+    sec
+    adc     #2              ; 2 (7x8) tile wide
+    sta     boxRight
+    rts
+
+index:      .byte 0
+prevIndex:  .byte 0
+
+.endproc
+
+.proc drawPreview_28x8
+
+    ; erase previous box
+    lda     prevIndex
+    jsr     setupBox_28x8
+    jsr     eraseBox
+
+    ; Draw all tiles
+    lda     #0
+    sta     index
+
+    lda     #2
+    sta     tileY
+
+yloop:
+    lda     #20+1
+    sta     tileX
+
+xloop:
+    lda     index
+    jsr     drawTile_28x8
+    inc     index
+
+    lda     tileX
+    clc
+    adc     #4
+    sta     tileX
+    cmp     #20+1+4*4
+    bne     xloop
+
+    inc     tileY
+    inc     tileY
+    lda     tileY
+    cmp     #2+8*2          ; 8 high
+    bne     yloop 
+
+    lda     tileIndex
+    sta     prevIndex
+    jsr     setupBox_28x8
+    jsr     drawBox
+
+    rts
+
+setupBox_28x8:
+    tax
+    ; Draw box around current tile
+    lsr
+    and     #$fe            ; /4 * 2 -> /2 and mask bit 0 
+    clc
+    adc     #1 
+    sta     boxTop
+    sec
+    adc     #1              ; 1 (7x*) tile high
+    sta     boxBottom
+    txa
+
+    and     #$3
+    asl                     ; %4 * 8
+    asl
+    asl
+    clc
+    adc     #41
+    sta     boxLeft
+    sec
+    adc     #4              ; 4 (7x8) tile wide
+    sta     boxRight
+    rts
+
+index:      .byte 0
+prevIndex:  .byte 0
 
 .endproc
 
@@ -1053,6 +1245,87 @@ drawLoop:
 .endproc
 
 ;-----------------------------------------------------------------------------
+; drawTile_56x8
+;
+;   Always starts in AUX memory
+;
+;-----------------------------------------------------------------------------
+.proc drawTile_56x8
+
+    ; tile index passes in A
+    jsr     setTilePointer_56x8
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX           ; index by half - tiles in X
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    lda     linePage,x
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+
+drawLoop:
+    ; Byte 0..3 in AUX memory
+    sta     RAMWRTON
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #2
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #3
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; Bytes 4..7 in MAIN memory
+    lda     bgPtr0
+    adc     #4
+    sta     bgPtr0
+    sta     RAMWRTOFF
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #2
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #3
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    lda     bgPtr0
+    adc     #4
+    sta     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+    rts    
+
+.endproc
+
+;-----------------------------------------------------------------------------
 ; setTilePointer
 ;
 ;   Index passed in A
@@ -1070,6 +1343,10 @@ drawLoop:
     cpy     #2
     bne     :+
     jmp     setTilePointer_28x8
+:   
+    cpy     #3
+    bne     :+
+    jmp     setTilePointer_56x8
 :   
     brk
 
@@ -1298,6 +1575,35 @@ printExit:
 
 char:   .byte   0
 offset: .byte   0
+.endproc
+
+;-----------------------------------------------------------------------------
+; Draw Number
+;
+;   Draw 2 digit hex number passed in A
+;-----------------------------------------------------------------------------
+.proc drawNumber
+    sta     temp
+    lsr
+    lsr
+    lsr
+    lsr     ; /16
+    tax
+    lda     numberLookup,x
+    jsr     drawTile_7x8
+    inc     tileX
+    lda     temp
+    and     #$F
+    tax
+    lda     numberLookup,x
+    jsr     drawTile_7x8
+    inc     tileX
+    rts
+
+temp:       .byte   0
+
+.align 16
+numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -1561,13 +1867,13 @@ canvasY:            .byte   0
 ; General
 
 currentSheet_7x8:   .word   tileSheet_7x8
-currentSheet_14x8:  .word   tileSheet_2k
-currentSheet_28x8:  .word   tileSheet_2k
-currentSheet_56x8:  .word   tileSheet_2k
-currentSheet_7x16:  .word   tileSheet_2k
-currentSheet_14x16: .word   tileSheet_2k
-currentSheet_28x16: .word   tileSheet_2k
-currentSheet_56x16: .word   tileSheet_2k
+currentSheet_14x8:  .word   tileSheet_4k
+currentSheet_28x8:  .word   tileSheet_4k
+currentSheet_56x8:  .word   tileSheet_4k
+currentSheet_7x16:  .word   tileSheet_4k
+currentSheet_14x16: .word   tileSheet_4k
+currentSheet_28x16: .word   tileSheet_4k
+currentSheet_56x16: .word   tileSheet_4k
 
 ; Box routine   
 boxLeft:            .byte   0
@@ -1674,6 +1980,6 @@ tileSheet_7x8:
 .include "font7x8_apple2.asm"
 
 .align 256
-tileSheet_2k:
-    .res    2048
+tileSheet_4k:
+    .res    4096
 
