@@ -337,6 +337,43 @@ tileSizeCancel:
     jmp     command_loop
 :
     ;------------------
+    ; ^R = Rotate
+    ;------------------
+    cmp     #KEY_CTRL_R
+    bne     rotate_after
+    jsr     inline_print
+    .byte   "Rotate Direction (or cancel):",0
+    jsr     getInputDirection
+    beq     rotate_cancel
+
+    cmp     #KEY_UP
+    bne     :+
+    jsr     rotateUp
+    jmp     rotate_done
+:
+
+    cmp     #KEY_DOWN
+    bne     :+
+    jsr     rotateDown
+    jmp     rotate_done
+:
+    cmp     #KEY_LEFT
+    bne     :+
+    jsr     rotateLeft
+    jmp     rotate_done
+:
+    ; must be right
+    jsr     rotateRight
+
+rotate_done:
+    jmp     refresh_loop
+
+rotate_cancel:
+    jmp     command_loop
+
+rotate_after:
+
+    ;------------------
     ; ! = Dump
     ;------------------
     cmp     #$80 + '!' 
@@ -462,6 +499,47 @@ cancel:
 max_digit:  .byte   0
 
 .endproc
+
+;-----------------------------------------------------------------------------
+; Get input direction
+;   Pick and diplay 1 of 4 directions or cancel
+;-----------------------------------------------------------------------------
+.proc getInputDirection
+    jsr     getInput
+    cmp     #KEY_LEFT
+    bne     :+
+    jsr     inline_print
+    .byte   "Left ",13,0
+    lda     #KEY_LEFT
+    rts
+:
+    cmp     #KEY_RIGHT
+    bne     :+
+    jsr     inline_print
+    .byte   "Right",13,0
+    lda     #KEY_RIGHT
+    rts
+:
+    cmp     #KEY_UP
+    bne     :+
+    jsr     inline_print
+    .byte   "Up   ",13,0
+    lda     #KEY_UP
+    rts
+:
+    cmp     #KEY_DOWN
+    bne     :+
+    jsr     inline_print
+    .byte   "Down ",13,0
+    lda     #KEY_DOWN
+    rts
+:
+    jsr     inline_print
+    .byte   "Cancel",13,0
+    LDA     #0
+    rts
+.endproc
+
 
 ;-----------------------------------------------------------------------------
 ; printHelp
@@ -669,6 +747,214 @@ color:      .byte 0
 .endproc
 
 ;-----------------------------------------------------------------------------
+; Rotate up 
+;  Rotate all pixels based on tile size
+;-----------------------------------------------------------------------------
+; Could be done much faster by using bytes, but was too lazy
+.proc rotateUp
+
+    lda     curX
+    sta     tempX
+    lda     curY
+    sta     tempY
+
+    lda     #0
+    sta     curX
+
+loopX:
+    lda     #0
+    sta     curY
+
+    ; save first pixel
+    jsr     getPixel
+    sta     temp
+    inc     curY
+
+loopY:
+    ; read pixel and write pixel above
+    jsr     getPixel
+    dec     curY
+    jsr     copyPixel
+    inc     curY
+    inc     curY
+    lda     curY
+    cmp     tileHeight
+    bne     loopY
+
+    lda     temp
+    dec     curY
+    jsr     copyPixel
+    
+    inc     curX
+    lda     curX
+    cmp     tileWidth
+    bne     loopX
+
+    lda     tempX
+    sta     curX
+    lda     tempY
+    sta     curY
+    rts
+
+tempX:  .byte   0
+tempY:  .byte   0
+temp:   .byte   0
+
+.endproc
+
+.proc rotateDown
+
+    lda     curX
+    sta     tempX
+    lda     curY
+    sta     tempY
+
+    lda     #0
+    sta     curX
+
+loopX:
+    lda     tileHeight
+    sta     curY
+    dec     curY
+
+    ; save first pixel
+    jsr     getPixel
+    sta     temp
+    dec     curY
+
+loopY:
+    ; read pixel and write pixel above
+    jsr     getPixel
+    inc     curY
+    jsr     copyPixel
+    dec     curY
+    dec     curY
+    lda     curY
+    bpl     loopY
+
+    lda     temp
+    inc     curY
+    jsr     copyPixel
+    
+    inc     curX
+    lda     curX
+    cmp     tileWidth
+    bne     loopX
+
+    lda     tempX
+    sta     curX
+    lda     tempY
+    sta     curY
+    rts
+
+tempX:  .byte   0
+tempY:  .byte   0
+temp:   .byte   0
+
+.endproc
+
+.proc rotateLeft
+
+    lda     curX
+    sta     tempX
+    lda     curY
+    sta     tempY
+
+    lda     #0
+    sta     curY
+
+loopY:
+    lda     #0
+    sta     curX
+
+    ; save first pixel
+    jsr     getPixel
+    sta     temp
+    inc     curX
+
+loopX:
+    ; read pixel and write pixel above
+    jsr     getPixel
+    dec     curX
+    jsr     copyPixel
+    inc     curX
+    inc     curX
+    lda     curX
+    cmp     tileWidth
+    bne     loopX
+
+    lda     temp
+    dec     curX
+    jsr     copyPixel
+    
+    inc     curY
+    lda     curY
+    cmp     tileHeight
+    bne     loopY
+
+    lda     tempX
+    sta     curX
+    lda     tempY
+    sta     curY
+    rts
+
+tempX:  .byte   0
+tempY:  .byte   0
+temp:   .byte   0
+
+.endproc
+
+.proc rotateRight
+
+    lda     curX
+    sta     tempX
+    lda     curY
+    sta     tempY
+
+    lda     #0
+    sta     curY
+
+loopY:
+    lda     tileWidth
+    sta     curX
+    dec     curX
+
+    ; save first pixel
+    jsr     getPixel
+    sta     temp
+    dec     curX
+
+loopX:
+    ; read pixel and write pixel above
+    jsr     getPixel
+    inc     curX
+    jsr     copyPixel
+    dec     curX
+    dec     curX
+    lda     curX
+    bpl     loopX
+
+    lda     temp
+    inc     curX
+    jsr     copyPixel
+    
+    inc     curY
+    lda     curY
+    cmp     tileHeight
+    bne     loopY
+
+    lda     tempX
+    sta     curX
+    lda     tempY
+    sta     curY
+    rts
+
+tempX:  .byte   0
+tempY:  .byte   0
+temp:   .byte   0
+
+.endproc
+;-----------------------------------------------------------------------------
 ; drawPreview
 ;
 ;-----------------------------------------------------------------------------
@@ -716,16 +1002,6 @@ color:      .byte 0
 :
     jmp     drawPreview_56x16
     
-.endproc
-
-.proc drawPreview_7x16
-    lda     #30
-    sta     tileX
-    lda     #2
-    sta     tileY
-    lda     tileIndex
-    jsr     drawTile_7x16
-    rts
 .endproc
 
 .proc drawPreview_14x16
@@ -1038,6 +1314,79 @@ setupBox_28x8:
     adc     #4              ; 4 (7x8) tile wide
     sta     boxRight
     rts
+
+index:      .byte 0
+prevIndex:  .byte 0
+
+.endproc
+
+.proc drawPreview_7x16
+
+    ; erase previous box
+    lda     prevIndex
+    jsr     setupBox_7x16
+    jsr     eraseBox
+
+    ; Draw all tiles
+    lda     #0
+    sta     index
+
+    lda     #2
+    sta     tileY
+
+yloop:
+    lda     #40+1
+    sta     tileX
+
+xloop:
+    lda     index
+    jsr     drawTile_7x16
+    inc     index
+
+    inc     tileX
+    inc     tileX
+    lda     tileX
+    cmp     #40+1+16*2
+    bne     xloop
+
+    lda     tileY
+    clc
+    adc     #4
+    sta     tileY
+    cmp     #2+8*2          ; 8 high
+    bne     yloop 
+
+    lda     tileIndex
+    sta     prevIndex
+    jsr     setupBox_7x16
+    jsr     drawBox
+
+    rts
+
+setupBox_7x16:
+    tax
+    ; Draw box around current tile
+    lsr
+    lsr    
+    and     #$fc            ; /16 * 4 -> /8 and mask bit 0&1
+    clc
+    adc     #1       
+    sta     boxTop
+    sec
+    adc     #2
+    sta     boxBottom
+    txa
+
+    and     #$f
+    asl                     ; %16 * 2
+    clc
+    adc     #40
+    sta     boxLeft
+    sec
+    adc     #1              ; 1 (7x8) tile wide
+    sta     boxRight
+    rts
+
 
 index:      .byte 0
 prevIndex:  .byte 0
@@ -2109,6 +2458,12 @@ drawLoop:
     rts
 .endproc
 
+.proc copyPixel
+    cmp     #0
+    beq     clearPixel
+    jmp     setPixel
+.endproc
+
 .proc togglePixel
     lda     tileIndex
     jsr     setTilePointer
@@ -2117,6 +2472,7 @@ drawLoop:
     sta     (bgPtr0),y
     rts
 .endproc
+
 
 ;-----------------------------------------------------------------------------
 ; getPixelOffset
