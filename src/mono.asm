@@ -243,7 +243,6 @@ next_continue8:
     jsr     inline_print
     StringCR "Toggle Pixel"
     jsr     togglePixel
-    jsr     drawPixel
     jsr     drawPreview
     jmp     command_loop
 :
@@ -255,7 +254,6 @@ next_continue8:
     jsr     inline_print
     StringCR "Clear Pixel"
     jsr     clearPixel
-    jsr     drawPixel
     jsr     drawPreview
     jmp     command_loop
 :
@@ -267,7 +265,6 @@ next_continue8:
     jsr     inline_print
     StringCR "Set Pixel"
     jsr     setPixel
-    jsr     drawPixel
     jsr     drawPreview
     jmp     command_loop
 :
@@ -319,8 +316,7 @@ fill_cancel:
     bne     :+
     jsr     inline_print
     StringCont "Tile size"
-    StringCont "(0=7x8  1=14x8  2=28x8  3=56x8,"
-    String     " 4=7x16 5=14x16 6=28x16 7=56x16):"
+    String "(0=7x8  1=14x8  2=28x8  3=56x8 4=7x16 5=14x16 6=28x16 7=56x16):"
     lda     #8
     jsr     getInputNumber
     bmi     tileSizeCancel
@@ -417,6 +413,23 @@ finish_move:
     jsr     PRBYTE
     lda     #13
     jsr     COUT
+    ; check for apple keys
+    lda     BUTTON0
+    bpl     :+
+    jsr     inline_print
+    StringCR    "Set pixel to white"
+    jsr     setPixel
+    jsr     drawPreview
+    jmp     command_loop
+:
+    lda     BUTTON1
+    bpl     :+
+    jsr     inline_print
+    StringCR    "Set pixel to black"
+    jsr     clearPixel
+    jsr     drawPreview
+    jmp     command_loop
+:
     jmp     command_loop
 
 .endproc
@@ -678,12 +691,70 @@ color:      .byte 0
 .endproc
 
 .proc drawPreview_56x8
+
     lda     #30
     sta     tileX
-    lda     #0
+    lda     #1
     sta     tileY
     lda     tileIndex
     jsr     drawTile_56x8
+
+;
+
+    lda     #30
+    sta     tileX
+    lda     #3
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_56x8
+
+    lda     #34
+    sta     tileX
+    lda     tileIndex
+    jsr     drawTile_56x8
+
+    lda     #4
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_56x8
+
+    lda     #30
+    sta     tileX
+    lda     tileIndex
+    jsr     drawTile_56x8
+
+;
+
+    lda     #30
+    sta     tileX
+    lda     #6
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_56x8
+
+    lda     #34
+    sta     tileX
+    lda     tileIndex
+    clc
+    adc     #1
+    jsr     drawTile_56x8
+
+    lda     #30
+    sta     tileX
+    lda     #7
+    sta     tileY
+    lda     tileIndex
+    clc
+    adc     #2
+    jsr     drawTile_56x8
+
+    lda     #34
+    sta     tileX
+    lda     tileIndex
+    clc
+    adc     #3
+    jsr     drawTile_56x8
+
     rts
 .endproc
 
@@ -1981,5 +2052,12 @@ tileSheet_7x8:
 
 .align 256
 tileSheet_4k:
+
+    ; 56x8 isometric tile
+    .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$70,$00,$00,$07,$1F,$00           
+    .byte $00,$03,$00,$3F,$7E,$00,$60,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
+    .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$03,$00,$3F,$7E,$00,$60,$00           
+    .byte $00,$7C,$70,$00,$00,$07,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
+
     .res    4096
 
