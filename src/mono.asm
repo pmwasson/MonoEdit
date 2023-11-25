@@ -495,7 +495,13 @@ max_digit:  .byte   0
     jsr     setTilePointer
 
     jsr     inline_print
-    .byte   ".byte ",0
+    String  "; Address $"
+    lda     bgPtr1
+    jsr     PRBYTE
+    lda     bgPtr0
+    jsr     PRBYTE
+    jsr     inline_print
+    .byte   13,".byte ",0
 
     lda     #0
     sta     dump_count
@@ -564,6 +570,15 @@ dump_count: .byte   0
     sta     curY
     dec     curY
 :
+
+    ; check that tile index is still in range
+    lda     tileMax
+    cmp     tileIndex
+    bpl     :+
+    lda     #0
+    sta     tileIndex
+:
+
     rts
 
 .align 8
@@ -687,7 +702,60 @@ color:      .byte 0
     bne     :+
     jmp     drawPreview_56x8
 :
-    brk
+    cmp     #4
+    bne     :+
+    jmp     drawPreview_7x16
+:
+    cmp     #5
+    bne     :+
+    jmp     drawPreview_14x16
+:
+    cmp     #6
+    bne     :+
+    jmp     drawPreview_28x16
+:
+    jmp     drawPreview_56x16
+    
+.endproc
+
+.proc drawPreview_7x16
+    lda     #30
+    sta     tileX
+    lda     #2
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_7x16
+    rts
+.endproc
+
+.proc drawPreview_14x16
+    lda     #30
+    sta     tileX
+    lda     #2
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_14x16
+    rts
+.endproc
+
+.proc drawPreview_28x16
+    lda     #30
+    sta     tileX
+    lda     #2
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_28x16
+    rts
+.endproc
+
+.proc drawPreview_56x16
+    lda     #30
+    sta     tileX
+    lda     #2
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_56x16
+    rts
 .endproc
 
 .proc drawPreview_56x8
@@ -1200,6 +1268,402 @@ drawLoop:
 
 .endproc
 
+.proc drawTile_7x16
+
+    ; tile index passes in A
+    jsr     setTilePointer_7x16
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX
+    lsr                     ; /2
+    bcs     :+              ; odd = main mem
+    sta     RAMWRTON        ; aux if even
+:
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    lda     linePage,x
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+    ldy     #0
+drawLoop:
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; assumes aligned such that there are no page crossing
+    inc     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+    ; move to second half
+    lda     screenPtr0
+    clc
+    adc     #$80
+    sta     screenPtr0
+    lda     screenPtr1
+    sbc     #$1f        ; subtract 20 if no carry, 19 if carry
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+    ldy     #0
+drawLoop2:
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; assumes aligned such that there are no page crossing
+    inc     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop2
+
+    sta     RAMWRTOFF       ; Restore writing to main mem
+
+    rts    
+
+.endproc
+
+
+.proc drawTile_14x16
+
+    ; tile index passes in A
+    jsr     setTilePointer_14x16
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX           ; interpreting x as x*2
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    lda     linePage,x
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+    ldy     #0
+drawLoop:
+    ; Byte 0 in AUX memory
+    sta     RAMWRTON
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; Bytes 1 in MAIN memory
+    inc     bgPtr0
+    sta     RAMWRTOFF
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    inc     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+    ; move to second half
+    lda     screenPtr0
+    clc
+    adc     #$80
+    sta     screenPtr0
+    lda     screenPtr1
+    sbc     #$1f        ; subtract 20 if no carry, 19 if carry
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+    ldy     #0
+drawLoop2:
+    ; Byte 0 in AUX memory
+    sta     RAMWRTON
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; Bytes 1 in MAIN memory
+    inc     bgPtr0
+    sta     RAMWRTOFF
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    inc     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop2
+
+    rts    
+
+.endproc
+
+.proc drawTile_28x16
+
+    ; tile index passes in A
+    jsr     setTilePointer_28x16
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX           ; interpreting x as x*2
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    lda     linePage,x
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+
+drawLoop:
+    ; Byte 0,1 in AUX memory
+    sta     RAMWRTON
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; Bytes 2,3 in MAIN memory
+    inc     bgPtr0
+    inc     bgPtr0
+    sta     RAMWRTOFF
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    inc     bgPtr0
+    inc     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+    ; move to second half
+    lda     screenPtr0
+    clc
+    adc     #$80
+    sta     screenPtr0
+    lda     screenPtr1
+    sbc     #$1f        ; subtract 20 if no carry, 19 if carry
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+
+drawLoop2:
+    ; Byte 0,1 in AUX memory
+    sta     RAMWRTON
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; Bytes 2,3 in MAIN memory
+    inc     bgPtr0
+    inc     bgPtr0
+    sta     RAMWRTOFF
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    inc     bgPtr0
+    inc     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop2
+
+    rts    
+
+.endproc
+
+
+.proc drawTile_56x16
+
+    ; tile index passes in A
+    jsr     setTilePointer_56x16
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX           ; interpreting x as x*2
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    lda     linePage,x
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+
+drawLoop:
+    ; Byte 0..3 in AUX memory
+    sta     RAMWRTON
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #2
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #3
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; Bytes 4..7 in MAIN memory
+    lda     bgPtr0
+    adc     #4
+    sta     bgPtr0
+    sta     RAMWRTOFF
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #2
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #3
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    lda     bgPtr0
+    adc     #4
+    sta     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+
+    ; move to second half
+    lda     screenPtr0
+    clc
+    adc     #$80
+    sta     screenPtr0
+    lda     screenPtr1
+    sbc     #$1f        ; subtract 20 if no carry, 19 if carry
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+
+drawLoop2:
+    ; Byte 0..3 in AUX memory
+    sta     RAMWRTON
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #2
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #3
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; Bytes 4..7 in MAIN memory
+    lda     bgPtr0
+    adc     #4
+    sta     bgPtr0
+    sta     RAMWRTOFF
+    ldy     #0
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #2
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    ldy     #3
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+    lda     bgPtr0
+    adc     #4
+    sta     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop2
+
+    rts    
+
+.endproc
 ;-----------------------------------------------------------------------------
 ; drawTile_14x8
 ;
@@ -1419,7 +1883,19 @@ drawLoop:
     bne     :+
     jmp     setTilePointer_56x8
 :   
-    brk
+    cpy     #4
+    bne     :+
+    jmp     setTilePointer_7x16
+:   
+    cpy     #5
+    bne     :+
+    jmp     setTilePointer_14x16
+:
+    cpy     #6
+    bne     :+
+    jmp     setTilePointer_28x16
+:
+    jmp     setTilePointer_56x16
 
 .endproc
 
@@ -1467,6 +1943,28 @@ drawLoop:
 
 .endproc
 
+.proc setTilePointer_7x16
+    ; 16 bytes
+    tay     ; copy A
+    ; calculate tile pointer
+    asl                     ; *16
+    asl
+    asl
+    asl
+    sta     bgPtr0
+    tya     ; restore A
+    lsr                     ; /16
+    lsr
+    lsr
+    lsr
+    clc
+    adc     currentSheet_7x16+1
+    sta     bgPtr1
+    rts
+
+.endproc
+
+
 .proc setTilePointer_28x8
     ; 32 bytes
     tay     ; copy A
@@ -1489,6 +1987,28 @@ drawLoop:
 
 .endproc
 
+.proc setTilePointer_14x16
+    ; 32 bytes
+    tay     ; copy A
+    ; calculate tile pointer
+    asl                     ; *32
+    asl
+    asl
+    asl
+    asl
+    sta     bgPtr0
+    tya     ; restore A
+    lsr                     ; /8
+    lsr
+    lsr
+    clc
+    adc     currentSheet_14x16+1
+    sta     bgPtr1
+
+    rts
+
+.endproc
+
 .proc setTilePointer_56x8
     ; 64 bytes
     tay     ; copy A
@@ -1505,6 +2025,50 @@ drawLoop:
     lsr
     clc
     adc     currentSheet_56x8+1
+    sta     bgPtr1
+
+    rts
+
+.endproc
+
+.proc setTilePointer_28x16
+    ; 64 bytes
+    tay     ; copy A
+    ; calculate tile pointer
+    asl                     ; *64
+    asl
+    asl
+    asl
+    asl
+    asl
+    sta     bgPtr0
+    tya     ; restore A
+    lsr                     ; /4
+    lsr
+    clc
+    adc     currentSheet_28x16+1
+    sta     bgPtr1
+
+    rts
+
+.endproc
+
+.proc setTilePointer_56x16
+    ; 128 bytes
+    tay     ; copy A
+    ; calculate tile pointer
+    asl                     ; *128
+    asl
+    asl
+    asl
+    asl
+    asl
+    asl
+    sta     bgPtr0
+    tya     ; restore A
+    lsr                     ; /2
+    clc
+    adc     currentSheet_56x16+1
     sta     bgPtr1
 
     rts
