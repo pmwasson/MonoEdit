@@ -5,7 +5,6 @@
 ;  DHGR Monochrom Tile editor
 
 ;------------------------------------------------
-; Defines
 ;------------------------------------------------
 
 .include "defines.asm"
@@ -163,10 +162,10 @@ down_good:
     lda     tileIndex
     bne     previous_continue
     lda     tileMax
-    sta     tileIndex
 previous_continue:
-    dec     tileIndex
-    lda     tileIndex
+    clc
+    sbc     modeMasked  ; -1 or -2 if masked
+    sta     tileIndex
     jsr     PRBYTE
     lda     #13
     jsr     COUT
@@ -201,13 +200,14 @@ previous8_continue:
     jsr     inline_print
     .byte   "Next tile: ",0
 
-    inc     tileIndex
     lda     tileIndex
+    sec
+    adc     modeMasked  ; +1 or +2 if masked
     cmp     tileMax
     bne     next_continue
     lda     #0
-    sta     tileIndex
 next_continue:
+    sta     tileIndex
     jsr     PRBYTE
     lda     #13
     jsr     COUT
@@ -255,6 +255,8 @@ next_continue8:
     StringCR "Clear Pixel"
     jsr     clearPixel
     jsr     drawPreview
+    lda     #PIXEL_BLACK
+    sta     lastColor
     jmp     command_loop
 :
     ;------------------
@@ -266,7 +268,52 @@ next_continue8:
     StringCR "Set Pixel"
     jsr     setPixel
     jsr     drawPreview
+    lda     #PIXEL_WHITE
+    sta     lastColor
     jmp     command_loop
+:
+    ;------------------
+    ; 2 = Delete Pixel
+    ;------------------
+    cmp     #$80 | '2'
+    bne     :+
+    jsr     inline_print
+    StringCR "Delete Pixel"
+    lda     modeMasked
+    beq     deletePixelError
+    jsr     deletePixel
+    jsr     drawPreview
+    lda     #PIXEL_BG_EVEN
+    sta     lastColor
+    jmp     command_loop
+deletePixelError:
+    jsr     inline_print
+    StringCR "Error: not in masked mode"
+    jmp     command_loop
+:
+    ;------------------
+    ; ^M = Toggle Mask
+    ;------------------
+    cmp     #KEY_RETURN
+    bne     :+
+    jsr     inline_print
+    String  "Mask "
+    lda     modeMasked
+    beq     setModeMasked
+    jsr     inline_print
+    StringCR "Off"
+    lda     #0
+    jmp     finishModeMask
+setModeMasked:
+    jsr     inline_print
+    StringCR "On"
+    lda     #1
+finishModeMask:
+    sta     modeMasked
+    lda     tileIndex
+    and     #$FE
+    sta     tileIndex
+    jmp     refresh_loop
 :
     ;------------------
     ; ^C = Copy Tile
@@ -297,8 +344,10 @@ next_continue8:
     jsr     inline_print
 
 
-    .byte   "Fill Color. Pick color (0=black 1=white):",0
-    lda     #2
+    .byte   "Fill Color. Pick color (0=black 1=white, 2=background):",0
+    clc
+    lda     modeMasked
+    adc     #2
     jsr     getInputNumber
     bmi     fill_cancel
     jsr     fillPixels
@@ -454,18 +503,10 @@ finish_move:
     lda     BUTTON0
     bpl     :+
     jsr     inline_print
-    StringCR    "Set pixel to white"
-    jsr     setPixel
+    StringCR    "Repeat last color"
+    lda     lastColor
+    jsr     copyPixel
     jsr     drawPreview
-    jmp     command_loop
-:
-    lda     BUTTON1
-    bpl     :+
-    jsr     inline_print
-    StringCR    "Set pixel to black"
-    jsr     clearPixel
-    jsr     drawPreview
-    jmp     command_loop
 :
     jmp     command_loop
 
@@ -547,12 +588,17 @@ max_digit:  .byte   0
 .proc printHelp
     bit     TXTSET
     jsr     inline_print
-    StringCont  "  Arrows:  Move cursor"
+    StringCont  "  Arrows:  Move cursor (open-apple will set last color after move)"
     StringCont  "  0:       Clear pixel"
     StringCont  "  1:       Set pixel"
+    StringCont  "  2:       Delete pixel (masked mode)"    
     StringCont  "  Space:   Toggle pixel"
+    StringCont  "  Ctrl-F:  Fill tile with selected color"
     StringCont  "  Ctrl-C:  Copy tile to clipboard"
     StringCont  "  Ctrl-V:  Paste tile from clipboard (overwrites current tile)"
+    StringCont  "  Ctrl-R:  Rotate pixels in a direction specified by an arrow key"
+    StringCont  "  Ctrl-T:  Set tile size"
+    StringCont  "  Ctrl-M:  Toggle between normal and masked mode"
     StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
     StringCont  "  !:       Dump bytes"
     StringCont  "  ?:       This help screen"
@@ -569,6 +615,16 @@ max_digit:  .byte   0
 ;-----------------------------------------------------------------------------
 .proc printDump
 
+    lda     modeMasked
+    beq     printDump1
+
+    jsr     printDump1
+    inc     tileIndex
+    jsr     printDump1
+    dec     tileIndex
+    rts
+
+printDump1:
     lda     tileIndex
     jsr     setTilePointer
 
@@ -681,30 +737,51 @@ sizeMax:        .byte   128, 64, 32, 32, 64, 64, 64, 32
 
 ;-----------------------------------------------------------------------------
 ; Fill pixels
-;   Set all pixel to A (0=black, 1=white)
+;   Set all pixel to A (0=black, 1=white, 2=background)
 ;-----------------------------------------------------------------------------
 
 .proc fillPixels
 
+    tax
+    lda     colorList,x
     sta     color
-    beq     :+
-    lda     #$7f
-    sta     color
-:
-    lda     tileIndex
-    jsr     setTilePointer
 
+    lda     curX
+    sta     tempX
+    lda     curY
+    sta     tempY
+
+    lda     #0
+    sta     curX
+
+loopX:
+    lda     #0
+    sta     curY
+
+loopY:
     lda     color
-    ldy     #0
-:
-    sta     (bgPtr0),y
+    jsr     copyPixel
 
-    iny
-    cpy     tileLength
-    bne     :-
+    inc     curY
+    lda     curY
+    cmp     tileHeight
+    bne     loopY
+
+    inc     curX
+    lda     curX
+    cmp     tileWidth
+    bne     loopX
+
+    lda     tempX
+    sta     curX
+    lda     tempY
+    sta     curY
     rts
 
-color:      .byte 0
+color:      .byte   0
+colorList:  .byte   PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN
+tempX:      .byte   0
+tempY:      .byte   0
 
 .endproc
 
@@ -1528,13 +1605,6 @@ waitExit:
     sta     tileX
 
     jsr     getPixel
-    bne     :+
-    lda     #PIXEL_BLACK
-    jmp     cont
-:
-    lda     #PIXEL_WHITE
-
-cont:
     jsr     drawTile_7x8
 
     rts
@@ -2432,14 +2502,48 @@ drawLoop:
 ;-----------------------------------------------------------------------------
 
 .proc getPixel
+    lda     modeMasked
+    beq     getPixel1
+    inc     tileIndex
+    jsr     getPixel1
+    cmp     #PIXEL_BLACK
+    bne     cont
+
+    dec     tileIndex
+    lda     curX
+    and     #1
+    beq     :+
+    lda     #PIXEL_BG_ODD
+    rts
+:
+    lda     #PIXEL_BG_EVEN
+    rts
+
+cont:
+    dec     tileIndex
+getPixel1:
     lda     tileIndex
     jsr     setTilePointer
     jsr     getPixelOffset
     and     (bgPtr0),y
+    beq     :+
+    lda     #PIXEL_WHITE
+    rts
+:
+    lda     #PIXEL_BLACK
     rts
 .endproc
 
 .proc setPixel
+    lda     modeMasked
+    beq     setPixel1
+
+    ; When in masked mode, set the mask also
+    inc     tileIndex
+    jsr     setPixel1
+    dec     tileIndex
+
+setPixel1:
     lda     tileIndex
     jsr     setTilePointer
     jsr     getPixelOffset
@@ -2449,6 +2553,15 @@ drawLoop:
 .endproc
 
 .proc clearPixel
+    lda     modeMasked
+    beq     clearPixel1
+
+    ; When in masked mode, set the mask also
+    inc     tileIndex
+    jsr     setPixel::setPixel1
+    dec     tileIndex
+
+clearPixel1:
     lda     tileIndex
     jsr     setTilePointer
     jsr     getPixelOffset
@@ -2459,20 +2572,47 @@ drawLoop:
 .endproc
 
 .proc copyPixel
-    cmp     #0
+    cmp     #PIXEL_BLACK
     beq     clearPixel
-    jmp     setPixel
+    cmp     #PIXEL_WHITE
+    beq     setPixel
+    jmp     deletePixel
 .endproc
 
+; Masked black -> white -> background -> black ...
+; Normal black -> white -> black ...
 .proc togglePixel
-    lda     tileIndex
-    jsr     setTilePointer
-    jsr     getPixelOffset
-    eor     (bgPtr0),y
-    sta     (bgPtr0),y
+    lda     modeMasked
+    beq     :+
+    jsr     getPixel
+    cmp     #PIXEL_WHITE
+    bne     :+
+    lda     #PIXEL_BG_EVEN
+    jmp     finish
+:    
+    jsr     getPixel
+    cmp     #PIXEL_BLACK
+    bne     :+
+    lda     #PIXEL_WHITE
+    jmp     finish
+:
+    lda     #PIXEL_BLACK
+finish:
+    sta     lastColor
+    jmp     copyPixel
+
+
+.endproc
+
+.proc deletePixel
+    ; Assuming in modeMasked, so not checking
+    ; Clearing foreground also to keep clean, but may not want to
+    jsr     clearPixel::clearPixel1
+    inc     tileIndex
+    jsr     clearPixel::clearPixel1
+    dec     tileIndex
     rts
 .endproc
-
 
 ;-----------------------------------------------------------------------------
 ; getPixelOffset
@@ -2855,6 +2995,9 @@ tileLength:         .byte   0
 canvasX:            .byte   0
 canvasY:            .byte   0
 
+modeMasked:         .byte   0
+lastColor:          .byte   PIXEL_WHITE
+
 ; General
 
 currentSheet_7x8:   .word   tileSheet_7x8
@@ -3003,6 +3146,16 @@ tileSheet_4k:
     .byte $7F,$2A,$00,$40,$55,$55,$00,$7F,$00,$57,$00,$3F,$7E,$6A,$60,$00           
     .byte $00,$7C,$70,$00,$00,$57,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
 
+    ; mask
+    .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$7F,$00,$00,$7F,$1F,$00           
+    .byte $00,$7F,$7F,$3F,$7E,$7F,$7F,$00,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$00,$7F,$7F,$3F,$7E,$7F,$7F,$00           
+    .byte $00,$7C,$7F,$00,$00,$7F,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00     
+
     ; Floor dark
     .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
     .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
@@ -3013,7 +3166,7 @@ tileSheet_4k:
     .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$03,$00,$3F,$7E,$00,$60,$00           
     .byte $00,$7C,$70,$00,$00,$07,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
 
-    ; Floor light                                                              
+    ; Floor mask                                                              
     .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
     .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
     .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
@@ -3022,6 +3175,26 @@ tileSheet_4k:
     .byte $00,$7F,$7F,$3F,$7E,$7F,$7F,$00,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
     .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$00,$7F,$7F,$3F,$7E,$7F,$7F,$00           
     .byte $00,$7C,$7F,$00,$00,$7F,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
+
+    ; Dude
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$1F,$00,$00,$40,$00,$00           
+    .byte $00,$00,$35,$00,$00,$70,$00,$00,$00,$00,$3F,$07,$00,$70,$78,$00           
+    .byte $00,$00,$11,$0C,$00,$40,$0C,$00,$00,$00,$1F,$09,$00,$78,$64,$00           
+    .byte $00,$00,$73,$0A,$00,$47,$14,$00,$00,$60,$6D,$09,$00,$75,$64,$00           
+    .byte $00,$30,$6E,$09,$00,$76,$65,$00,$00,$30,$6F,$0A,$00,$02,$17,$00           
+    .byte $00,$78,$10,$09,$00,$3C,$67,$00,$00,$70,$1F,$0C,$00,$7C,$0C,$00           
+    .byte $00,$00,$1C,$07,$00,$32,$78,$00,$00,$00,$24,$00,$00,$0F,$00,$00           
+    .byte $00,$40,$78,$00,$00,$07,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+
+    ; Dude mask
+    .byte $00,$00,$1F,$00,$00,$40,$00,$00,$00,$00,$3F,$00,$00,$60,$00,$00           
+    .byte $00,$00,$7F,$07,$00,$78,$78,$00,$00,$00,$7F,$0F,$00,$78,$7C,$00           
+    .byte $00,$00,$3F,$1F,$00,$70,$7E,$00,$00,$00,$7F,$1F,$00,$7F,$7E,$00           
+    .byte $00,$60,$7F,$1F,$00,$7F,$7F,$00,$00,$70,$7F,$1F,$00,$7F,$7F,$00           
+    .byte $00,$78,$7F,$1F,$00,$7F,$7F,$00,$00,$78,$7F,$1F,$00,$7F,$7F,$00           
+    .byte $00,$7C,$7F,$1F,$00,$7F,$7F,$00,$00,$78,$3F,$1F,$00,$7F,$7F,$00           
+    .byte $00,$70,$3F,$0F,$00,$7F,$7C,$00,$00,$40,$7E,$07,$00,$3F,$79,$00           
+    .byte $00,$60,$7C,$00,$00,$0F,$03,$00,$00,$40,$78,$00,$00,$07,$01,$00           
 
     .res    4096
 
