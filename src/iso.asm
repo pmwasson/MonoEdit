@@ -69,11 +69,8 @@ mapOffset:  .byte   4+5*8
 
     lda     #5*8
     sta     mapOffset
-
 :
     jsr     isoDrawMapTile
-
-    rts
 
     inc     mapOffset
     lda     mapOffset
@@ -304,6 +301,66 @@ mapOffset:  .byte   4+5*8
 
     jsr     isoDrawTile4x4
 
+    ;=====================
+    ; draw lower-right 4x4
+    ;=====================
+
+    ; screenPtr1 is good, restore 0
+    clc
+    lda     screenPtr0
+    adc     #32             ; 4 rows of 8 bytes
+    sta     screenPtr0
+
+    ; odd row (0,0) lower-right(4,12)
+    ; Copy from B -> A
+    lda     ptrBA1
+    sta     ptrAA1
+    lda     ptrBB1
+    sta     ptrAB1
+    lda     #2+12*8
+    sta     ptrAA0
+    ora     #$80
+    sta     ptrAB0      
+
+    ; even-row (1,+1) lower-left (0,8)
+    ; Copy from C -> B
+    lda     ptrCA1
+    sta     ptrBA1
+    lda     ptrCB1
+    sta     ptrBB1
+    lda     #0+8*8
+    sta     ptrBA0
+    ora     #$80
+    sta     ptrBB0      
+
+    ; odd row (0,2) upper-left(4,4)
+    ; Copy from D -> C
+    lda     ptrDA1
+    sta     ptrCA1
+    lda     ptrDB1
+    sta     ptrCB1
+    lda     #2+4*8
+    sta     ptrCA0
+    ora     #$80
+    sta     ptrCB0   
+
+    ; even row(1,+3) upper-left(4,0)
+    lda     mapOffset
+    clc
+    adc     #MAP_S2E
+    tax
+    lda     isoMap,x
+    clc
+    adc     currentSheet_56x16+1
+    sta     ptrDA1
+    sta     ptrDB1 
+    lda     #2+0*8
+    sta     ptrDA0
+    ora     #$80
+    sta     ptrDB0     
+
+    jsr     isoDrawTile4x4
+
     rts
 
 .endproc
@@ -412,32 +469,35 @@ loop:
 .align 256
 isoMap:
 
-    .byte  01, 01, 01, 01, 01, 01, 01, 01
-    .byte    01, 01, 01, 01, 01, 01, 01, 01
-    .byte  01, 01, 01, 01, 01, 01, 01, 01
-    .byte    01, 01, 01, 01, 01, 01, 01, 01
-    .byte  01, 01, 01, 01, 01, 01, 01, 01
-    .byte    01, 01, 01, 01, 01, 01, 01, 01
-    .byte  01, 01, 01, 01, 01, 01, 01, 01
-    .byte    01, 01, 01, 01, 01, 01, 01, 01
-    .byte  01, 01, 01, 01, 01, 01, 01, 01
-    .byte    01, 01, 01, 01, 01, 01, 01, 01
-    .byte  01, 01, 01, 01, 01, 01, 01, 01
-    .byte    01, 01, 01, 01, 01, 01, 01, 01
-
-
     .byte   00, 00, 00, 00, 00, 00, 00, 00      ; row  0
     .byte     00, 00, 00, 02, 00, 00, 00, 00    ;      1
     .byte   00, 00, 00, 01, 01, 00, 00, 00      ;      2
     .byte     00, 00, 01, 01, 01, 00, 00, 00    ;      3
     .byte   00, 00, 01, 02, 01, 01, 00, 00      ;      4
     .byte     00, 01, 01, 01, 01, 01, 00, 00    ;      5
-    .byte   00, 00, 01, 01, 01, 02, 01, 00      ;      6
+    .byte   00, 00, 01, 01, 01, 04, 01, 00      ;      6
     .byte     00, 00, 02, 01, 01, 01, 00, 00    ;      7
     .byte   00, 00, 00, 01, 01, 01, 00, 00      ;      8
     .byte     00, 00, 00, 01, 02, 00, 00, 00    ;      9
     .byte   00, 00, 00, 00, 01, 00, 00, 00      ;     10
     .byte     00, 00, 00, 00, 00, 00, 00, 00    ;     11
+
+
+    .byte  01, 01, 01, 01, 01, 01, 01, 01
+    .byte    01, 01, 01, 01, 01, 01, 01, 01
+    .byte  01, 01, 01, 01, 01, 01, 01, 01
+    .byte    01, 01, 01, 01, 01, 01, 01, 01
+    .byte  01, 01, 01, 01, 01, 01, 01, 01
+    .byte    01, 01, 01, 01, 01, 01, 01, 01
+    .byte  01, 01, 01, 01, 01, 01, 01, 01
+    .byte    01, 01, 01, 01, 01, 01, 01, 01
+    .byte  01, 01, 01, 01, 01, 01, 01, 01
+    .byte    01, 01, 01, 01, 01, 01, 01, 01
+    .byte  01, 01, 01, 01, 01, 01, 01, 01
+    .byte    01, 01, 01, 01, 01, 01, 01, 01
+
+
+
 
 
 
