@@ -51,8 +51,8 @@ BOX_BLANK       = $20
     jsr     inline_print
     StringCR    "DHGR Monochrome tile editor - ? for help"
 
-    ; default to 7x8
-    lda     #0
+    ; default to 56x16
+    lda     #7
     jsr     setTileSize
     jsr     initMonochrome  ; Turn on monochrome dhgr
 
@@ -313,6 +313,8 @@ finishModeMask:
     lda     tileIndex
     and     #$FE
     sta     tileIndex
+    lda     tileSize
+    jsr     setTileSize
     jmp     refresh_loop
 :
     ;------------------
@@ -356,6 +358,17 @@ finishModeMask:
     jmp     refresh_loop
 fill_cancel:
     jmp     command_loop
+:
+
+    ;------------------
+    ; ^F = Invert
+    ;------------------
+    cmp     #KEY_TAB
+    bne     :+
+    jsr     inline_print
+    StringCR    "Invert"
+    jsr     invertPixels
+    jmp     refresh_loop
 :
 
     ;------------------
@@ -481,6 +494,23 @@ rotate_after:
 :
 
     ;------------------
+    ; I = Iso Map preview
+    ;------------------
+    cmp     #$80 + 'I' 
+    bne     :+
+    jsr     inline_print
+    .byte   "Drawing isometric map (press any key to exit)",0
+
+    jsr     clearScreen
+    jsr     isoDrawMap
+    jsr     getInput
+    lda     #13
+    jsr     COUT
+    jmp     reset_loop
+:
+
+
+    ;------------------
     ; Unknown
     ;------------------
     jsr     inline_print
@@ -597,6 +627,7 @@ max_digit:  .byte   0
     StringCont  "  Ctrl-C:  Copy tile to clipboard"
     StringCont  "  Ctrl-V:  Paste tile from clipboard (overwrites current tile)"
     StringCont  "  Ctrl-R:  Rotate pixels in a direction specified by an arrow key"
+    StringCont  "  Ctrl-I:  Invert (black <-> white)"    
     StringCont  "  Ctrl-T:  Set tile size"
     StringCont  "  Ctrl-M:  Toggle between normal and masked mode"
     StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
@@ -614,17 +645,6 @@ max_digit:  .byte   0
 ; printDump
 ;-----------------------------------------------------------------------------
 .proc printDump
-
-    lda     modeMasked
-    beq     printDump1
-
-    jsr     printDump1
-    inc     tileIndex
-    jsr     printDump1
-    dec     tileIndex
-    rts
-
-printDump1:
     lda     tileIndex
     jsr     setTilePointer
 
@@ -688,6 +708,13 @@ dump_count: .byte   0
     sta     tileLength
     lda     sizeMax,x
     sta     tileMax
+
+    ; adjust tilelength for masked mode
+    lda     modeMasked
+    beq     :+
+    asl     tileLength
+:
+
 
     ; check that cursor is still in range
     lda     tileWidth
@@ -780,6 +807,58 @@ loopY:
 
 color:      .byte   0
 colorList:  .byte   PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN
+tempX:      .byte   0
+tempY:      .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; Invert pixels
+;-----------------------------------------------------------------------------
+
+.proc invertPixels
+
+    lda     curX
+    sta     tempX
+    lda     curY
+    sta     tempY
+
+    lda     #0
+    sta     curX
+
+loopX:
+    lda     #0
+    sta     curY
+
+loopY:
+
+    jsr     getPixel
+    cmp     #PIXEL_WHITE
+    bne     :+
+    jsr     clearPixel  ; white -> black
+    jmp     cont
+:
+    cmp     #PIXEL_BLACK
+    bne     cont
+    jsr     setPixel    ; black -> white
+cont:
+
+    inc     curY
+    lda     curY
+    cmp     tileHeight
+    bne     loopY
+
+    inc     curX
+    lda     curX
+    cmp     tileWidth
+    bne     loopX
+
+    lda     tempX
+    sta     curX
+    lda     tempY
+    sta     curY
+    rts
+
 tempX:      .byte   0
 tempY:      .byte   0
 
@@ -1668,7 +1747,6 @@ waitExit:
     ldy     #0
 drawLoop:
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; assumes aligned such that there are no page crossing
@@ -1712,7 +1790,6 @@ drawLoop:
     ldy     #0
 drawLoop:
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; assumes aligned such that there are no page crossing
@@ -1739,7 +1816,6 @@ drawLoop:
     ldy     #0
 drawLoop2:
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; assumes aligned such that there are no page crossing
@@ -1783,14 +1859,12 @@ drawLoop:
     sta     RAMWRTON
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; Bytes 1 in MAIN memory
     inc     bgPtr0
     sta     RAMWRTOFF
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     inc     bgPtr0
 
@@ -1818,14 +1892,12 @@ drawLoop2:
     sta     RAMWRTON
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; Bytes 1 in MAIN memory
     inc     bgPtr0
     sta     RAMWRTOFF
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     inc     bgPtr0
 
@@ -1864,11 +1936,9 @@ drawLoop:
     sta     RAMWRTON
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; Bytes 2,3 in MAIN memory
@@ -1877,11 +1947,9 @@ drawLoop:
     sta     RAMWRTOFF
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     inc     bgPtr0
     inc     bgPtr0
@@ -1910,11 +1978,9 @@ drawLoop2:
     sta     RAMWRTON
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; Bytes 2,3 in MAIN memory
@@ -1923,11 +1989,9 @@ drawLoop2:
     sta     RAMWRTOFF
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     inc     bgPtr0
     inc     bgPtr0
@@ -1968,19 +2032,15 @@ drawLoop:
     sta     RAMWRTON
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #2
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #3
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; Bytes 4..7 in MAIN memory
@@ -1990,19 +2050,15 @@ drawLoop:
     sta     RAMWRTOFF
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #2
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #3
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     lda     bgPtr0
     adc     #4
@@ -2033,19 +2089,15 @@ drawLoop2:
     sta     RAMWRTON
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #2
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #3
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; Bytes 4..7 in MAIN memory
@@ -2055,19 +2107,15 @@ drawLoop2:
     sta     RAMWRTOFF
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #2
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #3
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     lda     bgPtr0
     adc     #4
@@ -2113,14 +2161,12 @@ drawLoop:
     ; Byte 0 in AUX memory
     sta     RAMWRTON
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; Bytes 1 in MAIN memory
     inc     bgPtr0
     sta     RAMWRTOFF
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     inc     bgPtr0
 
@@ -2165,11 +2211,9 @@ drawLoop:
     sta     RAMWRTON
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; Bytes 2,3 in MAIN memory
@@ -2178,11 +2222,9 @@ drawLoop:
     sta     RAMWRTOFF
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     inc     bgPtr0
     inc     bgPtr0
@@ -2228,19 +2270,15 @@ drawLoop:
     sta     RAMWRTON
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #2
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #3
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; Bytes 4..7 in MAIN memory
@@ -2250,19 +2288,15 @@ drawLoop:
     sta     RAMWRTOFF
     ldy     #0
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #2
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #3
     lda     (bgPtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     lda     bgPtr0
     adc     #4
@@ -2506,8 +2540,8 @@ drawLoop:
     beq     getPixel1
     inc     tileIndex
     jsr     getPixel1
-    cmp     #PIXEL_BLACK
-    bne     cont
+    cmp     #PIXEL_BLACK    ; mask black -> foreground
+    beq     cont
 
     dec     tileIndex
     lda     curX
@@ -2534,31 +2568,13 @@ getPixel1:
     rts
 .endproc
 
-.proc setPixel
-    lda     modeMasked
-    beq     setPixel1
-
-    ; When in masked mode, set the mask also
-    inc     tileIndex
-    jsr     setPixel1
-    dec     tileIndex
-
-setPixel1:
-    lda     tileIndex
-    jsr     setTilePointer
-    jsr     getPixelOffset
-    ora     (bgPtr0),y
-    sta     (bgPtr0),y
-    rts
-.endproc
-
 .proc clearPixel
     lda     modeMasked
     beq     clearPixel1
 
-    ; When in masked mode, set the mask also
+    ; When in masked mode, clear the mask also
     inc     tileIndex
-    jsr     setPixel::setPixel1
+    jsr     clearPixel1
     dec     tileIndex
 
 clearPixel1:
@@ -2567,6 +2583,24 @@ clearPixel1:
     jsr     getPixelOffset
     eor     #$ff
     and     (bgPtr0),y
+    sta     (bgPtr0),y
+    rts
+.endproc
+
+.proc setPixel
+    lda     modeMasked
+    beq     setPixel1
+
+    ; When in masked mode, clear the mask also
+    inc     tileIndex
+    jsr     clearPixel::clearPixel1
+    dec     tileIndex
+
+setPixel1:
+    lda     tileIndex
+    jsr     setTilePointer
+    jsr     getPixelOffset
+    ora     (bgPtr0),y
     sta     (bgPtr0),y
     rts
 .endproc
@@ -2609,7 +2643,7 @@ finish:
     ; Clearing foreground also to keep clean, but may not want to
     jsr     clearPixel::clearPixel1
     inc     tileIndex
-    jsr     clearPixel::clearPixel1
+    jsr     setPixel::setPixel1
     dec     tileIndex
     rts
 .endproc
@@ -2899,6 +2933,7 @@ loop:
 
     ; aux mem
     lda     #0
+;    lda     #$2a
     sta     RAMWRTON  
 
 :
@@ -2906,8 +2941,8 @@ loop:
     iny
     bne     :-    
 
+;    lda     #$55
     sta     RAMWRTOFF
-
     ; main mem
 :
     sta     (screenPtr0),y
@@ -2972,7 +3007,7 @@ quit_params:
 
 .include "inline_print.asm"
 .include "sounds.asm"
-
+.include "iso.asm"
 
 ; Global Variables
 ;-----------------------------------------------------------------------------
@@ -2991,11 +3026,10 @@ tileWidthBytes:     .byte   0
 tileHeight:         .byte   0
 tileLength:         .byte   0
 
-
 canvasX:            .byte   0
 canvasY:            .byte   0
 
-modeMasked:         .byte   0
+modeMasked:         .byte   1
 lastColor:          .byte   PIXEL_WHITE
 
 ; General
@@ -3015,7 +3049,8 @@ boxRight:           .byte   0
 boxTop:             .byte   0
 boxBottom:          .byte   0
 
-clipboardData:      .res    8*16
+.align      256
+clipboardData:      .res    8*16*2
 
 ; Lookup tables
 ;-----------------------------------------------------------------------------
@@ -3116,27 +3151,79 @@ tileSheet_7x8:
 .align 256
 tileSheet_4k:
 
-    ; 56x16 isometric tile
+    ; 0 Blank
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+
+    ; 1 Floor dark
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
     .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$70,$00,$00,$07,$1F,$00           
     .byte $00,$03,$00,$3F,$7E,$00,$60,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
     .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$03,$00,$3F,$7E,$00,$60,$00           
     .byte $00,$7C,$70,$00,$00,$07,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$70,$7F,$7F,$07,$7F,$7F,$7F,$03,$00,$7F,$7F,$00,$60,$7F           
+    .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
+    .byte $7F,$03,$00,$7F,$7F,$00,$60,$7F,$7F,$7F,$70,$7F,$7F,$07,$7F,$7F           
+
+    ; 2 Half cube
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
     .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$70,$00,$00,$07,$1F,$00           
     .byte $00,$03,$00,$3F,$7E,$00,$60,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
-    .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$03,$00,$3F,$7E,$00,$60,$00           
-    .byte $00,$7C,$70,$00,$00,$07,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
+    .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$01,$03,$00,$3F,$7E,$00,$60,$40           
+    .byte $01,$7C,$70,$00,$00,$07,$1F,$40,$01,$00,$0F,$00,$00,$78,$00,$40           
+    .byte $7F,$00,$00,$40,$01,$40,$00,$7F,$00,$03,$00,$3F,$7E,$40,$60,$00           
+    .byte $00,$7C,$70,$00,$00,$47,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$70,$7F,$7F,$07,$7F,$7F,$7F,$03,$00,$7F,$7F,$00,$60,$7F           
+    .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
+    .byte $7F,$03,$00,$7F,$7F,$00,$60,$7F,$7F,$7F,$70,$7F,$7F,$07,$7F,$7F           
 
-    ; mask
-    .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$7F,$00,$00,$7F,$1F,$00           
-    .byte $00,$7F,$7F,$3F,$7E,$7F,$7F,$00,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$00,$7F,$7F,$3F,$7E,$7F,$7F,$00           
-    .byte $00,$7C,$7F,$00,$00,$7F,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
+    ; 3 Blank cube
+    .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$70,$00,$00,$07,$1F,$00           
+    .byte $00,$03,$00,$3F,$7E,$00,$60,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
+    .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$01,$03,$00,$3F,$7E,$00,$60,$40           
+    .byte $01,$7C,$70,$00,$00,$07,$1F,$40,$01,$00,$0F,$00,$00,$78,$00,$40           
+    .byte $01,$00,$00,$00,$00,$40,$00,$40,$01,$00,$00,$00,$00,$40,$00,$40           
+    .byte $01,$00,$00,$00,$00,$40,$00,$40,$01,$00,$00,$00,$00,$40,$00,$40           
+    .byte $7F,$00,$00,$40,$01,$40,$00,$7F,$00,$03,$00,$3F,$7E,$40,$60,$00           
+    .byte $00,$7C,$70,$00,$00,$47,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
+    .byte $7F,$7F,$70,$7F,$7F,$07,$7F,$7F,$7F,$03,$00,$7F,$7F,$00,$60,$7F           
+    .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
+    .byte $7F,$03,$00,$7F,$7F,$00,$60,$7F,$7F,$7F,$70,$7F,$7F,$07,$7F,$7F           
 
-    ; Textured Cube                                                                 
+    ; 4 Textured Cube 
     .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$77,$00,$00,$77,$1F,$00           
     .byte $00,$7B,$7F,$3F,$7E,$7F,$6F,$00,$7F,$7F,$7F,$5F,$7D,$7F,$7F,$7F           
     .byte $7F,$7F,$7F,$5F,$7D,$7F,$7F,$7F,$55,$7B,$7F,$3F,$7E,$7F,$6F,$40           
@@ -3145,38 +3232,34 @@ tileSheet_4k:
     .byte $2B,$2A,$00,$00,$55,$55,$00,$40,$55,$55,$00,$00,$2A,$6A,$00,$40           
     .byte $7F,$2A,$00,$40,$55,$55,$00,$7F,$00,$57,$00,$3F,$7E,$6A,$60,$00           
     .byte $00,$7C,$70,$00,$00,$57,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
+    .byte $7F,$7F,$70,$7F,$7F,$07,$7F,$7F,$7F,$03,$00,$7F,$7F,$00,$60,$7F           
+    .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
+    .byte $7F,$03,$00,$7F,$7F,$00,$60,$7F,$7F,$7F,$70,$7F,$7F,$07,$7F,$7F           
 
-    ; mask
-    .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$7F,$00,$00,$7F,$1F,$00           
-    .byte $00,$7F,$7F,$3F,$7E,$7F,$7F,$00,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$00,$7F,$7F,$3F,$7E,$7F,$7F,$00           
-    .byte $00,$7C,$7F,$00,$00,$7F,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00     
-
-    ; Floor dark
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    ; 5 56x16 isometric tile
     .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$70,$00,$00,$07,$1F,$00           
     .byte $00,$03,$00,$3F,$7E,$00,$60,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
     .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$03,$00,$3F,$7E,$00,$60,$00           
     .byte $00,$7C,$70,$00,$00,$07,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
+    .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$70,$00,$00,$07,$1F,$00           
+    .byte $00,$03,$00,$3F,$7E,$00,$60,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
+    .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$03,$00,$3F,$7E,$00,$60,$00           
+    .byte $00,$7C,$70,$00,$00,$07,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
+    .byte $7F,$7F,$70,$7F,$7F,$07,$7F,$7F,$7F,$03,$00,$7F,$7F,$00,$60,$7F           
+    .byte $7F,$00,$00,$40,$01,$00,$00,$7F,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$7F,$00,$00,$40,$01,$00,$00,$7F           
+    .byte $7F,$03,$00,$7F,$7F,$00,$60,$7F,$7F,$7F,$70,$7F,$7F,$07,$7F,$7F           
 
-    ; Floor mask                                                              
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
-    .byte $00,$00,$0F,$00,$00,$78,$00,$00,$00,$7C,$7F,$00,$00,$7F,$1F,$00           
-    .byte $00,$7F,$7F,$3F,$7E,$7F,$7F,$00,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
-    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$00,$7F,$7F,$3F,$7E,$7F,$7F,$00           
-    .byte $00,$7C,$7F,$00,$00,$7F,$1F,$00,$00,$00,$0F,$00,$00,$78,$00,$00           
-
-    ; Dude
+    ; 6 Dude
     .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$1F,$00,$00,$40,$00,$00           
     .byte $00,$00,$35,$00,$00,$70,$00,$00,$00,$00,$3F,$07,$00,$70,$78,$00           
     .byte $00,$00,$11,$0C,$00,$40,$0C,$00,$00,$00,$1F,$09,$00,$78,$64,$00           
@@ -3185,16 +3268,32 @@ tileSheet_4k:
     .byte $00,$78,$10,$09,$00,$3C,$67,$00,$00,$70,$1F,$0C,$00,$7C,$0C,$00           
     .byte $00,$00,$1C,$07,$00,$32,$78,$00,$00,$00,$24,$00,$00,$0F,$00,$00           
     .byte $00,$40,$78,$00,$00,$07,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $7F,$7F,$60,$7F,$7F,$3F,$7F,$7F,$7F,$7F,$40,$7F,$7F,$1F,$7F,$7F           
+    .byte $7F,$7F,$00,$78,$7F,$07,$07,$7F,$7F,$7F,$00,$70,$7F,$07,$03,$7F           
+    .byte $7F,$7F,$40,$60,$7F,$0F,$01,$7F,$7F,$7F,$00,$60,$7F,$00,$01,$7F           
+    .byte $7F,$1F,$00,$60,$7F,$00,$00,$7F,$7F,$0F,$00,$60,$7F,$00,$00,$7F           
+    .byte $7F,$07,$00,$60,$7F,$00,$00,$7F,$7F,$07,$00,$60,$7F,$00,$00,$7F           
+    .byte $7F,$03,$00,$60,$7F,$00,$00,$7F,$7F,$07,$40,$60,$7F,$00,$00,$7F           
+    .byte $7F,$0F,$40,$70,$7F,$00,$03,$7F,$7F,$3F,$01,$78,$7F,$40,$06,$7F           
+    .byte $7F,$1F,$03,$7F,$7F,$70,$7C,$7F,$7F,$3F,$07,$7F,$7F,$78,$7E,$7F           
 
-    ; Dude mask
-    .byte $00,$00,$1F,$00,$00,$40,$00,$00,$00,$00,$3F,$00,$00,$60,$00,$00           
-    .byte $00,$00,$7F,$07,$00,$78,$78,$00,$00,$00,$7F,$0F,$00,$78,$7C,$00           
-    .byte $00,$00,$3F,$1F,$00,$70,$7E,$00,$00,$00,$7F,$1F,$00,$7F,$7E,$00           
-    .byte $00,$60,$7F,$1F,$00,$7F,$7F,$00,$00,$70,$7F,$1F,$00,$7F,$7F,$00           
-    .byte $00,$78,$7F,$1F,$00,$7F,$7F,$00,$00,$78,$7F,$1F,$00,$7F,$7F,$00           
-    .byte $00,$7C,$7F,$1F,$00,$7F,$7F,$00,$00,$78,$3F,$1F,$00,$7F,$7F,$00           
-    .byte $00,$70,$3F,$0F,$00,$7F,$7C,$00,$00,$40,$7E,$07,$00,$3F,$79,$00           
-    .byte $00,$60,$7C,$00,$00,$0F,$03,$00,$00,$40,$78,$00,$00,$07,$01,$00           
+    ; 7 Full pixels (for testing)   
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00           
 
-    .res    4096
+    .res    (16-8)*256
 

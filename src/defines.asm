@@ -35,30 +35,36 @@ A4              :=  $42
 ; pointers
 bgPtr0          :=  $06     ; Background Tile pointer
 bgPtr1          :=  $07
-fgPtr0          :=  $08     ; Foreground Tile pointer
-fgPtr1          :=  $09
 maskPtr0        :=  $19     ; mask pointer
 maskPtr1        :=  $1a
 screenPtr0      :=  $1b     ; Screen pointer
 screenPtr1      :=  $1c
-mapPtr0 		:=  $ec
-mapPtr1 		:=  $ed
 stringPtr0      :=  $fe
 stringPtr1      :=  $ff
+
+ptrAA0 			:=  $06
+ptrAA1 			:=  $07
+ptrAB0 			:=  $08
+ptrAB1			:=  $09
+ptrBA0 			:=  $19
+ptrBA1 			:=  $1a
+ptrBB0 			:=  $1d
+ptrBB1 			:=  $1e
+ptrCA0 			:=  $ce
+ptrCA1 			:=  $cf
+ptrCB0 			:=  $ee
+ptrCB1			:=  $ef
+ptrDA0 			:=  $fa
+ptrDA1 			:=  $fb
+ptrDB0 			:=  $fc
+ptrDB1 			:=  $fd
 
 ; Indexes
 bgTile          :=  $1d
 fgTile          :=  $1e
 tileX           :=  $e3
 tileY           :=  $e8
-mapWindowX 		:=  $ef
-mapWindowY 		:=  $fa
 
-; Modes
-drawPage        :=  $d7
-invMask         :=  $ee
-
-; Available: fb,fc,fd
 ; Can probably reuse more since not planning on support dos3.3
 
 ; Memory map
@@ -69,10 +75,10 @@ HGRPAGE2        := $4000
 
 ; Soft switches
 ;---------------------------------------------------------
-RAMRDOFF        := $C002
-RAMRDON         := $C003
-RAMWRTOFF       := $C004
-RAMWRTON        := $C005
+RAMRDOFF        := $C002 	; read main memory  $200 - $BFFF
+RAMRDON         := $C003    ; read aux memory   $200 - $BFFF
+RAMWRTOFF       := $C004    ; write main memory $200 - $BFFF
+RAMWRTON        := $C005 	; write aux memory  $200 - $BFFF
 CLR80VID        := $C00C
 SET80VID        := $C00D
 SPEAKER         := $C030
