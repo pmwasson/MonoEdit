@@ -67,6 +67,16 @@ tileY           :=  $e8
 
 ; Can probably reuse more since not planning on support dos3.3
 
+; Engine zero page (overlaps with above)
+fgPtr0          :=  $08     ; Foreground Tile pointer
+fgPtr1          :=  $09
+drawPage        :=  $d7
+invMask         :=  $ee
+mapPtr0 		:=  $ec
+mapPtr1 		:=  $ed
+mapWindowX 		:=  $ef
+mapWindowY 		:=  $fa
+
 ; Memory map
 ;---------------------------------------------------------
 FILEBUFFER      := $800   	; User PRODOS filebuffer, 512 bytes
@@ -165,6 +175,7 @@ DIR_DOWN        =   3
 ; DHGR Engine
 ;---------------------------------------------------------
 
+DHGR_TEST 				:= $C00
 DHGR_INIT 				:= $C03
 DHGR_DRAW_7X8 			:= $C06
 DHGR_DRAW_14X16			:= $C09
