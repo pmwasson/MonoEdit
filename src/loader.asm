@@ -28,8 +28,8 @@
 ;   4000-5FFF   [ DGHR Page 2                   ]
 ;               [ Read data     ]
 ;
-;   6000-7FFF   [ Game program  ][ Map 64x64x2  ]
-;   8000-8FFF   [ Game program  ][ Dialog       ]
+;   6000-7FFF   [ Game / Editor ][ Map 64x64x2  ]
+;   8000-8FFF   [               ][ Dialog       ]
 ;   
 ;   9000-AFFF   [ Isometric Tiles (64)          ]
 ;
@@ -80,6 +80,7 @@ GAMELENGTH      =   $9000 - GAMESTART
 
 INSTALL_MAIN    = 0     ; Main memory
 INSTALL_AUX     = 1     ; Aux memory
+INSTALL_BOTH    = 3     ; Both main and aux
 INSTALL_AUX_I2  = 2     ; Aux memory, interleave of 2
 INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
 
@@ -103,7 +104,9 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     jsr     init
 
     jsr    inline_print
-    StringCR "Checking memory..."
+    StringCont "Welcome to 128k game loader."
+;    StringCont "Hold down open-apple for editor"
+    StringCR   "Checking memory..."
 
     lda     $BF98
     bmi     :+
@@ -117,14 +120,14 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     StringCR "Loading game assets..."
 
 
-;    ldx     #assetFont1
-;    jsr     loadAsset
+    ldx     #assetFont1
+    jsr     loadAsset
     ldx     #assetISO
     jsr     loadAsset
     ldx     #assetEngine
     jsr     loadAsset
-;    ldx     #assetGame
-;    jsr     loadAsset
+    ldx     #assetEditor
+    jsr     loadAsset
 
     lda     fileError
     beq     :+
@@ -169,10 +172,12 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
 
 :
 
-    ; Jump to game
+    jsr     inline_print
+    StringCont "Launching executable..."
+    .byte   13,0
 
-;   jmp     GAMESTART
-    jmp     DHGR_TEST
+    ; Jump to game
+    jmp     GAMESTART
 
 .endproc
 
@@ -303,6 +308,21 @@ quit_params:
 
     jsr     inline_print
     String "(aux) $"
+    jsr     printDest
+
+    jsr     setCopyParam
+    sec                     ; copy from main to aux
+    jsr     AUXMOVE
+
+    rts
+:
+
+    ; Note that install both is same as install aux
+    cmp     #INSTALL_BOTH
+    bne     :+
+
+    jsr     inline_print
+    String "(main/aux duplicated) $"
     jsr     printDest
 
     jsr     setCopyParam
@@ -679,25 +699,28 @@ fileTypeISO:    String "Isometric Tileset"
 fileTypeExe:    String "Executable"
 
 ; File names
-fileNameFont1:  StringLen "/DHGR/DATA/TILESET7X8.1"
+fileNameFont1:  StringLen "/DHGR/DATA/TILESET7X8.0"
 fileNameISO:    StringLen "/DHGR/DATA/TILESET56X16.0"
 fileNameEngine: StringLen "/DHGR/DATA/ENGINE"
 fileNameGame:   StringLen "/DHGR/DATA/GAME"
+fileNameEditor: StringLen "/DHGR/DATA/EDITOR"
 
 ; Asset List
 fileDescription:    ; type, name, address, size, dest, interleave
     ;       TYPE            NAME            BUFFER          LENGTH          END         STARTDEST       MODE            DESTEND (INT)   OFFSET
     ;       0               2               4               6               8           10              12              14 
     ;       --------------- --------------- -----------     -----------     ----------- -----------     --------------- --------------- -------
-    .word   fileTypeFont,   fileNameFont1,  READBUFFER,     FONT1LENGTH,    FONT1END,   FONT1START,     INSTALL_AUX_I2, FONT1I2END      ; 0
+    .word   fileTypeFont,   fileNameFont1,  FONT1START,     FONT1LENGTH,    FONT1END,   FONT1START,     INSTALL_BOTH,   0               ; 0
     .word   fileTypeISO,    fileNameISO,    READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I4, ISOI4END        ; 16
     .word   fileTypeExe,    fileNameEngine, ENGINESTART,    ENGINELENGTH,   0,          ENGINESTART,    INSTALL_MAIN,   0               ; 32
     .word   fileTypeExe,    fileNameGame,   GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 48
+    .word   fileTypeExe,    fileNameEditor, GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 48
 
 assetFont1  =   16*0
 assetISO    =   16*1
 assetEngine =   16*2
 assetGame   =   16*3
+assetEditor =   16*4
 
 ;-----------------------------------------------------------------------------
 ; Utilies

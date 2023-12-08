@@ -15,27 +15,28 @@
 
 ; Jump table (in fixed locations)
     jmp     drawTest            ; Remove once game calls engine
-    jmp     drawInit
-    jmp     drawTile_7x8
-    jmp     drawTile_14x16
-    jmp     drawTileFG_14x16
+    jmp     engineInit
+    jmp     drawTile_28x8
+    jmp     drawTile_56x16
+    jmp     drawTileMask_56x16
     jmp     readMap
+    jmp     drawPixel4x4
 
 ; Variables (in fixed locations)
 .align 32
-bgSheet_14x16:  .word   $9000
-fgSheet_14x16:  .word   $A000
-bgSheet_7x8:    .word   $B000
+bgSheet_56x16:  .word   $9000
+fgSheet_56x16:  .word   $A000
+bgSheet_28x8:   .word   $B000
 mapSheet:       .word   $6000
 mapWindowWidth: .byte   7
 mapWindowHeight:.byte   7
 
 ;-----------------------------------------------------------------------------
-; drawInit
+; engineInit
 ;
 ; Set up aux memory
 ;-----------------------------------------------------------------------------
-.proc drawInit
+.proc engineInit
 
     ; copy code to aux memory
     lda     #<auxMemStart
@@ -63,8 +64,8 @@ auxMemStart:
 ; This code is copied such that it exists in both main and aux memory.
 
 ;-----------------------------------------------------------------------------
-; drawTile (14x16)
-;  Assume 14x16, where 14 is 14*4 pixels = 56 -> 8 bytes
+; drawTile (56x16)
+;  Assume 56x16, where 56/7 = 8 bytes
 ;    8*16 = 128 (split main/aux), so 4 tiles per page
 ;
 ;            0 1 2 3 4 5 6 7 8 9 10 11 12 13 ; 4-bit pixels in 7-bit byes (MSB ignored)
@@ -72,7 +73,7 @@ auxMemStart:
 ;              --0--   -1-   ---2--    --3-- ; Main memory
 ;-----------------------------------------------------------------------------
 
-.proc drawTile_14x16
+.proc drawTile_56x16
 
     sta     CLR80COL        ; Use RAMWRT for aux mem
 
@@ -88,7 +89,7 @@ auxMemStart:
     lsr
     lsr
     clc
-    adc     bgSheet_14x16+1
+    adc     bgSheet_56x16+1
     sta     bgPtr1
 
     ; calculate screen pointer
@@ -187,14 +188,14 @@ screenPtr1Copy: .byte   0
 
 
 ;-----------------------------------------------------------------------------
-; draw tile foreground (14x16)
+; draw tile with mask (56x16)
 ;
 ;   Draw a foreground tile on top of the screen.
 ;   It is assumed that the foreground tile comes first and the
 ;   mask follows in aligned memory.
 ;-----------------------------------------------------------------------------
 
-.proc drawTileFG_14x16
+.proc drawTileMask_56x16
 
     sta     CLR80COL        ; Use RAMWRT for aux mem
 
@@ -213,7 +214,7 @@ screenPtr1Copy: .byte   0
     lda     fgTile
     lsr                     ; /2
     clc
-    adc     fgSheet_14x16+1
+    adc     fgSheet_56x16+1
     sta     fgPtr1
     sta     maskPtr1
 
@@ -327,8 +328,8 @@ screenPtr1Copy: .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
-; drawTile (7x8)
-;  Assume 7x8, where 7 is 7*4 pixels = 28 -> 4 bytes
+; drawTile (28x8)
+;  Assume 28x8, where 28 is 28/7 = 4 bytes
 ;    4*8 = 32 (split main/aux), so 16 tiles per page
 ;
 ;            0 1 2  3 4 5 6  ; 4-bit pixels in 7-bit byes (MSB ignored)
@@ -341,7 +342,7 @@ screenPtr1Copy: .byte   0
 ;            28  30  29  31  ; line 7
 ;
 ;-----------------------------------------------------------------------------
-.proc drawTile_7x8
+.proc drawTile_28x8
 
     sta     CLR80COL        ; Use RAMWRT for aux mem
 
@@ -359,7 +360,7 @@ screenPtr1Copy: .byte   0
     lsr
     lsr
     clc
-    adc     bgSheet_7x8+1
+    adc     bgSheet_28x8+1
     sta     bgPtr1
 
     ; calculate screen pointer
@@ -434,6 +435,196 @@ screenPtr1Copy: .byte   0
 
 .endproc
 
+;-----------------------------------------------------------------------------
+; drawPixel
+;   X = pixel color (0=black, 1=white, 2=background)
+;   Draw a 4x4 pixel (3x3 + boarder) using tileX, tileY for coordinates
+;   tileX range 0..111
+;   tileY range 0..31
+;-----------------------------------------------------------------------------
+.proc drawPixel4x4
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem
+    
+    ; set up color
+    lda     colorTable0,x
+    sta     color0
+    lda     colorTable1,x
+    sta     color1
+
+    ; calculate screen pointer
+    lda     tileY
+    lsr
+    tax                     ; /2 since 4 pixel
+    ldy     tileX
+    clc
+    lda     pixelDiv14,y    ; /14 * 4 (offset 4 = 8 bytes: aux + main)
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0
+    lda     tileY
+    and     #1
+    beq     :+
+    lda     #4*4            ; down 4 pixel for odd tile Y
+:
+    adc     linePage,x    
+    sta     screenPtr1
+    sta     screenPtr1Copy
+
+    ; set up mask
+    ldy     tileX
+    lda     pixelRem14,y
+    clc
+    adc     #<pixelMaskEven
+    sta     bgPtr0
+    lda     #>pixelMaskEven
+    sta     bgPtr1
+
+    ldx     color0      ; copy over to aux
+    ldy     color1      ; copy over to aux
+    ; transfer to aux memory
+    sta     RAMWRTON  
+    sta     RAMRDON  
+    stx     color0
+    sty     color1
+
+    ; draw half of tile in aux mem
+    jsr     drawLine0       ; AUX
+    jsr     drawLine1       ; AUX
+    jsr     drawLine0       ; AUX
+    jsr     drawLineBlank   ; AUX
+
+    sta     RAMWRTOFF   ; AUX
+    sta     RAMRDOFF    ; AUX
+
+    clc
+    lda     bgPtr0
+    adc     #(pixelMaskOdd-pixelMaskEven)
+    sta     bgPtr0
+
+    lda     screenPtr1Copy
+    sta     screenPtr1
+
+    jsr     drawLine1       ; AUX
+    jsr     drawLine0       ; AUX
+    jsr     drawLine1       ; AUX
+    jsr     drawLineBlank   ; AUX
+
+    rts
+
+drawLine0:
+    ldy     #0
+:
+    lda     (bgPtr0),y
+    eor     #$ff
+    and     (screenPtr0),y
+    sta     temp
+    lda     (bgPtr0),y
+    and     color0
+    ora     temp
+    sta     (screenPtr0),y
+
+    iny
+    cpy     #4
+    bne     :-
+
+    lda     screenPtr1
+    clc
+    adc     #$4
+    sta     screenPtr1
+
+    rts
+
+drawLine1:
+    ldy     #0
+:
+    lda     (bgPtr0),y
+    eor     #$ff
+    and     (screenPtr0),y
+    sta     temp
+    lda     (bgPtr0),y
+    and     color1
+    ora     temp
+    sta     (screenPtr0),y
+
+    iny
+    cpy     #4
+    bne     :-
+
+    lda     screenPtr1
+    clc
+    adc     #$4
+    sta     screenPtr1
+
+    rts
+
+drawLineBlank:
+    ldy     #0
+:
+    lda     (bgPtr0),y
+    eor     #$ff
+    and     (screenPtr0),y
+    sta     (screenPtr0),y
+
+    iny
+    cpy     #4
+    bne     :-
+
+    lda     screenPtr1
+    clc
+    adc     #$4
+    sta     screenPtr1
+
+    rts
+
+temp:   .byte   0
+screenPtr1Copy:
+        .byte   0
+color0: .byte   0
+color1: .byte   0
+colorTable0:     
+        .byte   $00, $ff, $2A
+colorTable1:
+        .byte   $00, $ff, $55
+
+; Data need to be available in both main and aux mem
+
+.align 256
+; 8-byte mask per offset
+; Even bytes (aux memory)
+pixelMaskEven:   
+    .byte   $07,$00,$00,$00     ; 0
+    .byte   $70,$00,$00,$00     ; 1
+    .byte   $00,$00,$00,$00     ; 2
+    .byte   $00,$01,$00,$00     ; 3
+    .byte   $00,$1c,$00,$00     ; 4
+    .byte   $00,$40,$00,$00     ; 5
+    .byte   $00,$00,$00,$00     ; 6
+    .byte   $00,$00,$07,$00     ; 7
+    .byte   $00,$00,$70,$00     ; 8
+    .byte   $00,$00,$00,$00     ; 9
+    .byte   $00,$00,$00,$01     ; 10
+    .byte   $00,$00,$00,$1c     ; 11
+    .byte   $00,$00,$00,$40     ; 12
+    .byte   $00,$00,$00,$00     ; 13
+
+; Odd bytes (main memory)
+pixelMaskOdd:   
+    .byte   $00,$00,$00,$00     ; 0
+    .byte   $00,$00,$00,$00     ; 1
+    .byte   $0e,$00,$00,$00     ; 2
+    .byte   $60,$00,$00,$00     ; 3
+    .byte   $00,$00,$00,$00     ; 4
+    .byte   $00,$03,$00,$00     ; 5
+    .byte   $00,$38,$00,$00     ; 6
+    .byte   $00,$00,$00,$00     ; 7
+    .byte   $00,$00,$00,$00     ; 8
+    .byte   $00,$00,$0e,$00     ; 9
+    .byte   $00,$00,$60,$00     ; 10
+    .byte   $00,$00,$00,$00     ; 11
+    .byte   $00,$00,$00,$03     ; 12
+    .byte   $00,$00,$00,$38     ; 13
+
+.endproc
 
 ;-----------------------------------------------------------------------------
 ; readMap
@@ -571,6 +762,28 @@ linePage:
     .byte   >$2350
     .byte   >$23D0
 
+; Lookup table to divide by 14 then *4 for screen x-offset
+pixelDiv14:  
+    .byte    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+    .byte    4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4
+    .byte    8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8
+    .byte   12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12
+    .byte   16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16
+    .byte   20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20
+    .byte   24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24
+    .byte   28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28
+
+; Remainder / 14 for 4-byte lookup  * 4
+pixelRem14:  
+    .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
+    .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
+    .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
+    .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
+    .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
+    .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
+    .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
+    .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
+
 ;-----------------------------------------------------------------------------
 ; drawTest
 ;
@@ -586,9 +799,9 @@ linePage:
     lda     #>quit
     sta     $3fa
 
-    jsr     clearScreen
+    jsr     engineInit    ; init code
 
-    jsr     drawInit    ; init code
+    jsr     clearScreen
 
     ; init DHGR (monochrome)
 
@@ -640,7 +853,7 @@ linePage:
 ;
 ;
 ;:
-;    jsr     drawTile_14x16
+;    jsr     drawTile_56x16
 ;    inc     tileX
 ;    inc     tileX
 ;    inc     tileX
@@ -667,7 +880,7 @@ linePage:
     sta     tileX
     sta     tileY
 :
-    jsr     drawTileFG_14x16
+    jsr     drawTileMask_56x16
     inc     tileX
     inc     tileX
     inc     tileX

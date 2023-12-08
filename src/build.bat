@@ -4,8 +4,8 @@
 ::---------------------------------------------------------------------------
 cd ..\build
 
-ca65 -I ..\src -t apple2 ..\src\mono.asm -l mono.dis
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\mono.asm apple2.lib  -o mono.apple2 -C ..\src\start4000.cfg
+ca65 -I ..\src -t apple2 ..\src\editor.asm -l editor.dis
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\editor.asm apple2.lib  -o editor.apple2 -C ..\src\start6000.cfg
 
 :: Engine
 ca65 -I ..\src -t apple2 ..\src\engine.asm -l engine.dis
@@ -20,6 +20,7 @@ cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\loader.asm apple2.lib  -o loader.a
 ::---------------------------------------------------------------------------
 
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileset56x16_0.asm apple2.lib  -o tileset56x16_0.apple2 -C ..\src\start6000.cfg
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileset7x8_0.asm apple2.lib  -o tileset7x8_0.apple2 -C ..\src\start6000.cfg
 
 ::---------------------------------------------------------------------------
 :: Build disk 
@@ -30,13 +31,13 @@ copy ..\disk\template_prodos.dsk mono_prodos.dsk
 
 :: Put boot program first
 
-:: Editor
-java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk mono.system sys < C:\cc65\target\apple2\util\loader.system
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk mono bin < mono.apple2 
-
 :: Loader
 java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\cc65\target\apple2\util\loader.system
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.apple2 
+
+:: Editor
+java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk editor.system sys < C:\cc65\target\apple2\util\loader.system
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/editor bin < editor.apple2 
 
 :: Throw on basic
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk basic.system sys < ..\disk\BASIC.SYSTEM 
@@ -44,6 +45,7 @@ java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk basic.system sys < ..\dis
 :: Assets
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/engine bin < engine.apple2 
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tileset56x16.0 bin < tileset56x16_0.apple2 
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tileset7x8.0 bin < tileset7x8_0.apple2 
 
 :: Copy results out of the build directory
 copy mono_prodos.dsk ..\disk

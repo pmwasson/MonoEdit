@@ -32,7 +32,7 @@ BOX_BLANK       = $20
 ;------------------------------------------------
 
 .segment "CODE"
-.org    $4000
+.org    $6000
 
 ;=============================================================================
 ; Main
@@ -41,8 +41,8 @@ BOX_BLANK       = $20
 .proc main
 
     ; set up 80 columns
-    jsr     $c300       ; 80 column mode
-    jsr     HOME        ; clear screen
+    ;jsr     $c300       ; 80 column mode
+    ;jsr     HOME        ; clear screen
     lda     #23         ; put cursor on last line
     sta     CV
     jsr     VTAB
