@@ -32,7 +32,7 @@ BOX_BLANK       = $20
 ;------------------------------------------------
 
 .segment "CODE"
-.org    $6000
+.org    $4000
 
 ;=============================================================================
 ; Main
@@ -41,8 +41,6 @@ BOX_BLANK       = $20
 .proc main
 
     ; set up 80 columns
-    ;jsr     $c300       ; 80 column mode
-    ;jsr     HOME        ; clear screen
     lda     #23         ; put cursor on last line
     sta     CV
     jsr     VTAB
@@ -50,6 +48,8 @@ BOX_BLANK       = $20
     ; display a greeting
     jsr     inline_print
     StringCR    "DHGR Monochrome tile editor - ? for help"
+
+    jsr     DHGR_INIT
 
     ; default to 56x16
     lda     #7
@@ -1691,7 +1691,7 @@ waitExit:
     sta     tileX
 
     jsr     getPixel
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     rts
 
@@ -1715,7 +1715,7 @@ waitExit:
     sta     tileX
 
     lda     #CURSOR
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     rts
 
@@ -2723,7 +2723,7 @@ printLoop:
     jmp     continue
 :
     and     #$7f
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     inc     tileX
 continue:
@@ -2762,13 +2762,13 @@ offset: .byte   0
     lsr     ; /16
     tax
     lda     numberLookup,x
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
     inc     tileX
     lda     temp
     and     #$F
     tax
     lda     numberLookup,x
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
     inc     tileX
     rts
 
@@ -2791,22 +2791,22 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
     lda     boxTop
     sta     tileY
     lda     #BOX_UPPER_LEFT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxRight
     sta     tileX    
     lda     #BOX_UPPER_RIGHT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxBottom
     sta     tileY
     lda     #BOX_LOWER_RIGHT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxLeft
     sta     tileX
     lda     #BOX_LOWER_LEFT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     ; Draw horizontal
 
@@ -2815,12 +2815,12 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
     lda     boxTop
     sta     tileY
     lda     #BOX_HORZ
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
     
     lda     boxBottom
     sta     tileY
     lda     #BOX_HORZ
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
     
     inc     tileX
     lda     boxRight
@@ -2837,12 +2837,12 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
     lda     boxLeft
     sta     tileX
     lda     #BOX_VERT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
     
     lda     boxRight
     sta     tileX
     lda     #BOX_VERT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
     
     inc     tileY
     lda     boxBottom
@@ -2861,22 +2861,22 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
     lda     boxTop
     sta     tileY
     lda     #BOX_BLANK
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxRight
     sta     tileX    
     lda     #$20
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxBottom
     sta     tileY
     lda     #BOX_BLANK
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxLeft
     sta     tileX
     lda     #BOX_BLANK
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     ; Draw horizontal
 
@@ -2885,12 +2885,12 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
     lda     boxTop
     sta     tileY
     lda     #BOX_BLANK
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
     
     lda     boxBottom
     sta     tileY
     lda     #BOX_BLANK
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
     
     inc     tileX
     lda     boxRight
@@ -2907,12 +2907,12 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
     lda     boxLeft
     sta     tileX
     lda     #BOX_BLANK
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
     
     lda     boxRight
     sta     tileX
     lda     #BOX_BLANK
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
     
     inc     tileY
     lda     boxBottom

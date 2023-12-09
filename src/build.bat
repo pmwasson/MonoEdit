@@ -5,7 +5,7 @@
 cd ..\build
 
 ca65 -I ..\src -t apple2 ..\src\editor.asm -l editor.dis
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\editor.asm apple2.lib  -o editor.apple2 -C ..\src\start6000.cfg
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\editor.asm apple2.lib  -o editor.apple2 -C ..\src\start4000.cfg
 
 :: Engine
 ca65 -I ..\src -t apple2 ..\src\engine.asm -l engine.dis

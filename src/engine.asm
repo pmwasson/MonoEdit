@@ -16,6 +16,7 @@
 ; Jump table (in fixed locations)
     jmp     drawTest            ; Remove once game calls engine
     jmp     engineInit
+    jmp     drawTile_7x8
     jmp     drawTile_28x8
     jmp     drawTile_56x16
     jmp     drawTileMask_56x16
@@ -24,12 +25,13 @@
 
 ; Variables (in fixed locations)
 .align 32
-bgSheet_56x16:  .word   $9000
-fgSheet_56x16:  .word   $A000
-bgSheet_28x8:   .word   $B000
-mapSheet:       .word   $6000
-mapWindowWidth: .byte   7
-mapWindowHeight:.byte   7
+tileSheet_7x8:          .word   $B000
+tileSheet_28x8:         .word   $B000
+tileSheet_56x16:        .word   $9000
+tileSheetMask_56x16:    .word   $A000
+mapSheet:               .word   $6000
+mapWindowWidth:         .byte   7
+mapWindowHeight:        .byte   7
 
 ;-----------------------------------------------------------------------------
 ; engineInit
@@ -64,6 +66,74 @@ auxMemStart:
 ; This code is copied such that it exists in both main and aux memory.
 
 ;-----------------------------------------------------------------------------
+; drawTile_7x8
+;  Draw a tile that is 7 pixels wide (1 byte) by 8 pixels high, for a total
+;    of 8 bytes.
+; Can be either in aux (even) or main (odd) memory depending on X.
+;  Assume 7x8, where 7 is 7*4 pixels = 28 -> 4 bytes
+;
+; Assumes tileSheet is page aligned
+;
+;-----------------------------------------------------------------------------
+.proc drawTile_7x8
+
+    ; tile index passes in A
+    tay     ; copy A
+    ; calculate tile pointer
+    asl                     ; *8
+    asl
+    asl
+    sta     bgPtr0
+    tya     ; restore A
+    lsr                     ; /32
+    lsr
+    lsr
+    lsr
+    lsr
+    clc
+    adc     tileSheet_7x8+1
+    sta     bgPtr1
+
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX
+    lsr                     ; /2
+    bcs     :+              ; odd = main mem
+    sta     RAMWRTON        ; aux if even
+:
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    lda     linePage,x
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+    ldy     #0
+drawLoop:
+    lda     (bgPtr0),y
+    sta     (screenPtr0),y
+
+    ; assumes aligned such that there are no page crossing
+    inc     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+    sta     RAMWRTOFF       ; Restore writing to main mem
+
+    rts    
+
+.endproc
+
+;-----------------------------------------------------------------------------
 ; drawTile (56x16)
 ;  Assume 56x16, where 56/7 = 8 bytes
 ;    8*16 = 128 (split main/aux), so 4 tiles per page
@@ -89,7 +159,7 @@ auxMemStart:
     lsr
     lsr
     clc
-    adc     bgSheet_56x16+1
+    adc     tileSheet_56x16+1
     sta     bgPtr1
 
     ; calculate screen pointer
@@ -214,7 +284,7 @@ screenPtr1Copy: .byte   0
     lda     fgTile
     lsr                     ; /2
     clc
-    adc     fgSheet_56x16+1
+    adc     tileSheetMask_56x16+1
     sta     fgPtr1
     sta     maskPtr1
 
@@ -360,7 +430,7 @@ screenPtr1Copy: .byte   0
     lsr
     lsr
     clc
-    adc     bgSheet_28x8+1
+    adc     tileSheet_28x8+1
     sta     bgPtr1
 
     ; calculate screen pointer
