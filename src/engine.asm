@@ -652,9 +652,9 @@ screenPtr1Copy:
 color0: .byte   0
 color1: .byte   0
 colorTable0:     
-        .byte   $00, $ff, $2A
+        .byte   $00, $ff, $2A, $55, $00
 colorTable1:
-        .byte   $00, $ff, $55
+        .byte   $00, $ff, $55, $2A, $ff
 
 ; Data need to be available in both main and aux mem
 

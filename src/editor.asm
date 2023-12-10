@@ -16,9 +16,9 @@
 
 CURSOR          = $02
 
-PIXEL_BLACK     = $20           ; Space
-PIXEL_WHITE     = $0e
-PIXEL_BG_EVEN   = $16
+PIXEL_BLACK     = $20           ; (0) Space
+PIXEL_WHITE     = $0e           ; (1) 
+PIXEL_BG_EVEN   = $16           ; (2)
 PIXEL_BG_ODD    = $17
 
 BOX_HORZ        = $13
@@ -28,6 +28,23 @@ BOX_UPPER_RIGHT = $1d
 BOX_LOWER_LEFT  = $1e
 BOX_LOWER_RIGHT = $1f
 BOX_BLANK       = $20
+
+; Why so many sizes?
+SIZE_7x8        = 0
+SIZE_14x8       = 1
+SIZE_28x8       = 2
+SIZE_56x8       = 3
+SIZE_7x16       = 4
+SIZE_14x16      = 5
+SIZE_28x16      = 6
+SIZE_112x16     = 7
+SIZE_112x32     = 8
+
+MODE_NO_MASK    = 0
+MODE_MASK       = 1
+
+PIXEL_LARGE     = 0
+PIXEL_SMALL     = 1
 
 ;------------------------------------------------
 
@@ -51,8 +68,9 @@ BOX_BLANK       = $20
 
     jsr     DHGR_INIT
 
-    ; default to 56x16
-    lda     #7
+    ; set default size
+    lda     #SIZE_7x8
+    ldx     #MODE_NO_MASK
     jsr     setTileSize
     jsr     initMonochrome  ; Turn on monochrome dhgr
     ;jsr     initColorMode
@@ -286,19 +304,18 @@ deletePixelError:
     beq     setModeMasked
     jsr     inline_print
     StringCR "Off"
-    lda     #0
+    ldx     #0
     jmp     finishModeMask
 setModeMasked:
     jsr     inline_print
     StringCR "On"
-    lda     #1
+    ldx     #1
 finishModeMask:
-    sta     modeMasked
+    lda     tileSize
+    jsr     setTileSize
     lda     tileIndex
     and     #$FE
     sta     tileIndex
-    lda     tileSize
-    jsr     setTileSize
     jmp     refresh_loop
 :
     ;------------------
@@ -359,13 +376,16 @@ fill_cancel:
     ; ^T = Tile Size
     ;------------------
     cmp     #KEY_CTRL_T
-    bne     :+
+    beq     :+
+    jmp     afterTileSize
+:
     jsr     inline_print
     StringCont "Tile size"
     String "(0=7x8  1=14x8  2=28x8  3=56x8 4=7x16 5=14x16 6=28x16 7=56x16):"
     lda     #8
     jsr     getInputNumber
     bmi     tileSizeCancel
+    ldx     modeMasked
     jsr     setTileSize
     ; output size
     jsr     inline_print
@@ -381,7 +401,9 @@ fill_cancel:
     jmp     reset_loop
 tileSizeCancel:
     jmp     command_loop
-:
+
+afterTileSize:
+
     ;------------------
     ; ^R = Rotate
     ;------------------
@@ -691,11 +713,12 @@ dump_count: .byte   0
 
 ;-----------------------------------------------------------------------------
 ; setTileSize
-;   size passed in A  as an ASCII number
+;   size passed in A, mask mode in X
 ;       0:7x8  1:14x8  2:28x8  3:56x8
 ;       4:7x16 5:14x15 6:28x16 7:56x16
 ;-----------------------------------------------------------------------------
 .proc setTileSize
+    stx     modeMasked
     sta     tileSize
     tax
     lda     sizeWidth,x
@@ -708,13 +731,26 @@ dump_count: .byte   0
     sta     tileLength
     lda     sizeMax,x
     sta     tileMax
+    lda     sizePixel,x
+    sta     tilePixelSize
+    lda     sizeCanvasLeft,x
+    sta     canvasLeft
+    lda     sizeCanvasTop,x
+    sta     canvasTop
+    lda     sizeCanvasRight,x
+    sta     canvasRight
+    lda     sizeCanvasBottom,x
+    sta     canvasBottom
+    lda     sizePixelOffsetX,x
+    sta     pixelOffsetX
+    lda     sizePixelOffsetY,x
+    sta     pixelOffsetY
 
     ; adjust tilelength for masked mode
     lda     modeMasked
     beq     :+
     asl     tileLength
 :
-
 
     ; check that cursor is still in range
     lda     tileWidth
@@ -743,21 +779,29 @@ dump_count: .byte   0
     rts
 
 .align 8
-sizeWidth:      .byte   7, 14, 28, 56, 7,  14, 28, 56
-sizeWidthBytes: .byte   1, 2,  4,  8,  1,  2,  4,  8
-sizeHeight:     .byte   8, 8,  8,  8,  16, 16, 16, 16
-sizeLength:     .byte   8, 16, 32, 64, 16, 32, 64, 128
+sizeWidth:          .byte   7, 14, 28, 56, 7,  14, 28, 56,  112
+sizeWidthBytes:     .byte   1, 2,  4,  8,  1,  2,  4,  8,   16
+sizeHeight:         .byte   8, 8,  8,  8,  16, 16, 16, 16,  32
+sizeLength:         .byte   8, 16, 32, 64, 16, 32, 64, 128, 0
+sizePixel:          .byte   0, 0,  0,  1,  0,  0,  0,  1,   1
+sizeCanvasLeft:     .byte   0, 0,  0,  0,  0,  0,  0,  0,   0
+sizeCanvasTop:      .byte   0, 0,  0,  0,  0,  0,  0,  0,   0   
+sizeCanvasRight:    .byte   8, 15, 29, 33, 8,  15, 29, 33,  66
+sizeCanvasBottom:   .byte   9, 9,  9,  5,  17, 17, 17, 9,   9
+sizePixelOffsetX:   .byte   1, 1,  1,  2,  1,  1,  1,  2,   2
+sizePixelOffsetY:   .byte   1, 1,  1,  2,  1,  1,  1,  2,   2
 
 ; Tile max should be <= 4K
-; size  bytes/tile  4k/x    max    
-; 7x8   8           512     128
-; 14x8  16          256     64
-; 28x8  32          128     64
-; 56x8  64          64      64
-; 7x16  16          256     64
-; 14x16 32          128     64
-; 28x16 64          64      64
-; 56x16 128         32      32
+; size   bytes/tile  4k/x    max    
+; 7x8    8           512     128
+; 14x8   16          256     64
+; 28x8   32          128     64
+; 56x8   64          64      64
+; 7x16   16          256     64
+; 14x16  32          128     64
+; 28x16  64          64      64
+; 56x16  128         32      32
+; 112x16 256         16      16
 
 sizeMax:        .byte   128, 64, 32, 32, 64, 64, 64, 32
 .endproc
@@ -1135,34 +1179,36 @@ cont:
     jsr     drawNumber
 
     ; dispatched based on size
+    ; assuming SIZE_7x8 = 0
     lda     tileSize
     bne     :+
     jmp     drawPreview_7x8
 :
-    cmp     #1
+    cmp     #SIZE_14x8
     bne     :+
     jmp     drawPreview_14x8
 :
-    cmp     #2
+    cmp     #SIZE_28x8
     bne     :+
     jmp     drawPreview_28x8
 :
-    cmp     #3
+    cmp     #SIZE_56x8
     bne     :+
     jmp     drawPreview_56x8
 :
-    cmp     #4
+    cmp     #SIZE_7x16
     bne     :+
     jmp     drawPreview_7x16
 :
-    cmp     #5
+    cmp     #SIZE_14x16
     bne     :+
     jmp     drawPreview_14x16
 :
-    cmp     #6
+    cmp     #SIZE_28x16
     bne     :+
     jmp     drawPreview_28x16
 :
+    ; Assuming only 56x16 left
     jmp     drawPreview_56x16
     
 .endproc
@@ -1562,17 +1608,14 @@ prevIndex:  .byte 0
 ;-----------------------------------------------------------------------------
 .proc drawCanvas
 
-    ; Draw outline
-    lda     canvasX
+    lda     canvasLeft
     sta     boxLeft
-    sec
-    adc     tileWidth
-    sta     boxRight    ; right = left + width + 1
-    lda     canvasY
+    lda     canvasTop
     sta     boxTop
-    sec
-    adc     tileHeight
-    sta     boxBottom   ; bottom = top + height + 1
+    lda     canvasRight
+    sta     boxRight
+    lda     canvasBottom
+    sta     boxBottom
     jsr     drawBox
 
     ; save cursor
@@ -1677,22 +1720,33 @@ waitExit:
 ; DrawPixel
 ;   Based on curX, curY and color
 ;-----------------------------------------------------------------------------
+
+; 7x8 pixel
 .proc drawPixel
+
+    clc
 
     ; set location
     lda     curY
-    sec
-    adc     canvasY
+    adc     pixelOffsetY
     sta     tileY
 
     lda     curX
-    sec
-    adc     canvasX
+    adc     pixelOffsetX
     sta     tileX
 
+    lda     tilePixelSize
+    bne     :+
+
+    ; large pixels
     jsr     getPixel
     jsr     DHGR_DRAW_7X8
-
+    rts
+:
+    ; small pixels
+    jsr     getPixelRaw
+    tax
+    jsr     DHGR_DRAW_PIXEL_4X4
     rts
 
 .endproc
@@ -1705,18 +1759,24 @@ waitExit:
 
     ; set location
     lda     curY
-    sec
-    adc     canvasY
+    clc
+    adc     pixelOffsetY
     sta     tileY
 
     lda     curX
-    sec
-    adc     canvasX
+    clc
+    adc     pixelOffsetX
     sta     tileX
 
+    lda     tilePixelSize
+    bne     :+
     lda     #CURSOR
     jsr     DHGR_DRAW_7X8
+    rts
 
+:
+    ldx     #4
+    jsr     DHGR_DRAW_PIXEL_4X4
     rts
 
 .endproc
@@ -2538,42 +2598,57 @@ drawLoop:
 ;-----------------------------------------------------------------------------
 ; getPixel
 ;
-;  Read single pixel from tile passed in A using curX and curY
+;  Read single pixel from tile returned in A using curX and curY
 ;
 ;-----------------------------------------------------------------------------
 
 .proc getPixel
-    lda     modeMasked
-    beq     getPixel1
+    jsr     getPixelRaw
+    tax
+    lda     colorChar,x
+    rts
+
+colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
+
+.endproc
+
+
+; Return 0(black), 1(white) or 2(masked)
+.proc getPixelRaw
     inc     tileIndex
-    jsr     getPixel1
-    cmp     #PIXEL_BLACK    ; mask black -> foreground
-    beq     cont
-
-    dec     tileIndex
-    lda     curX
-    and     #1
+    lda     modeMasked
     beq     :+
-    lda     #PIXEL_BG_ODD
-    rts
-:
-    lda     #PIXEL_BG_EVEN
-    rts
-
-cont:
-    dec     tileIndex
-getPixel1:
     lda     tileIndex
     jsr     setTilePointer
     jsr     getPixelOffset
     and     (bgPtr0),y
     beq     :+
-    lda     #PIXEL_WHITE
+    dec     tileIndex
+    lda     tileX
+    and     #1
+    ora     #2
     rts
 :
-    lda     #PIXEL_BLACK
+    dec     tileIndex
+    lda     tileIndex
+    jsr     setTilePointer
+    jsr     getPixelOffset
+    and     (bgPtr0),y
+    beq     :+  ; 0 = black
+    lda     #1  ; 1 = white
+:
     rts
 .endproc
+
+;-----------------------------------------------------------------------------
+; Routines to modify pixels
+;
+; clearPixel    - set to black
+; setPixel      - set to white
+; copyPixel     - set to passed in value
+; togglePixel   - rotate through colors (black/white or black/white/masked)
+; deletePixel   - set to masked
+;-----------------------------------------------------------------------------
 
 .proc clearPixel
     lda     modeMasked
@@ -2641,8 +2716,6 @@ setPixel1:
 finish:
     sta     lastColor
     jmp     copyPixel
-
-
 .endproc
 
 .proc deletePixel
@@ -3047,9 +3120,13 @@ tileWidth:          .byte   0
 tileWidthBytes:     .byte   0
 tileHeight:         .byte   0
 tileLength:         .byte   0
-
-canvasX:            .byte   0
-canvasY:            .byte   0
+tilePixelSize:      .byte   0
+canvasLeft:         .byte   0
+canvasTop:          .byte   0
+canvasRight:        .byte   0
+canvasBottom:       .byte   0
+pixelOffsetX:       .byte   0
+pixelOffsetY:       .byte   0
 
 modeMasked:         .byte   1
 lastColor:          .byte   PIXEL_WHITE
