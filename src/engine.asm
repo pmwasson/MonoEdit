@@ -513,15 +513,9 @@ screenPtr1Copy: .byte   0
 ;   tileY range 0..31
 ;-----------------------------------------------------------------------------
 .proc drawPixel4x4
-
+    stx     colorIndex
     sta     CLR80COL        ; Use RAMWRT for aux mem
     
-    ; set up color
-    lda     colorTable0,x
-    sta     color0
-    lda     colorTable1,x
-    sta     color1
-
     ; calculate screen pointer
     lda     tileY
     lsr
@@ -549,22 +543,24 @@ screenPtr1Copy: .byte   0
     lda     #>pixelMaskEven
     sta     bgPtr1
 
-    ldx     color0      ; copy over to aux
-    ldy     color1      ; copy over to aux
+    ldx     colorIndex
     ; transfer to aux memory
     sta     RAMWRTON  
     sta     RAMRDON  
-    stx     color0
-    sty     color1
 
     ; draw half of tile in aux mem
-    jsr     drawLine0       ; AUX
-    jsr     drawLine1       ; AUX
-    jsr     drawLine0       ; AUX
-    jsr     drawLineBlank   ; AUX
+    lda     colorTable0a,x
+    jsr     drawLine
+    lda     colorTable0b,x
+    jsr     drawLine
+    lda     colorTable0a,x
+    jsr     drawLine
+    lda     colorTable0c,x
+    jsr     drawLine
 
-    sta     RAMWRTOFF   ; AUX
-    sta     RAMRDOFF    ; AUX
+    ; back to main
+    sta     RAMWRTOFF 
+    sta     RAMRDOFF
 
     clc
     lda     bgPtr0
@@ -574,14 +570,19 @@ screenPtr1Copy: .byte   0
     lda     screenPtr1Copy
     sta     screenPtr1
 
-    jsr     drawLine1       ; AUX
-    jsr     drawLine0       ; AUX
-    jsr     drawLine1       ; AUX
-    jsr     drawLineBlank   ; AUX
+    lda     colorTable1a,x
+    jsr     drawLine
+    lda     colorTable1b,x
+    jsr     drawLine
+    lda     colorTable1a,x
+    jsr     drawLine
+    lda     colorTable1c,x
+    jsr     drawLine
 
     rts
 
-drawLine0:
+drawLine:
+    sta     colorMask
     ldy     #0
 :
     lda     (bgPtr0),y
@@ -589,50 +590,8 @@ drawLine0:
     and     (screenPtr0),y
     sta     temp
     lda     (bgPtr0),y
-    and     color0
+    and     colorMask
     ora     temp
-    sta     (screenPtr0),y
-
-    iny
-    cpy     #4
-    bne     :-
-
-    lda     screenPtr1
-    clc
-    adc     #$4
-    sta     screenPtr1
-
-    rts
-
-drawLine1:
-    ldy     #0
-:
-    lda     (bgPtr0),y
-    eor     #$ff
-    and     (screenPtr0),y
-    sta     temp
-    lda     (bgPtr0),y
-    and     color1
-    ora     temp
-    sta     (screenPtr0),y
-
-    iny
-    cpy     #4
-    bne     :-
-
-    lda     screenPtr1
-    clc
-    adc     #$4
-    sta     screenPtr1
-
-    rts
-
-drawLineBlank:
-    ldy     #0
-:
-    lda     (bgPtr0),y
-    eor     #$ff
-    and     (screenPtr0),y
     sta     (screenPtr0),y
 
     iny
@@ -649,12 +608,22 @@ drawLineBlank:
 temp:   .byte   0
 screenPtr1Copy:
         .byte   0
-color0: .byte   0
-color1: .byte   0
-colorTable0:     
-        .byte   $00, $ff, $2A, $55, $00
-colorTable1:
-        .byte   $00, $ff, $55, $2A, $ff
+
+colorIndex: .byte   0
+colorMask:  .byte   0
+
+colorTable0a:     
+        .byte   $00, $ff, $55, $aa, $00
+colorTable1a:
+        .byte   $00, $ff, $aa, $55, $00
+colorTable0b:     
+        .byte   $00, $ff, $aa, $55, $ff
+colorTable1b:
+        .byte   $00, $ff, $55, $aa, $ff
+colorTable0c:     
+        .byte   $00, $00, $aa, $55, $00
+colorTable1c:
+        .byte   $00, $00, $55, $aa, $00
 
 ; Data need to be available in both main and aux mem
 

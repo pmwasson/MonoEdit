@@ -37,8 +37,7 @@ SIZE_56x8       = 3
 SIZE_7x16       = 4
 SIZE_14x16      = 5
 SIZE_28x16      = 6
-SIZE_112x16     = 7
-SIZE_112x32     = 8
+SIZE_56x16      = 7
 
 MODE_NO_MASK    = 0
 MODE_MASK       = 1
@@ -69,8 +68,8 @@ PIXEL_SMALL     = 1
     jsr     DHGR_INIT
 
     ; set default size
-    lda     #SIZE_7x8
-    ldx     #MODE_NO_MASK
+    lda     #SIZE_56x16
+    ldx     #MODE_MASK
     jsr     setTileSize
     jsr     initMonochrome  ; Turn on monochrome dhgr
     ;jsr     initColorMode
