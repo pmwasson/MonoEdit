@@ -506,6 +506,88 @@ screenPtr1Copy: .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
+; isoDrawTile4x4
+;   Draw a quarter of a 8-byte by 8-byte tile (so 4x4)
+;
+; Warning:
+;   This routine can not drawn in the first 12 bytes (12/80 = 15%) of a screen 
+;   row as it subtracts the x offset from the screen pointer and cant handle 
+;   wrap around.
+;   This won't scale to 8x8 as the offset would grow to 8*(8-1) = 56 bytes
+;   which is over half the screen (56/80 = 70%)
+;   The alternative is to calculate the 4 bytes and store them and then
+;   read them later, which would add 4 sta + 4 lda = 4*6 + 4*5 = 44 cycles 
+;-----------------------------------------------------------------------------
+
+.proc isoDrawTile4x4
+    ; Need 8 pointers (4 pixels + 4 masks)
+    ldy     #0
+    clc                         ; carry not set in loop
+loop:
+    sta     RAMWRTON            ; aux mem write
+    sta     RAMRDON             ; aux mem read
+
+    lda     (ptrAA0),y
+    and     (ptrBB0),y          ; mask 
+    ora     (ptrBA0),y          ; data
+    and     (ptrCB0),y          ; mask
+    ora     (ptrCA0),y          ; data
+    and     (ptrDB0),y          ; mask
+    ora     (ptrDA0),y          ; data
+    sta     (screenPtr0),y      ; aux 0
+
+    iny                         ; y = +1
+
+    lda     (ptrAA0),y
+    and     (ptrBB0),y          ; mask 
+    ora     (ptrBA0),y          ; data
+    and     (ptrCB0),y          ; mask
+    ora     (ptrCA0),y          ; data
+    and     (ptrDB0),y          ; mask
+    ora     (ptrDA0),y          ; data
+    sta     (screenPtr0),y      ; aux 1
+
+    sta     RAMWRTOFF           ; main mem write
+    sta     RAMRDOFF            ; main mem read
+
+    dey                         ; y = +0
+
+    lda     (ptrAA0),y
+    and     (ptrBB0),y          ; mask 
+    ora     (ptrBA0),y          ; data
+    and     (ptrCB0),y          ; mask
+    ora     (ptrCA0),y          ; data
+    and     (ptrDB0),y          ; mask
+    ora     (ptrDA0),y          ; data
+    sta     (screenPtr0),y      ; aux 0
+
+    iny                         ; y = +1
+
+    lda     (ptrAA0),y
+    and     (ptrBB0),y          ; mask 
+    ora     (ptrBA0),y          ; data
+    and     (ptrCB0),y          ; mask
+    ora     (ptrCA0),y          ; data
+    and     (ptrDB0),y          ; mask
+    ora     (ptrDA0),y          ; data
+    sta     (screenPtr0),y      ; aux 1
+
+    iny                         ; y = +2
+
+    dec     screenPtr0
+    dec     screenPtr0          ; s = -2
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    cpy     #8
+    bne     loop
+
+    rts
+.endproc
+
+;-----------------------------------------------------------------------------
 ; drawPixel
 ;   X = pixel color (0=black, 1=white, 2=background)
 ;   Draw a 4x4 pixel (3x3 + boarder) using tileX, tileY for coordinates
