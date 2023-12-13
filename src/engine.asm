@@ -527,8 +527,19 @@ loop:
     sta     RAMWRTON            ; aux mem write
     sta     RAMRDON             ; aux mem read
 
-    lda     (ptrAA0),y
-    and     (ptrBB0),y          ; mask 
+    lda     (screenPtr0),y
+    and     (ptrM0),y           ; mask (1=bg) 
+    ora     (ptrD0),y           ; data
+    sta     (screenPtr0),y
+
+    iny
+
+    lda     (screenPtr0),y
+    and     (ptrM0),y           ; mask (1=bg) 
+    ora     (ptrD0),y           ; data
+    sta     (screenPtr0),y
+
+
     ora     (ptrBA0),y          ; data
     and     (ptrCB0),y          ; mask
     ora     (ptrCA0),y          ; data
