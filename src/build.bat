@@ -15,6 +15,10 @@ cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\engine.asm apple2.lib  -o engine.a
 ca65 -I ..\src -t apple2 ..\src\loader.asm -l loader.dis
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\loader.asm apple2.lib  -o loader.apple2 -C ..\src\start2000.cfg
 
+:: Image
+ca65 -I ..\src -t apple2 ..\src\displayImage.asm -l image.dis
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\displayImage.asm apple2.lib  -o image.apple2 -C ..\src\start6000.cfg
+
 ::---------------------------------------------------------------------------
 :: Compile assets
 ::---------------------------------------------------------------------------
@@ -38,6 +42,10 @@ java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.appl
 :: Editor
 java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk editor.system sys < C:\cc65\target\apple2\util\loader.system
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/editor bin < editor.apple2 
+
+:: Image
+java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2 
 
 :: Throw on basic
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk basic.system sys < ..\disk\BASIC.SYSTEM 
