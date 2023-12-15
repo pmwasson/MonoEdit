@@ -42,22 +42,22 @@ screenPtr1      :=  $1c
 stringPtr0      :=  $fe
 stringPtr1      :=  $ff
 
-ptrAA0 			:=  $06
-ptrAA1 			:=  $07
-ptrAB0 			:=  $08
-ptrAB1			:=  $09
-ptrBA0 			:=  $19
-ptrBA1 			:=  $1a
-ptrBB0 			:=  $1d
-ptrBB1 			:=  $1e
-ptrCA0 			:=  $ce
-ptrCA1 			:=  $cf
-ptrCB0 			:=  $ee
-ptrCB1			:=  $ef
-ptrDA0 			:=  $fa
-ptrDA1 			:=  $fb
-ptrDB0 			:=  $fc
-ptrDB1 			:=  $fd
+ptrAA0          :=  $06
+ptrAA1          :=  $07
+ptrAB0          :=  $08
+ptrAB1          :=  $09
+ptrBA0          :=  $19
+ptrBA1          :=  $1a
+ptrBB0          :=  $1d
+ptrBB1          :=  $1e
+ptrCA0          :=  $ce
+ptrCA1          :=  $cf
+ptrCB0          :=  $ee
+ptrCB1          :=  $ef
+ptrDA0          :=  $fa
+ptrDA1          :=  $fb
+ptrDB0          :=  $fc
+ptrDB1          :=  $fd
 
 ; Indexes
 bgTile          :=  $1d
@@ -72,23 +72,23 @@ fgPtr0          :=  $08     ; Foreground Tile pointer
 fgPtr1          :=  $09
 drawPage        :=  $d7
 invMask         :=  $ee
-mapPtr0 		:=  $ec
-mapPtr1 		:=  $ed
-mapWindowX 		:=  $ef
-mapWindowY 		:=  $fa
+mapPtr0         :=  $ec
+mapPtr1         :=  $ed
+mapWindowX      :=  $ef
+mapWindowY      :=  $fa
 
 ; Memory map
 ;---------------------------------------------------------
-FILEBUFFER      := $800   	; User PRODOS filebuffer, 512 bytes
+FILEBUFFER      := $800     ; User PRODOS filebuffer, 512 bytes
 HGRPAGE1        := $2000
 HGRPAGE2        := $4000
 
 ; Soft switches
 ;---------------------------------------------------------
-RAMRDOFF        := $C002 	; read main memory  $200 - $BFFF
+RAMRDOFF        := $C002    ; read main memory  $200 - $BFFF
 RAMRDON         := $C003    ; read aux memory   $200 - $BFFF
 RAMWRTOFF       := $C004    ; write main memory $200 - $BFFF
-RAMWRTON        := $C005 	; write aux memory  $200 - $BFFF
+RAMWRTON        := $C005    ; write aux memory  $200 - $BFFF
 CLR80VID        := $C00C
 SET80VID        := $C00D
 SPEAKER         := $C030
@@ -96,13 +96,13 @@ TEXTMODE        := $C01A    ; Bit 7 is 1 if text mode
 ALTCHARSETOFF   := $C00E    ; Write to turn off alternate characters
 ALTCHARSETON    := $C00F    ; Write to turn on alternate characters
 PAGE2           := $C01C    ; Bit 7 set if displaying page 2
-BUTTON0 		:= $C061 	; Bit 7 set if paddle button 0 is pressed
-BUTTON1 		:= $C062 	; Bit 7 set if paddle button 1 is pressed
-BUTTON2 		:= $C063 	; Bit 7 set if paddle button 2 is pressed
+BUTTON0         := $C061    ; Bit 7 set if paddle button 0 is pressed
+BUTTON1         := $C062    ; Bit 7 set if paddle button 1 is pressed
+BUTTON2         := $C063    ; Bit 7 set if paddle button 2 is pressed
 
 ; ROM routines
 ;---------------------------------------------------------
-AUXMOVE 		:= $C311 	; Aux memory copy
+AUXMOVE         := $C311    ; Aux memory copy
 GR              := $F390    ; Low-res mixed graphics mode
 TEXT            := $F399    ; Text-mode
 HGR             := $F3E2    ; Turn on hi-res mode, page 1 mixed mode, clear    
@@ -117,7 +117,7 @@ COUT            := $FDED    ; Output a character
 MON             := $FF65    ; Enter monitor (BRK)
 MONZ            := $FF69    ; Enter monitor
 WAIT            := $FCA8    ; Wait 0.5*(26 + 27*A + 5*A*A) microseconds
-PREAD 			:= $FB1E    ; Read paddle X (0=hor,1=vert on joystick), result in Y
+PREAD           := $FB1E    ; Read paddle X (0=hor,1=vert on joystick), result in Y
 
 ; PRODOS
 ;---------------------------------------------------------
@@ -131,31 +131,31 @@ CMD_CLOSE       = $CC
 
 ; Keyboard
 ;---------------------------------------------------------
-KEY_CTRL_A 		= $81
-KEY_CTRL_B 		= $82
-KEY_CTRL_C 		= $83
-KEY_CTRL_D 		= $84
-KEY_CTRL_E 		= $85
-KEY_CTRL_F 		= $86
-KEY_LEFT        = $88 		; CTRL_H
-KEY_TAB 		= $89		; CTRL_I
-KEY_DOWN        = $8A 		; CTRL_J
-KEY_UP          = $8B 		; CTRL_K
-KEY_CTRL_L 		= $8C
-KEY_RETURN      = $8D    	; CTRL_M
-KEY_CTRL_O 		= $8F
-KEY_CTRL_P 		= $90
-KEY_CTRL_Q 		= $91
-KEY_CTRL_R 		= $92
-KEY_CTRL_S 		= $93
-KEY_CTRL_T 		= $94
-KEY_RIGHT       = $95 		; CTRL_U
-KEY_CTRL_V 		= $96
-KEY_CTRL_Z 		= $9A
+KEY_CTRL_A      = $81
+KEY_CTRL_B      = $82
+KEY_CTRL_C      = $83
+KEY_CTRL_D      = $84
+KEY_CTRL_E      = $85
+KEY_CTRL_F      = $86
+KEY_LEFT        = $88       ; CTRL_H
+KEY_TAB         = $89       ; CTRL_I
+KEY_DOWN        = $8A       ; CTRL_J
+KEY_UP          = $8B       ; CTRL_K
+KEY_CTRL_L      = $8C
+KEY_RETURN      = $8D       ; CTRL_M
+KEY_CTRL_O      = $8F
+KEY_CTRL_P      = $90
+KEY_CTRL_Q      = $91
+KEY_CTRL_R      = $92
+KEY_CTRL_S      = $93
+KEY_CTRL_T      = $94
+KEY_RIGHT       = $95       ; CTRL_U
+KEY_CTRL_V      = $96
+KEY_CTRL_Z      = $9A
 KEY_ESC         = $9B
 KEY_SPACE       = $A0
-KEY_0 			= $B0
-KEY_9 			= $B9
+KEY_0           = $B0
+KEY_9           = $B9
 KEY_A           = $C1
 KEY_B           = $C2
 KEY_C           = $C3
@@ -175,23 +175,23 @@ DIR_DOWN        =   3
 ; DHGR Engine
 ;---------------------------------------------------------
 
-DHGR_TEST 				:= $C00
-DHGR_INIT 				:= $C03
-DHGR_DRAW_7X8 			:= $C06
-DHGR_DRAW_28X8			:= $C09
-DHGR_DRAW_56X16 		:= $C0C
-DHGR_DRAW_MASK_56X16 	:= $C0F
-DHGR_READ_MAP 	 		:= $C12
-DHGR_DRAW_PIXEL_4X4 	:= $C15
+DHGR_TEST               := $C00
+DHGR_INIT               := $C03
+DHGR_DRAW_7X8           := $C06
+DHGR_DRAW_28X8          := $C09
+DHGR_DRAW_56X16         := $C0C
+DHGR_DRAW_MASK_56X16    := $C0F
+DHGR_READ_MAP           := $C12
+DHGR_DRAW_PIXEL_4X4     := $C15
 
-DHGR_TILE_7X8   		:= $C20
-DHGR_TILE_28X8   		:= $C22
-DHGR_TILE_56X16   		:= $C24
-DHGR_TILE_MASK_56X16   	:= $C26
+DHGR_TILE_7X8           := $C20
+DHGR_TILE_28X8          := $C22
+DHGR_TILE_56X16         := $C24
+DHGR_TILE_MASK_56X16    := $C26
 
 
-DHGR_MAP_SHEET 			:= $C28
-DHGR_MAP_BUFFER_WIDTH 	:= $C2A
-DHGR_MAP_BUFFER_HEIGHT 	:= $C2B
+DHGR_MAP_SHEET          := $C28
+DHGR_MAP_BUFFER_WIDTH   := $C2A
+DHGR_MAP_BUFFER_HEIGHT  := $C2B
 
-MAP_BUFFER 				:= $B00
+MAP_BUFFER              := $B00
