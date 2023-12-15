@@ -33,7 +33,9 @@ cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileset7x8_0.asm apple2.lib  -o ti
 :: Start with a blank prodos disk
 copy ..\disk\template_prodos.dsk mono_prodos.dsk
 
-:: Put boot program first
+:: Image
+java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2 
 
 :: Loader
 java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\cc65\target\apple2\util\loader.system
@@ -42,10 +44,6 @@ java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.appl
 :: Editor
 java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk editor.system sys < C:\cc65\target\apple2\util\loader.system
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/editor bin < editor.apple2 
-
-:: Image
-java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2 
 
 :: Throw on basic
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk basic.system sys < ..\disk\BASIC.SYSTEM 
