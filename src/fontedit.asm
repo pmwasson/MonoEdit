@@ -146,6 +146,7 @@ up_good:
 down_good:
     jmp     finish_move
 :
+
     ;------------------
     ; - = Previous
     ;------------------
@@ -155,27 +156,28 @@ down_good:
     .byte   "Previous tile: ",0
 
     lda     tileIndex
-    bne     :+
+    bne     previous_continue
     lda     tileMax
+previous_continue:
     sec
     sbc     #1     
     jmp     finishChangeTile
 :
     ;------------------
-    ; _ = Previous 8
+    ; _ = Previous 16
     ;------------------
     cmp     #$80 | '_'
     bne     :+
     jsr     inline_print
-    .byte   "Previous 8 tiles: ",0
+    .byte   "Previous 16 tiles: ",0
 
     lda     tileIndex
     sec     
-    sbc     #8
-    bpl     previous8_continue
+    sbc     #16
+    bpl     previous16_continue
     clc
     adc     tileMax
-previous8_continue:
+previous16_continue:
     jmp     finishChangeTile
 :
     ;------------------
@@ -196,21 +198,21 @@ next_continue:
     jmp     finishChangeTile
 :
     ;------------------
-    ; + = Next 8
+    ; + = Next 16
     ;------------------
     cmp     #$80 | '+'
     bne     :+
     jsr     inline_print
-    .byte   "Next 8 tiles: ",0
+    .byte   "Next 16 tiles: ",0
 
     lda     tileIndex
     clc
-    adc     #8
+    adc     #16
     cmp     tileMax
-    bmi     next_continue8
+    bmi     next_continue16
     sec
     sbc     tileMax
-next_continue8:
+next_continue16:
     jmp     finishChangeTile
 :
     ;------------------
@@ -301,12 +303,12 @@ fill_cancel:
 :
 
     ;------------------
-    ; ^F = Invert
+    ; ^A = Alternate colors
     ;------------------
-    cmp     #KEY_CTRL_X
+    cmp     #KEY_CTRL_A
     bne     :+
     jsr     inline_print
-    StringCR    "Invert"
+    StringCR    "Alternate"
     jsr     invertPixels
     jmp     refresh_loop
 :
@@ -347,6 +349,32 @@ rotate_cancel:
     jmp     command_loop
 
 rotate_after:
+
+    ;------------------
+    ; ^X = eXchange (flip)
+    ;------------------
+    cmp     #KEY_CTRL_X
+    bne     flip_after
+    jsr     inline_print
+    .byte   "Exchange (flip) Direction (or cancel):",0
+    jsr     getInputDirection
+    beq     flip_cancel
+
+    cmp     #KEY_UP
+    beq     do_flip_vert
+    cmp     #KEY_DOWN
+    bne     :+
+do_flip_vert:
+    jsr     flipVert
+    jmp     refresh_loop
+:
+    ; must be horizontal
+    jsr     flipHor
+    jmp     refresh_loop
+flip_cancel:
+    jmp     command_loop
+
+flip_after:
 
     ;------------------
     ; ^L = Load
@@ -578,8 +606,9 @@ max_digit:  .byte   0
     StringCont  "  Ctrl-C:  Copy tile to clipboard"
     StringCont  "  Ctrl-V:  Paste tile from clipboard (overwrites current tile)"
     StringCont  "  Ctrl-R:  Rotate pixels in a direction specified by an arrow key"
-    StringCont  "  Ctrl-X:  Invert (black <-> white)"    
-    StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
+    StringCont  "  Ctrl-X:  eXchange pixels in a direction specified by an arrow key"
+    StringCont  "  Ctrl-A:  Alternate colors (black <-> white)"    
+    StringCont  "  -,=:     Go to previous/next tile (holding shift moves 16 tile)"
     StringCont  "  Ctrl-L:  Load font"
     StringCont  "  Ctrl-S:  Save font"
     StringCont  "  !:       Dump bytes"
@@ -805,6 +834,137 @@ tempY:      .byte   0
     bne     :-
     rts
 .endproc
+
+
+;-----------------------------------------------------------------------------
+; Flip vert
+;-----------------------------------------------------------------------------
+; Could be done much faster by using bytes, but was too lazy
+.proc flipVert
+
+    lda     curX
+    sta     tempX
+    lda     curY
+    sta     tempY
+
+    lda     #0
+    sta     curX
+
+loopX:
+    lda     #0
+    sta     indexY
+loopY:
+
+    ; swap pixels
+    lda     indexY
+    sta     curY
+    jsr     getPixel
+    sta     temp1
+
+    lda     tileHeight
+    clc     ; h-index-1
+    sbc     indexY
+    sta     curY
+    jsr     getPixel
+    sta     temp2
+    lda     temp1
+    jsr     copyPixel
+
+    lda     indexY
+    sta     curY
+    lda     temp2
+    jsr     copyPixel
+
+    inc     indexY
+    lda     indexY
+    asl
+    cmp     tileHeight
+    bmi     loopY
+    
+    inc     curX
+    lda     curX
+    cmp     tileWidth
+    bne     loopX
+
+    lda     tempX
+    sta     curX
+    lda     tempY
+    sta     curY
+    rts
+
+tempX:  .byte   0
+tempY:  .byte   0
+temp1:  .byte   0
+temp2:  .byte   0
+indexY: .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; Flip hor
+;-----------------------------------------------------------------------------
+; Could be done much faster by using bytes, but was too lazy
+
+.proc flipHor
+
+    lda     curX
+    sta     tempX
+    lda     curY
+    sta     tempY
+
+    lda     #0
+    sta     curY
+
+loopY:
+    lda     #0
+    sta     indexX
+loopX:
+
+    ; swap pixels
+    lda     indexX
+    sta     curX
+    jsr     getPixel
+    sta     temp1
+
+    lda     tileWidth
+    clc
+    sbc     indexX
+    sta     curX
+    jsr     getPixel
+    sta     temp2
+    lda     temp1
+    jsr     copyPixel
+
+    lda     indexX
+    sta     curX
+    lda     temp2
+    jsr     copyPixel
+
+    inc     indexX
+    lda     indexX
+    asl
+    cmp     tileWidth
+    bmi     loopX
+    
+    inc     curY
+    lda     curY
+    cmp     tileHeight
+    bne     loopY
+
+    lda     tempX
+    sta     curX
+    lda     tempY
+    sta     curY
+    rts
+
+tempX:  .byte   0
+tempY:  .byte   0
+temp1:  .byte   0
+temp2:  .byte   0
+indexX: .byte   0
+
+.endproc
+
 
 ;-----------------------------------------------------------------------------
 ; Rotate up 

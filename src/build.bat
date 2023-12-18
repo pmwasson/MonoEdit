@@ -18,7 +18,7 @@ cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\engine.asm apple2.lib  -o engine.a
 
 :: Loader
 ca65 -I ..\src -t apple2 ..\src\loader.asm -l loader.dis || exit
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\loader.asm apple2.lib  -o loader.apple2 -C ..\src\start2000.cfg || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\loader.asm apple2.lib  -o loader.apple2 -C ..\src\system.cfg || exit
 
 :: Image
 ca65 -I ..\src -t apple2 --cpu 65C02 ..\src\displayImage.asm -l image.dis || exit
@@ -40,8 +40,9 @@ cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_1.asm apple2.lib  -o font7
 copy ..\disk\template_prodos.dsk mono_prodos.dsk  || exit
 
 :: Loader
-java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\cc65\target\apple2\util\loader.system || exit
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.apple2  || exit
+::java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\cc65\target\apple2\util\loader.system || exit
+::java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.apple2  || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader.system sys < loader.apple2  || exit
 
 :: Image
 java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system || exit

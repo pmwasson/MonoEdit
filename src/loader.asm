@@ -192,10 +192,8 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     .byte   13,0
 
     ; Jump to executables
-:
-    jsr     FONTEDITSTART
-    jsr     TILEEDITSTART
-    jmp     :-
+    jmp     TILEEDITSTART
+
 .endproc
 
 

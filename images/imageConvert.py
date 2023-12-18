@@ -2,12 +2,15 @@ import sys
 import os.path
 from PIL import Image
 
+# Usage: inputFile outputFile width height
+# FIXME: use a real command line parser
+
 def main():
     print(";","--------------------------------------------------------------------")
     #outputBytes = bytearray();
     im = Image.open(sys.argv[1])
     print(";",sys.argv[1],im.format, im.size, im.mode)
-    im = im.resize((140,64)).convert("1")
+    im = im.resize((int(sys.argv[3]),int(sys.argv[4]))).convert("1")
     im.save(sys.argv[2])
     print(";",sys.argv[2],im.format, im.size, im.mode)
 

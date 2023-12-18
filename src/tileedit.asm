@@ -362,9 +362,9 @@ fill_cancel:
 :
 
     ;------------------
-    ; ^X = Invert
+    ; ^A = Alternate colors
     ;------------------
-    cmp     #KEY_CTRL_X
+    cmp     #KEY_CTRL_A
     bne     :+
     jsr     inline_print
     StringCR    "Invert"
@@ -442,12 +442,12 @@ rotate_cancel:
 rotate_after:
 
     ;------------------
-    ; ^L = FLip
+    ; ^X = eXchange (flip)
     ;------------------
-    cmp     #KEY_CTRL_L
+    cmp     #KEY_CTRL_X
     bne     flip_after
     jsr     inline_print
-    .byte   "Flip Direction (or cancel):",0
+    .byte   "Exchange (flip) Direction (or cancel):",0
     jsr     getInputDirection
     beq     flip_cancel
 
@@ -675,8 +675,8 @@ max_digit:  .byte   0
     StringCont  "  Ctrl-C:  Copy tile to clipboard"
     StringCont  "  Ctrl-V:  Paste tile from clipboard (overwrites current tile)"
     StringCont  "  Ctrl-R:  Rotate pixels in a direction specified by an arrow key"
-    StringCont  "  Ctrl-L:  Flip pixels in a direction specified by an arrow key"
-    StringCont  "  Ctrl-X:  eXchange (black <-> white)"    
+    StringCont  "  Ctrl-X:  eXchange pixels in a direction specified by an arrow key"
+    StringCont  "  Ctrl-A:  Alternate colors (black <-> white)"    
     StringCont  "  Ctrl-T:  Set tile size"
     StringCont  "  Ctrl-M:  Toggle between normal and masked mode"
     StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
@@ -1006,7 +1006,7 @@ loopY:
     lda     indexY
     asl
     cmp     tileHeight
-    bne     loopY
+    bmi     loopY
     
     inc     curX
     lda     curX
@@ -1071,7 +1071,7 @@ loopX:
     lda     indexX
     asl
     cmp     tileWidth
-    bne     loopX
+    bmi     loopX
     
     inc     curY
     lda     curY
@@ -1314,12 +1314,6 @@ temp:   .byte   0
     sta     tileY
     jsr     drawString
     String  "Tile:"
-    lda     modeMasked
-    beq     :+
-    lda     tileIndex
-    lsr
-    jmp     cont
-:
     lda     tileIndex
 cont:
     jsr     drawNumber
@@ -1396,7 +1390,11 @@ yloop:
 xloop:
     lda     index
     jsr     drawTile_28x8
-    inc     index
+
+    lda     index
+    sec
+    adc     modeMasked
+    sta     index
 
     lda     tileX
     clc
@@ -1419,6 +1417,12 @@ xloop:
     rts
 
 setupBox_28x8:
+    sta     boxIndex
+    lda     modeMasked
+    beq     :+
+    lsr     boxIndex
+:
+    lda     boxIndex
     tax
     ; Draw box around current tile
     lsr
@@ -1445,6 +1449,7 @@ setupBox_28x8:
 
 index:      .byte 0
 prevIndex:  .byte 0
+boxIndex:   .byte 0
 
 .endproc
 
