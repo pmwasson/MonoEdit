@@ -4,56 +4,57 @@
 ::---------------------------------------------------------------------------
 cd ..\build
 
-ca65 -I ..\src -t apple2 ..\src\editor.asm -l editor.dis
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\editor.asm apple2.lib  -o editor.apple2 -C ..\src\start4000.cfg
+:: Font Editor
+ca65 -I ..\src -t apple2 ..\src\fontedit.asm -l fontedit.dis || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\fontedit.asm apple2.lib  -o fontedit.apple2 -C ..\src\start4000.cfg || exit
 
 :: Engine
-ca65 -I ..\src -t apple2 ..\src\engine.asm -l engine.dis
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\engine.asm apple2.lib  -o engine.apple2 -C ..\src\startC00.cfg
+ca65 -I ..\src -t apple2 ..\src\engine.asm -l engine.dis || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\engine.asm apple2.lib  -o engine.apple2 -C ..\src\startC00.cfg || exit
 
 :: Loader
-ca65 -I ..\src -t apple2 ..\src\loader.asm -l loader.dis
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\loader.asm apple2.lib  -o loader.apple2 -C ..\src\start2000.cfg
+ca65 -I ..\src -t apple2 ..\src\loader.asm -l loader.dis || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\loader.asm apple2.lib  -o loader.apple2 -C ..\src\start2000.cfg || exit
 
 :: Image
-ca65 -I ..\src -t apple2 --cpu 65C02 ..\src\displayImage.asm -l image.dis
-cl65 -I ..\src -t apple2 --cpu 65C02 -u __EXEHDR__ ..\src\displayImage.asm apple2.lib  -o image.apple2 -C ..\src\start6000.cfg
+ca65 -I ..\src -t apple2 --cpu 65C02 ..\src\displayImage.asm -l image.dis || exit
+cl65 -I ..\src -t apple2 --cpu 65C02 -u __EXEHDR__ ..\src\displayImage.asm apple2.lib  -o image.apple2 -C ..\src\start6000.cfg || exit
 
 ::---------------------------------------------------------------------------
 :: Compile assets
 ::---------------------------------------------------------------------------
 
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileset56x16_0.asm apple2.lib  -o tileset56x16_0.apple2 -C ..\src\start6000.cfg
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileset7x8_0.asm apple2.lib  -o tileset7x8_0.apple2 -C ..\src\start6000.cfg
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileset56x16_0.asm apple2.lib  -o tileset56x16_0.apple2 -C ..\src\start6000.cfg || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_0.asm apple2.lib  -o font7x8_0.apple2 -C ..\src\start6000.cfg || exit
 
 ::---------------------------------------------------------------------------
 :: Build disk 
 ::---------------------------------------------------------------------------
 
 :: Start with a blank prodos disk
-copy ..\disk\template_prodos.dsk mono_prodos.dsk
+copy ..\disk\template_prodos.dsk mono_prodos.dsk  || exit
 
 :: Loader
-java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\cc65\target\apple2\util\loader.system
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.apple2 
+java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\cc65\target\apple2\util\loader.system || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.apple2  || exit
 
 :: Image
-java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2 
+java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2  || exit
 
-:: Editor
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/editor bin < editor.apple2 
+:: Font Editor
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/fontedit bin < fontedit.apple2  || exit
 
 :: Throw on basic
-java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk basic.system sys < ..\disk\BASIC.SYSTEM 
+java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk basic.system sys < ..\disk\BASIC.SYSTEM  || exit
 
 :: Assets
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/engine bin < engine.apple2 
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tileset56x16.0 bin < tileset56x16_0.apple2 
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tileset7x8.0 bin < tileset7x8_0.apple2 
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/engine bin < engine.apple2  || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tileset56x16.0 bin < tileset56x16_0.apple2  || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.0 bin < font7x8_0.apple2  || exit
 
 :: Copy results out of the build directory
-copy mono_prodos.dsk ..\disk
+copy mono_prodos.dsk ..\disk || exit
 
 ::---------------------------------------------------------------------------
 :: Test on emulator

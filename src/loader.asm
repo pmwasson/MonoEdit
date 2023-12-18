@@ -27,7 +27,7 @@
 ;
 ;   4000-5FFF   [ DGHR Page 2                   ]
 ;               [ Read data     ]
-;               [ Editor        ]
+;               [ Tool(s)       ]
 ;
 ;   6000-7FFF   [ Game          ][ Map 64x64x2  ]
 ;   8000-8FFF   [               ][ Dialog       ]
@@ -65,10 +65,10 @@ ISOLENGTH        =   256*16
 ISOEND           :=  READBUFFER + ISOLENGTH - 1
 ISOI4END         :=  ISOSTART + ISOLENGTH/2 - 1
 
-FONT1START      :=  $B000
-FONT1LENGTH     =   8*128
-FONT1END        :=  READBUFFER + FONT1LENGTH - 1
-FONT1I2END      :=  FONT1START + FONT1LENGTH/2 - 1
+FONT0START      :=  $B000
+FONT0LENGTH     =   8*128
+FONT0END        :=  READBUFFER + FONT0LENGTH - 1
+FONT0I2END      :=  FONT0START + FONT0LENGTH/2 - 1
 
 ; FONT2START      :=  $B400
 ; FONT2LENGTH     =   32*64
@@ -81,8 +81,8 @@ ENGINELENGTH    =   $2000 - ENGINESTART
 GAMESTART       :=  $6000
 GAMELENGTH      =   $9000 - GAMESTART
 
-EDITORSTART     :=  $4000
-EDITORLENGTH    =   $9000 - EDITORSTART
+FONTEDITSTART     :=  $4000
+FONTEDITLENGTH    =   $9000 - FONTEDITSTART
 
 ;------------------------------------------------
 ; Constants
@@ -130,7 +130,7 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     StringCR "Loading game assets..."
 
 
-    ldx     #assetFont1
+    ldx     #assetFont0
     jsr     loadAsset
     ldx     #assetISO
     jsr     loadAsset
@@ -163,9 +163,9 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     lda     #>ISOSTART
     sta     DHGR_TILE_MASK_56X16+1
 
-    lda     #<FONT1START
+    lda     #<FONT0START
     sta     DHGR_TILE_7X8
-    lda     #>FONT1START
+    lda     #>FONT0START
     sta     DHGR_TILE_7X8+1
 
     jsr     DHGR_INIT
@@ -188,7 +188,7 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     .byte   13,0
 
     ; Jump to editor
-    jmp     EDITORSTART
+    jmp     FONTEDITSTART
 
 .endproc
 
@@ -710,24 +710,24 @@ fileTypeISO:    String "Isometric Tileset"
 fileTypeExe:    String "Executable"
 
 ; File names
-fileNameFont1:  StringLen "/DHGR/DATA/TILESET7X8.0"
+fileNameFont0:  StringLen "/DHGR/DATA/FONT7X8.0"
 fileNameISO:    StringLen "/DHGR/DATA/TILESET56X16.0"
 fileNameEngine: StringLen "/DHGR/DATA/ENGINE"
 fileNameGame:   StringLen "/DHGR/DATA/GAME"
-fileNameEditor: StringLen "/DHGR/DATA/EDITOR"
+fileNameEditor: StringLen "/DHGR/DATA/FONTEDIT"
 
 ; Asset List
 fileDescription:    ; type, name, address, size, dest, interleave
     ;       TYPE            NAME            BUFFER          LENGTH          END         STARTDEST       MODE            DESTEND (INT)   OFFSET
     ;       0               2               4               6               8           10              12              14 
     ;       --------------- --------------- -----------     -----------     ----------- -----------     --------------- --------------- -------
-    .word   fileTypeFont,   fileNameFont1,  FONT1START,     FONT1LENGTH,    FONT1END,   FONT1START,     INSTALL_BOTH,   0               ; 0
+    .word   fileTypeFont,   fileNameFont0,  FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_BOTH,   0               ; 0
     .word   fileTypeISO,    fileNameISO,    READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I4, ISOI4END        ; 16
     .word   fileTypeExe,    fileNameEngine, ENGINESTART,    ENGINELENGTH,   0,          ENGINESTART,    INSTALL_MAIN,   0               ; 32
     .word   fileTypeExe,    fileNameGame,   GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 48
-    .word   fileTypeExe,    fileNameEditor, EDITORSTART,    EDITORLENGTH,   0,          EDITORSTART,    INSTALL_MAIN,   0               ; 48
+    .word   fileTypeExe,    fileNameEditor, FONTEDITSTART,  FONTEDITLENGTH,   0,        FONTEDITSTART,    INSTALL_MAIN,   0               ; 48
 
-assetFont1  =   16*0
+assetFont0  =   16*0
 assetISO    =   16*1
 assetEngine =   16*2
 assetGame   =   16*3
