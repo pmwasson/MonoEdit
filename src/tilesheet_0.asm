@@ -6,4 +6,4 @@
 
 .org    $6000
 
-.include "tileset_iso.asm"
+.include "tilesheet_iso.asm"

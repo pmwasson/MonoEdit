@@ -16,11 +16,6 @@
 
 CURSOR          = $02
 
-PIXEL_BLACK     = $20           ; (0) Space
-PIXEL_WHITE     = $0e           ; (1) 
-PIXEL_BG_EVEN   = $16           ; (2)
-PIXEL_BG_ODD    = $17
-
 BOX_HORZ        = $13
 BOX_VERT        = $7c
 BOX_UPPER_LEFT  = $1c
@@ -484,6 +479,18 @@ flip_after:
 :
 
     ;------------------
+    ; ^P = Print
+    ;------------------
+    cmp     #KEY_CTRL_P
+    bne     :+
+    bit     TXTSET
+    jsr     inline_print
+    StringCR   "Print all"
+    jsr     printAll
+    jmp     command_loop
+:
+
+    ;------------------
     ; Q = QUIT
     ;------------------
     cmp     #KEY_CTRL_Q
@@ -541,6 +548,40 @@ flip_after:
     jmp     reset_loop
 :
 
+    ;------------------
+    ; ^L = Load
+    ;------------------
+    cmp     #KEY_CTRL_L
+    bne     :+
+    jsr     inline_print
+    .byte   "Read slot (0-4):",0
+    lda     #5
+    jsr     getInputNumber
+    bmi     load_exit
+    jsr     loadSheet
+
+    ; redraw the screen
+    jmp     reset_loop
+
+load_exit:
+    jmp     command_loop
+:    
+
+    ;------------------
+    ; ^S = Save
+    ;------------------
+    cmp     #KEY_CTRL_S
+    bne     :+
+    jsr     inline_print
+    .byte   "Save slot (0-4):",0
+    lda     #5
+    jsr     getInputNumber
+    bmi     save_exit
+    jsr     saveSheet
+
+save_exit:
+    jmp     command_loop
+: 
 
     ;------------------
     ; Unknown
@@ -590,74 +631,7 @@ finishChangeTile_cont:
 
 .endproc
 
-;-----------------------------------------------------------------------------
-; getInputNumber
-;   Get input for a number 0..max+1, where A == max+1
-;   Display number or cancel and return result in A (-1 for cancel)
-;-----------------------------------------------------------------------------
-.proc getInputNumber
-    clc
-    adc     #$80 + '0'  ; convert A to ascii number
-    sta     max_digit     
-    jsr     getInput
-    cmp     #$80 + '0'
-    bmi     cancel
-    cmp     max_digit
-    bpl     cancel
-    jsr     COUT
-    sec
-    sbc     #$80 + '0'
-    rts
-cancel:
-    jsr     inline_print
-    .byte   "Cancel",13,0
-    lda     #$ff
-    rts
 
-; local variable
-max_digit:  .byte   0
-
-.endproc
-
-;-----------------------------------------------------------------------------
-; Get input direction
-;   Pick and diplay 1 of 4 directions or cancel
-;-----------------------------------------------------------------------------
-.proc getInputDirection
-    jsr     getInput
-    cmp     #KEY_LEFT
-    bne     :+
-    jsr     inline_print
-    .byte   "Left ",13,0
-    lda     #KEY_LEFT
-    rts
-:
-    cmp     #KEY_RIGHT
-    bne     :+
-    jsr     inline_print
-    .byte   "Right",13,0
-    lda     #KEY_RIGHT
-    rts
-:
-    cmp     #KEY_UP
-    bne     :+
-    jsr     inline_print
-    .byte   "Up   ",13,0
-    lda     #KEY_UP
-    rts
-:
-    cmp     #KEY_DOWN
-    bne     :+
-    jsr     inline_print
-    .byte   "Down ",13,0
-    lda     #KEY_DOWN
-    rts
-:
-    jsr     inline_print
-    .byte   "Cancel",13,0
-    LDA     #0
-    rts
-.endproc
 
 
 ;-----------------------------------------------------------------------------
@@ -680,7 +654,10 @@ max_digit:  .byte   0
     StringCont  "  Ctrl-T:  Set tile size"
     StringCont  "  Ctrl-M:  Toggle between normal and masked mode"
     StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
+    StringCont  "  Ctrl-L:  Load tilesheet"
+    StringCont  "  Ctrl-S:  Save tilesheet"
     StringCont  "  !:       Dump bytes"
+    StringCont  "  Ctrl-P:  Print all tiles (do a 1^P in monitor first!)"
     StringCont  "  ?:       This help screen"
     StringCont  "  \:       Monitor"
     StringCont  "  Ctrl-Q:  Quit"
@@ -689,54 +666,6 @@ max_digit:  .byte   0
     .byte   0
 
     rts
-.endproc
-
-;-----------------------------------------------------------------------------
-; printDump
-;-----------------------------------------------------------------------------
-.proc printDump
-    lda     tileIndex
-    jsr     setTilePointer
-
-    jsr     inline_print
-    String  "; Address $"
-    lda     bgPtr1
-    jsr     PRBYTE
-    lda     bgPtr0
-    jsr     PRBYTE
-    jsr     inline_print
-    .byte   13,".byte ",0
-
-    lda     #0
-    sta     dump_count
-    jmp     dump_loop
-dump_comma:
-    lda     #$80 + ','
-    jsr     COUT
-dump_loop:
-    lda     #$80 + '$'
-    jsr     COUT
-    ldy     dump_count
-    lda     (bgPtr0),y
-    jsr     PRBYTE
-    inc     dump_count
-    lda     dump_count
-    cmp     tileLength
-    beq     dump_finish
-    lda     dump_count
-    and     #$f
-    bne     dump_comma
-    jsr     inline_print
-    .byte   13,".byte ",0
-    jmp     dump_loop
-
-dump_finish:
-    lda     #13
-    jsr     COUT
-    rts
-
-dump_count: .byte   0
-
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -823,483 +752,6 @@ sizePixelOffsetY:   .byte   2,  2,   2
 sizeMax:        .byte   64, 32, 16
 .endproc
 
-;-----------------------------------------------------------------------------
-; Fill pixels
-;   Set all pixel to A (0=black, 1=white, 2=background)
-;-----------------------------------------------------------------------------
-
-.proc fillPixels
-
-    tax
-    lda     colorList,x
-    sta     color
-
-    lda     curX
-    sta     tempX
-    lda     curY
-    sta     tempY
-
-    lda     #0
-    sta     curX
-
-loopX:
-    lda     #0
-    sta     curY
-
-loopY:
-    lda     color
-    jsr     copyPixel
-
-    inc     curY
-    lda     curY
-    cmp     tileHeight
-    bne     loopY
-
-    inc     curX
-    lda     curX
-    cmp     tileWidth
-    bne     loopX
-
-    lda     tempX
-    sta     curX
-    lda     tempY
-    sta     curY
-    rts
-
-color:      .byte   0
-colorList:  .byte   PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN
-tempX:      .byte   0
-tempY:      .byte   0
-
-.endproc
-
-;-----------------------------------------------------------------------------
-; Invert pixels
-;-----------------------------------------------------------------------------
-
-.proc invertPixels
-
-    lda     curX
-    sta     tempX
-    lda     curY
-    sta     tempY
-
-    lda     #0
-    sta     curX
-
-loopX:
-    lda     #0
-    sta     curY
-
-loopY:
-
-    jsr     getPixel
-    cmp     #PIXEL_WHITE
-    bne     :+
-    jsr     clearPixel  ; white -> black
-    jmp     cont
-:
-    cmp     #PIXEL_BLACK
-    bne     cont
-    jsr     setPixel    ; black -> white
-cont:
-
-    inc     curY
-    lda     curY
-    cmp     tileHeight
-    bne     loopY
-
-    inc     curX
-    lda     curX
-    cmp     tileWidth
-    bne     loopX
-
-    lda     tempX
-    sta     curX
-    lda     tempY
-    sta     curY
-    rts
-
-tempX:      .byte   0
-tempY:      .byte   0
-
-.endproc
-
-;-----------------------------------------------------------------------------
-; copyTile
-;-----------------------------------------------------------------------------
-.proc copyTile
-
-    lda     tileIndex
-    jsr     setTilePointer
-
-    ldy     #0
-:
-    lda     (bgPtr0),y
-    sta     clipboardData,y
-
-    iny
-    cpy     tileLength
-    bne     :-
-    rts
-.endproc
-
-;-----------------------------------------------------------------------------
-; pasteTile
-;-----------------------------------------------------------------------------
-.proc pasteTile
-
-    lda     tileIndex
-    jsr     setTilePointer
-
-    ldy     #0
-:
-    lda     clipboardData,y
-    sta     (bgPtr0),y
-
-    iny
-    cpy     tileLength
-    bne     :-
-    rts
-.endproc
-
-;-----------------------------------------------------------------------------
-; Flip vert
-;-----------------------------------------------------------------------------
-; Could be done much faster by using bytes, but was too lazy
-.proc flipVert
-
-    lda     curX
-    sta     tempX
-    lda     curY
-    sta     tempY
-
-    lda     #0
-    sta     curX
-
-loopX:
-    lda     #0
-    sta     indexY
-loopY:
-
-    ; swap pixels
-    lda     indexY
-    sta     curY
-    jsr     getPixel
-    sta     temp1
-
-    lda     tileHeight
-    clc     ; h-index-1
-    sbc     indexY
-    sta     curY
-    jsr     getPixel
-    sta     temp2
-    lda     temp1
-    jsr     copyPixel
-
-    lda     indexY
-    sta     curY
-    lda     temp2
-    jsr     copyPixel
-
-    inc     indexY
-    lda     indexY
-    asl
-    cmp     tileHeight
-    bmi     loopY
-    
-    inc     curX
-    lda     curX
-    cmp     tileWidth
-    bne     loopX
-
-    lda     tempX
-    sta     curX
-    lda     tempY
-    sta     curY
-    rts
-
-tempX:  .byte   0
-tempY:  .byte   0
-temp1:  .byte   0
-temp2:  .byte   0
-indexY: .byte   0
-
-.endproc
-
-;-----------------------------------------------------------------------------
-; Flip hor
-;-----------------------------------------------------------------------------
-; Could be done much faster by using bytes, but was too lazy
-
-.proc flipHor
-
-    lda     curX
-    sta     tempX
-    lda     curY
-    sta     tempY
-
-    lda     #0
-    sta     curY
-
-loopY:
-    lda     #0
-    sta     indexX
-loopX:
-
-    ; swap pixels
-    lda     indexX
-    sta     curX
-    jsr     getPixel
-    sta     temp1
-
-    lda     tileWidth
-    clc
-    sbc     indexX
-    sta     curX
-    jsr     getPixel
-    sta     temp2
-    lda     temp1
-    jsr     copyPixel
-
-    lda     indexX
-    sta     curX
-    lda     temp2
-    jsr     copyPixel
-
-    inc     indexX
-    lda     indexX
-    asl
-    cmp     tileWidth
-    bmi     loopX
-    
-    inc     curY
-    lda     curY
-    cmp     tileHeight
-    bne     loopY
-
-    lda     tempX
-    sta     curX
-    lda     tempY
-    sta     curY
-    rts
-
-tempX:  .byte   0
-tempY:  .byte   0
-temp1:  .byte   0
-temp2:  .byte   0
-indexX: .byte   0
-
-.endproc
-
-;-----------------------------------------------------------------------------
-; Rotate up 
-;  Rotate all pixels based on tile size
-;-----------------------------------------------------------------------------
-; Could be done much faster by using bytes, but was too lazy
-.proc rotateUp
-
-    lda     curX
-    sta     tempX
-    lda     curY
-    sta     tempY
-
-    lda     #0
-    sta     curX
-
-loopX:
-    lda     #0
-    sta     curY
-
-    ; save first pixel
-    jsr     getPixel
-    sta     temp
-    inc     curY
-
-loopY:
-    ; read pixel and write pixel above
-    jsr     getPixel
-    dec     curY
-    jsr     copyPixel
-    inc     curY
-    inc     curY
-    lda     curY
-    cmp     tileHeight
-    bne     loopY
-
-    lda     temp
-    dec     curY
-    jsr     copyPixel
-    
-    inc     curX
-    lda     curX
-    cmp     tileWidth
-    bne     loopX
-
-    lda     tempX
-    sta     curX
-    lda     tempY
-    sta     curY
-    rts
-
-tempX:  .byte   0
-tempY:  .byte   0
-temp:   .byte   0
-
-.endproc
-
-.proc rotateDown
-
-    lda     curX
-    sta     tempX
-    lda     curY
-    sta     tempY
-
-    lda     #0
-    sta     curX
-
-loopX:
-    lda     tileHeight
-    sta     curY
-    dec     curY
-
-    ; save first pixel
-    jsr     getPixel
-    sta     temp
-    dec     curY
-
-loopY:
-    ; read pixel and write pixel above
-    jsr     getPixel
-    inc     curY
-    jsr     copyPixel
-    dec     curY
-    dec     curY
-    lda     curY
-    bpl     loopY
-
-    lda     temp
-    inc     curY
-    jsr     copyPixel
-    
-    inc     curX
-    lda     curX
-    cmp     tileWidth
-    bne     loopX
-
-    lda     tempX
-    sta     curX
-    lda     tempY
-    sta     curY
-    rts
-
-tempX:  .byte   0
-tempY:  .byte   0
-temp:   .byte   0
-
-.endproc
-
-.proc rotateLeft
-
-    lda     curX
-    sta     tempX
-    lda     curY
-    sta     tempY
-
-    lda     #0
-    sta     curY
-
-loopY:
-    lda     #0
-    sta     curX
-
-    ; save first pixel
-    jsr     getPixel
-    sta     temp
-    inc     curX
-
-loopX:
-    ; read pixel and write pixel above
-    jsr     getPixel
-    dec     curX
-    jsr     copyPixel
-    inc     curX
-    inc     curX
-    lda     curX
-    cmp     tileWidth
-    bne     loopX
-
-    lda     temp
-    dec     curX
-    jsr     copyPixel
-    
-    inc     curY
-    lda     curY
-    cmp     tileHeight
-    bne     loopY
-
-    lda     tempX
-    sta     curX
-    lda     tempY
-    sta     curY
-    rts
-
-tempX:  .byte   0
-tempY:  .byte   0
-temp:   .byte   0
-
-.endproc
-
-.proc rotateRight
-
-    lda     curX
-    sta     tempX
-    lda     curY
-    sta     tempY
-
-    lda     #0
-    sta     curY
-
-loopY:
-    lda     tileWidth
-    sta     curX
-    dec     curX
-
-    ; save first pixel
-    jsr     getPixel
-    sta     temp
-    dec     curX
-
-loopX:
-    ; read pixel and write pixel above
-    jsr     getPixel
-    inc     curX
-    jsr     copyPixel
-    dec     curX
-    dec     curX
-    lda     curX
-    bpl     loopX
-
-    lda     temp
-    inc     curX
-    jsr     copyPixel
-    
-    inc     curY
-    lda     curY
-    cmp     tileHeight
-    bne     loopY
-
-    lda     tempX
-    sta     curX
-    lda     tempY
-    sta     curY
-    rts
-
-tempX:  .byte   0
-tempY:  .byte   0
-temp:   .byte   0
-
-.endproc
 ;-----------------------------------------------------------------------------
 ; drawPreview
 ;
@@ -2033,348 +1485,57 @@ multY:
     rts
 .endproc
 
+
 ;-----------------------------------------------------------------------------
-; Draw String
+; Set file params
 ;
-;   Use tileX and tileY for start and string inlined
+;   A = file number
 ;-----------------------------------------------------------------------------
+.proc setFileParams
 
-.proc drawString
-
-    ; Pop return address to find string
-    pla
-    sta     stringPtr0
-    pla
-    sta     stringPtr1
-    ldy     #0
-
-    lda     tileX
-    sta     offset
-
-    ; Print characters until 0 (end-of-string)
-printLoop:
-    iny
-    bne     :+              ; Allow strings > 255
-    inc     stringPtr1
-:
-    tya
-    pha
-    lda     (stringPtr0),y
-    beq     printExit
-    cmp     #13
-    bne     :+
-    inc     tileY
-    lda     offset
-    sta     tileX
-    jmp     continue
-:
-    and     #$7f
-    jsr     DHGR_DRAW_7X8
-
-    inc     tileX
-continue:
-    pla
-    tay
-    jmp     printLoop
-
-printExit:    
-    pla                 ; clean up stack
-    ; calculate return address after print string
+    ; set filename
+    ;--------------------------
     clc
-    tya
-    adc     stringPtr0  ; add low-byte first
-    tax                 ; save in X
-    lda     stringPtr1  ; carry to high-byte
-    adc     #0          
-    pha                 ; push return high-byte
-    txa
-    pha                 ; push return low-byte
-    rts                 ; return
+    adc     #'0'
+    sta     pathname_tilesheet_end-1
 
-char:   .byte   0
-offset: .byte   0
-.endproc
+    ; set pathname
+    lda     #<pathname_tilesheet
+    sta     open_params+1
+    sta     create_params+1
+    sta     stringPtr0
+    lda     #>pathname_tilesheet
+    sta     open_params+2
+    sta     create_params+2
+    sta     stringPtr1
 
-;-----------------------------------------------------------------------------
-; Draw Number
-;
-;   Draw 2 digit hex number passed in A
-;-----------------------------------------------------------------------------
-.proc drawNumber
-    sta     temp
-    lsr
-    lsr
-    lsr
-    lsr     ; /16
-    tax
-    lda     numberLookup,x
-    jsr     DHGR_DRAW_7X8
-    inc     tileX
-    lda     temp
-    and     #$F
-    tax
-    lda     numberLookup,x
-    jsr     DHGR_DRAW_7X8
-    inc     tileX
-    rts
+    ; set address
+    lda     #<tileSheet_4k
+    sta     rw_params+2
+    lda     #>tileSheet_4k
+    sta     rw_params+3
 
-temp:       .byte   0
+    ; set size
+    lda     #<tileSheet_4k_size
+    sta     rw_params+4
+    lda     #>tileSheet_4k_size
+    sta     rw_params+5
 
-.align 16
-numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
-.endproc
-
-;-----------------------------------------------------------------------------
-; Draw box
-;
-;-----------------------------------------------------------------------------
-
-.proc drawBox
-
-    ; Draw corners
-    lda     boxLeft
-    sta     tileX
-    lda     boxTop
-    sta     tileY
-    lda     #BOX_UPPER_LEFT
-    jsr     DHGR_DRAW_7X8
-
-    lda     boxRight
-    sta     tileX    
-    lda     #BOX_UPPER_RIGHT
-    jsr     DHGR_DRAW_7X8
-
-    lda     boxBottom
-    sta     tileY
-    lda     #BOX_LOWER_RIGHT
-    jsr     DHGR_DRAW_7X8
-
-    lda     boxLeft
-    sta     tileX
-    lda     #BOX_LOWER_LEFT
-    jsr     DHGR_DRAW_7X8
-
-    ; Draw horizontal
-
-    inc     tileX
-:
-    lda     boxTop
-    sta     tileY
-    lda     #BOX_HORZ
-    jsr     DHGR_DRAW_7X8
-    
-    lda     boxBottom
-    sta     tileY
-    lda     #BOX_HORZ
-    jsr     DHGR_DRAW_7X8
-    
-    inc     tileX
-    lda     boxRight
-    cmp     tileX
-    bne     :-
-
-    ; Draw vertical
-
-    lda     boxTop
-    sta     tileY
-    inc     tileY
-
-:
-    lda     boxLeft
-    sta     tileX
-    lda     #BOX_VERT
-    jsr     DHGR_DRAW_7X8
-    
-    lda     boxRight
-    sta     tileX
-    lda     #BOX_VERT
-    jsr     DHGR_DRAW_7X8
-    
-    inc     tileY
-    lda     boxBottom
-    cmp     tileY
-    bne     :-
+    lda     #':' + $80
+    jsr     COUT
+    jsr     print_length
+    lda     #13
+    jsr     COUT
 
     rts
 
 .endproc
-
-.proc eraseBox
-
-    ; Draw corners
-    lda     boxLeft
-    sta     tileX
-    lda     boxTop
-    sta     tileY
-    lda     #BOX_BLANK
-    jsr     DHGR_DRAW_7X8
-
-    lda     boxRight
-    sta     tileX    
-    lda     #$20
-    jsr     DHGR_DRAW_7X8
-
-    lda     boxBottom
-    sta     tileY
-    lda     #BOX_BLANK
-    jsr     DHGR_DRAW_7X8
-
-    lda     boxLeft
-    sta     tileX
-    lda     #BOX_BLANK
-    jsr     DHGR_DRAW_7X8
-
-    ; Draw horizontal
-
-    inc     tileX
-:
-    lda     boxTop
-    sta     tileY
-    lda     #BOX_BLANK
-    jsr     DHGR_DRAW_7X8
-    
-    lda     boxBottom
-    sta     tileY
-    lda     #BOX_BLANK
-    jsr     DHGR_DRAW_7X8
-    
-    inc     tileX
-    lda     boxRight
-    cmp     tileX
-    bne     :-
-
-    ; Draw vertical
-
-    lda     boxTop
-    sta     tileY
-    inc     tileY
-
-:
-    lda     boxLeft
-    sta     tileX
-    lda     #BOX_BLANK
-    jsr     DHGR_DRAW_7X8
-    
-    lda     boxRight
-    sta     tileX
-    lda     #BOX_BLANK
-    jsr     DHGR_DRAW_7X8
-    
-    inc     tileY
-    lda     boxBottom
-    cmp     tileY
-    bne     :-
-
-    rts
-
-.endproc
-
-;-----------------------------------------------------------------------------
-; DHGR clear screen
-;-----------------------------------------------------------------------------
-
-.proc clearScreen
-    lda     #$00
-    sta     screenPtr0
-    lda     #$20
-    sta     screenPtr1
-
-    sta     CLR80COL        ; Use RAMWRT for aux mem
-
-loop:
-    ldy     #0
-
-    ; aux mem
-    lda     #0
-;    lda     #$2a
-    sta     RAMWRTON  
-
-:
-    sta     (screenPtr0),y
-    iny
-    bne     :-    
-
-;    lda     #$55
-    sta     RAMWRTOFF
-    ; main mem
-:
-    sta     (screenPtr0),y
-    iny
-    bne     :-    
-
-    inc     screenPtr1
-    lda     #$40
-    cmp     screenPtr1
-    bne     loop
-    rts
-
-.endproc
-
-;-----------------------------------------------------------------------------
-; Init double hi-res monochrome
-;-----------------------------------------------------------------------------
-
-.proc initMonochrome
-    sta     MIXCLR
-    sta     HIRES
-    sta     TXTCLR
-    sta     LOWSCR
-    ldx     #2
-:
-    sta     SET80COL
-    sta     SET80VID 
-    sta     CLR80VID
-    sta     DHIRESON
-    sta     DHIRESOFF
-    sta     SET80VID 
-    sta     DHIRESON
-    dex
-    bne     :-
-    sta     MIXSET      ; Mixed
-    rts
-.endproc
-
-;-----------------------------------------------------------------------------
-; setColorMode
-;
-; Reset into color mode
-;-----------------------------------------------------------------------------
-.proc initColorMode
-    sta     TXTCLR      ; Graphics
-    sta     HIRES       ; Hi-res
-    sta     MIXSET      ; Mixed
-    sta     LOWSCR      ; Display page 1
-    sta     DHIRESON    ; Annunciator 2 On
-    sta     SET80VID    ; 80 column on
-    rts
-.endproc
-
-;-----------------------------------------------------------------------------
-; Quit
-;
-;   Exit to ProDos
-;-----------------------------------------------------------------------------
-.proc quit
-    bit     TXTSET          ; Make sure in text mode
-
-    jsr     MLI
-    .byte   CMD_QUIT
-    .word  quit_params
-
-quit_params:
-    .byte   4               ; 4 parameters
-    .byte   0               ; 0 is the only quit type
-    .word   0               ; Reserved pointer for future use (what future?)
-    .byte   0               ; Reserved byte for future use (what future?)
-    .word   0               ; Reserved pointer for future use (what future?)
-.endproc
-
 
 ;-----------------------------------------------------------------------------
 ; Utilies
 
+.include "edit_funct.asm"
 .include "inline_print.asm"
-.include "sounds.asm"
 .include "iso.asm"
 
 ; Global Variables
@@ -2405,23 +1566,14 @@ lastColor:          .byte   PIXEL_WHITE
 
 ; General
 
-currentSheet_7x8:   .word   tileSheet_7x8
-currentSheet_14x8:  .word   tileSheet_4k
 currentSheet_28x8:  .word   tileSheet_4k
-currentSheet_56x8:  .word   tileSheet_4k
-currentSheet_7x16:  .word   tileSheet_4k
-currentSheet_14x16: .word   tileSheet_4k
-currentSheet_28x16: .word   tileSheet_4k
 currentSheet_56x16: .word   tileSheet_4k
 
-; Box routine   
-boxLeft:            .byte   0
-boxRight:           .byte   0
-boxTop:             .byte   0
-boxBottom:          .byte   0
+; ProDos pathname
 
-.align      256
-clipboardData:      .res    8*16*2
+pathname_tilesheet:
+    StringLen "/DHGR/DATA/TILESHEET.0"
+pathname_tilesheet_end:
 
 ; Lookup tables
 ;-----------------------------------------------------------------------------
@@ -2515,9 +1667,11 @@ pixelByteMask:                  ; 1 << (x % 7)
 ;-----------------------------------------------------------------------------
 
 .align 256
-tileSheet_7x8:
-.include "font7x8_apple2.asm"
 
-.align 256
+tileSheet_4k_size = tileSheet_4k_end - tileSheet_4k
+
 tileSheet_4k:
-.include "tileset_iso.asm"
+.include "tilesheet_iso.asm"
+tileSheet_4k_end:
+
+    .dword  .time   ; Time of compilation

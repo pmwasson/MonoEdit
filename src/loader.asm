@@ -709,13 +709,13 @@ close_params:
 ; Assets
 
 ; Asset type
-fileTypeFont:   String "Font Tileset"
-fileTypeISO:    String "Isometric Tileset"
+fileTypeFont:   String "Font Tilesheet"
+fileTypeISO:    String "Isometric Tilesheet"
 fileTypeExe:    String "Executable"
 
 ; File names
 fileNameFont0:      StringLen "/DHGR/DATA/FONT7X8.0"
-fileNameISO:        StringLen "/DHGR/DATA/TILESET56X16.0"
+fileNameISO:        StringLen "/DHGR/DATA/TILESHEET.0"
 fileNameEngine:     StringLen "/DHGR/DATA/ENGINE"
 fileNameGame:       StringLen "/DHGR/DATA/GAME"
 fileNameFontEdit:   StringLen "/DHGR/DATA/FONTEDIT"

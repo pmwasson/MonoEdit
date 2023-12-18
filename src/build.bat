@@ -28,7 +28,7 @@ cl65 -I ..\src -t apple2 --cpu 65C02 -u __EXEHDR__ ..\src\displayImage.asm apple
 :: Compile assets
 ::---------------------------------------------------------------------------
 
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileset56x16_0.asm apple2.lib  -o tileset56x16_0.apple2 -C ..\src\start6000.cfg || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tilesheet_0.asm apple2.lib  -o tilesheet_0.apple2 -C ..\src\start6000.cfg || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_0.asm apple2.lib  -o font7x8_0.apple2 -C ..\src\start6000.cfg || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_1.asm apple2.lib  -o font7x8_1.apple2 -C ..\src\start6000.cfg || exit
 
@@ -59,7 +59,7 @@ java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk basic.system sys < ..\dis
 
 :: Assets
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/engine bin < engine.apple2  || exit
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tileset56x16.0 bin < tileset56x16_0.apple2  || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tilesheet.0 bin < tilesheet_0.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.0 bin < font7x8_0.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.1 bin < font7x8_1.apple2  || exit
 
