@@ -8,6 +8,10 @@ cd ..\build
 ca65 -I ..\src -t apple2 ..\src\fontedit.asm -l fontedit.dis || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\fontedit.asm apple2.lib  -o fontedit.apple2 -C ..\src\start4000.cfg || exit
 
+:: Tile Editor
+ca65 -I ..\src -t apple2 ..\src\tileedit.asm -l tileedit.dis || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileedit.asm apple2.lib  -o tileedit.apple2 -C ..\src\start6000.cfg || exit
+
 :: Engine
 ca65 -I ..\src -t apple2 ..\src\engine.asm -l engine.dis || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\engine.asm apple2.lib  -o engine.apple2 -C ..\src\startC00.cfg || exit
@@ -26,6 +30,7 @@ cl65 -I ..\src -t apple2 --cpu 65C02 -u __EXEHDR__ ..\src\displayImage.asm apple
 
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileset56x16_0.asm apple2.lib  -o tileset56x16_0.apple2 -C ..\src\start6000.cfg || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_0.asm apple2.lib  -o font7x8_0.apple2 -C ..\src\start6000.cfg || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_1.asm apple2.lib  -o font7x8_1.apple2 -C ..\src\start6000.cfg || exit
 
 ::---------------------------------------------------------------------------
 :: Build disk 
@@ -45,6 +50,9 @@ java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2
 :: Font Editor
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/fontedit bin < fontedit.apple2  || exit
 
+:: Tile Editor
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tileedit bin < tileedit.apple2  || exit
+
 :: Throw on basic
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk basic.system sys < ..\disk\BASIC.SYSTEM  || exit
 
@@ -52,6 +60,7 @@ java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk basic.system sys < ..\dis
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/engine bin < engine.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tileset56x16.0 bin < tileset56x16_0.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.0 bin < font7x8_0.apple2  || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.1 bin < font7x8_1.apple2  || exit
 
 :: Copy results out of the build directory
 copy mono_prodos.dsk ..\disk || exit

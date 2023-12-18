@@ -400,11 +400,8 @@ screenPtr1Copy: .byte   0
 ;-----------------------------------------------------------------------------
 ; drawTile (28x8)
 ;  Assume 28x8, where 28 is 28/7 = 4 bytes
-;    4*8 = 32 (split main/aux), so 16 tiles per page
-;
-;            0 1 2  3 4 5 6  ; 4-bit pixels in 7-bit byes (MSB ignored)
-;            -0-    --2--    ; AUX memory
-;              ---1--   -3-  ; Main memory
+;    4*8 = 32 (split main/aux), so 16 bytes per bank
+;    Interleaved by 2
 ;
 ;  Storage:  00  02  01  03  ; line 0
 ;            04  06  05  07  ; line 1
@@ -500,6 +497,116 @@ drawLoop:
 
 ; locals
 bgPtr0Copy:     .byte   0
+screenPtr0Copy: .byte   0
+screenPtr1Copy: .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; Draw Tile w/Mask 28x8
+;
+; 4*8*2 = 32 bytes (16 main / 16 aux) + 32 bytes mask (16 main / 16 aux)
+;   
+;-----------------------------------------------------------------------------
+.proc drawTileMask_28x8
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem
+
+    lda     bgTile
+    ; calculate tile pointer
+    asl                     ; *32
+    asl
+    asl
+    asl
+    asl
+    sta     bgPtr0
+    sta     bgPtr0Copy
+    clc
+    adc     #16
+    sta     fgPtr0
+    lda     bgTile
+    lsr                     ; /8
+    lsr
+    lsr
+    clc
+    adc     tileSheet_28x8+1
+    sta     bgPtr1
+    sta     fgPtr1
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    sta     screenPtr0Copy
+    lda     linePage,x
+    adc     drawPage
+    sta     screenPtr1
+    sta     screenPtr1Copy
+
+    jsr     drawTile
+
+    ; restore tile pointers (page byte doesn't change)
+    lda     bgPtr0Copy
+    sta     bgPtr0
+    clc
+    adc     #16
+    sta     fgPtr0
+
+    ; restore screen pointer
+    lda     screenPtr0Copy
+    sta     screenPtr0
+    lda     screenPtr1Copy
+    sta     screenPtr1
+
+    ; transfer to aux memory
+    sta     RAMWRTON  
+    sta     RAMRDON  
+
+    ; draw half of tile in aux mem
+    jsr     drawTile    ; AUX
+
+    sta     RAMWRTOFF   ; AUX
+    sta     RAMRDOFF    ; AUX
+
+    rts
+
+drawTile:
+
+    clc     ; no carry generated inside of loop
+    ldx     #8  ; 8 lines
+
+drawLoop:
+    ldy     #0
+    lda     (bgPtr0),y
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (bgPtr0),y
+    eor     invMask
+    sta     (screenPtr0),y
+
+    ; assumes aligned such that there are no page crossing
+    lda     bgPtr0
+    adc     #2
+    sta     bgPtr0
+
+    lda     fgPtr0
+    adc     #2
+    sta     fgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+    rts    
+
+; locals
+bgPtr0Copy:     .byte   0
+fgPtr0Copy:     .byte   0
 screenPtr0Copy: .byte   0
 screenPtr1Copy: .byte   0
 

@@ -291,9 +291,19 @@ fill_cancel:
 :
 
     ;------------------
-    ; ^F = Invert
+    ; Tab = switch tools
     ;------------------
     cmp     #KEY_TAB
+    bne     :+
+    jsr     inline_print
+    StringCR    "Switching tools..."
+    jmp     $6000       ; Maybe should look into the linker
+:
+
+    ;------------------
+    ; ^F = Invert
+    ;------------------
+    cmp     #KEY_CTRL_X
     bne     :+
     jsr     inline_print
     StringCR    "Invert"
@@ -386,6 +396,18 @@ save_exit:
     jsr     inline_print
     .byte   " (ESC when done) ",13,0
     jsr     printDump
+    jmp     command_loop
+:
+
+    ;------------------
+    ; ^P = Print
+    ;------------------
+    cmp     #KEY_CTRL_P
+    bne     :+
+    bit     TXTSET
+    jsr     inline_print
+    StringCR   "Print all"
+    jsr     printAll
     jmp     command_loop
 :
 
@@ -556,7 +578,7 @@ max_digit:  .byte   0
     StringCont  "  Ctrl-C:  Copy tile to clipboard"
     StringCont  "  Ctrl-V:  Paste tile from clipboard (overwrites current tile)"
     StringCont  "  Ctrl-R:  Rotate pixels in a direction specified by an arrow key"
-    StringCont  "  Ctrl-I:  Invert (black <-> white)"    
+    StringCont  "  Ctrl-X:  Invert (black <-> white)"    
     StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
     StringCont  "  Ctrl-L:  Load font"
     StringCont  "  Ctrl-S:  Save font"
@@ -565,10 +587,31 @@ max_digit:  .byte   0
     StringCont  "  \:       Monitor"
     StringCont  "  Ctrl-Q:  Quit"
     StringCont  "  Escape:  Toggle text/graphics"
+    StringCont  "  Tab:     Switch Tools"
     .byte   0
 
     rts
 .endproc
+
+;-----------------------------------------------------------------------------
+; printAll
+;-----------------------------------------------------------------------------
+.proc printAll
+
+    lda     tileIndex
+    sta     temp
+    lda     #0
+    sta     tileIndex
+:
+    jsr     printDump
+    inc     tileIndex
+    lda     tileIndex
+    cmp     tileMax
+    bne     :-
+    rts
+
+temp:   .byte   0
+ .endproc   
 
 ;-----------------------------------------------------------------------------
 ; printDump
@@ -578,11 +621,16 @@ max_digit:  .byte   0
     jsr     setTilePointer
 
     jsr     inline_print
-    String  "; Address $"
-    lda     bgPtr1
+    String  "; index $"
+    lda     tileIndex
     jsr     PRBYTE
-    lda     bgPtr0
-    jsr     PRBYTE
+
+;    jsr     inline_print
+;    .byte   13,"; Address $",0
+;    lda     bgPtr1
+;    jsr     PRBYTE
+;    lda     bgPtr0
+;    jsr     PRBYTE
     jsr     inline_print
     .byte   13,".byte ",0
 

@@ -82,7 +82,10 @@ GAMESTART       :=  $6000
 GAMELENGTH      =   $9000 - GAMESTART
 
 FONTEDITSTART     :=  $4000
-FONTEDITLENGTH    =   $9000 - FONTEDITSTART
+FONTEDITLENGTH    =   $6000 - FONTEDITSTART
+
+TILEEDITSTART     :=  $6000
+TILEEDITLENGTH    =   $9000 - TILEEDITSTART
 
 ;------------------------------------------------
 ; Constants
@@ -115,7 +118,6 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
 
     jsr    inline_print
     StringCont "Welcome to 128k game loader."
-;    StringCont "Hold down open-apple for editor"
     StringCR   "Checking memory..."
 
     lda     $BF98
@@ -136,9 +138,11 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     jsr     loadAsset
     ldx     #assetEngine
     jsr     loadAsset
+    ldx     #assetTileEdit
+    jsr     loadAsset
 
-    ; Editor lives in read buffer, so must be last!
-    ldx     #assetEditor
+    ; Font edit lives in read buffer, so must be last!
+    ldx     #assetFontEdit
     jsr     loadAsset
 
     lda     fileError
@@ -187,9 +191,11 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     StringCont "Launching executable..."
     .byte   13,0
 
-    ; Jump to editor
-    jmp     FONTEDITSTART
-
+    ; Jump to executables
+:
+    jsr     FONTEDITSTART
+    jsr     TILEEDITSTART
+    jmp     :-
 .endproc
 
 
@@ -710,28 +716,31 @@ fileTypeISO:    String "Isometric Tileset"
 fileTypeExe:    String "Executable"
 
 ; File names
-fileNameFont0:  StringLen "/DHGR/DATA/FONT7X8.0"
-fileNameISO:    StringLen "/DHGR/DATA/TILESET56X16.0"
-fileNameEngine: StringLen "/DHGR/DATA/ENGINE"
-fileNameGame:   StringLen "/DHGR/DATA/GAME"
-fileNameEditor: StringLen "/DHGR/DATA/FONTEDIT"
+fileNameFont0:      StringLen "/DHGR/DATA/FONT7X8.0"
+fileNameISO:        StringLen "/DHGR/DATA/TILESET56X16.0"
+fileNameEngine:     StringLen "/DHGR/DATA/ENGINE"
+fileNameGame:       StringLen "/DHGR/DATA/GAME"
+fileNameFontEdit:   StringLen "/DHGR/DATA/FONTEDIT"
+fileNameTileEdit:   StringLen "/DHGR/DATA/TILEEDIT"
 
 ; Asset List
 fileDescription:    ; type, name, address, size, dest, interleave
-    ;       TYPE            NAME            BUFFER          LENGTH          END         STARTDEST       MODE            DESTEND (INT)   OFFSET
-    ;       0               2               4               6               8           10              12              14 
-    ;       --------------- --------------- -----------     -----------     ----------- -----------     --------------- --------------- -------
-    .word   fileTypeFont,   fileNameFont0,  FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_BOTH,   0               ; 0
-    .word   fileTypeISO,    fileNameISO,    READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I4, ISOI4END        ; 16
-    .word   fileTypeExe,    fileNameEngine, ENGINESTART,    ENGINELENGTH,   0,          ENGINESTART,    INSTALL_MAIN,   0               ; 32
-    .word   fileTypeExe,    fileNameGame,   GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 48
-    .word   fileTypeExe,    fileNameEditor, FONTEDITSTART,  FONTEDITLENGTH,   0,        FONTEDITSTART,    INSTALL_MAIN,   0               ; 48
+    ;       TYPE            NAME              BUFFER          LENGTH          END         STARTDEST       MODE            DESTEND (INT)   OFFSET
+    ;       0               2                 4               6               8           10              12              14 
+    ;       --------------- ---------------   -----------     -----------     ----------- -----------     --------------- --------------- -------
+    .word   fileTypeFont,   fileNameFont0,    FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_BOTH,   0               ; 0
+    .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I4, ISOI4END        ; 16
+    .word   fileTypeExe,    fileNameEngine,   ENGINESTART,    ENGINELENGTH,   0,          ENGINESTART,    INSTALL_MAIN,   0               ; 32
+    .word   fileTypeExe,    fileNameGame,     GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 48
+    .word   fileTypeExe,    fileNameFontEdit, FONTEDITSTART,  FONTEDITLENGTH, 0,          FONTEDITSTART,  INSTALL_MAIN,   0               ; 64
+    .word   fileTypeExe,    fileNameTileEdit, TILEEDITSTART,  TILEEDITLENGTH, 0,          TILEEDITSTART,  INSTALL_MAIN,   0               ; 80
 
-assetFont0  =   16*0
-assetISO    =   16*1
-assetEngine =   16*2
-assetGame   =   16*3
-assetEditor =   16*4
+assetFont0    =   16*0
+assetISO      =   16*1
+assetEngine   =   16*2
+assetGame     =   16*3
+assetFontEdit =   16*4
+assetTileEdit =   16*5
 
 ;-----------------------------------------------------------------------------
 ; Utilies
