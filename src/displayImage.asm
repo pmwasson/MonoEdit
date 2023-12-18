@@ -13,12 +13,41 @@
 
 ;-----------------------------------------------------------------------------
 
+BOX_HORZ        = $13
+BOX_VERT        = $7c
+BOX_UPPER_LEFT  = $1c
+BOX_UPPER_RIGHT = $1d
+BOX_LOWER_LEFT  = $1e
+BOX_LOWER_RIGHT = $1f
+
+;-----------------------------------------------------------------------------
+
 .proc main
 	jsr 	init
     jsr     clearScreen
 
+    bra     :+
+    brk
+:
+
     lda     #0
     sta     imageNumber
+
+    lda     #0
+    sta     boxTop
+    lda     #0+8+1
+    sta     boxBottom
+    lda     #1
+    sta     boxLeft
+    lda     #1+20+1
+    sta     boxRight
+    jsr     drawBox
+
+    lda     #78-20-1
+    sta     boxLeft
+    lda     #78
+    sta     boxRight
+    jsr     drawBox
 
     ;1,1
 slideShow:
@@ -30,12 +59,12 @@ slideShow:
     lda     imageNumber
     jsr     drawImage
 
-    lda     #1+13
+    lda     #1+14
     sta     imageX
     jsr     incImage
     jsr     drawImage
 
-    lda     #1+13*2
+    lda     #1+14*2
     sta     imageX
     jsr     incImage
     jsr     drawImage
@@ -47,12 +76,12 @@ slideShow:
     jsr     incImage
     jsr     drawImage
 
-    lda     #1+13
+    lda     #1+14
     sta     imageX
     jsr     incImage
     jsr     drawImage
 
-    lda     #1+13*2
+    lda     #1+14*2
     sta     imageX
     jsr     incImage
     jsr     drawImage
@@ -193,6 +222,147 @@ imageEnd:   .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
+; drawTile_7x8
+;  Draw a tile that is 7 pixels wide (1 byte) by 8 pixels high, for a total
+;    of 8 bytes.
+; Can be either in aux (even) or main (odd) memory depending on X.
+;  Assume 7x8, where 7 is 7*4 pixels = 28 -> 4 bytes
+;
+; Assumes tileSheet is page aligned
+;
+;-----------------------------------------------------------------------------
+.proc drawTile_7x8
+
+    ; tile index passes in A
+    tay     ; copy A
+    ; calculate tile pointer
+    asl                     ; *8
+    asl
+    asl
+    sta     bgPtr0
+    tya     ; restore A
+    lsr                     ; /32
+    lsr
+    lsr
+    lsr
+    lsr
+    clc
+    adc     #>tileSheet_7x8
+    sta     bgPtr1
+    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX
+    lsr                     ; /2
+    bcs     :+              ; odd = main mem
+    sta     RAMWRTON        ; aux if even
+:
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    lda     linePage,x
+    sta     screenPtr1
+
+    clc     ; no carry generated inside of loop
+    ldx     #8
+    ldy     #0
+drawLoop:
+    lda     (bgPtr0),y
+    sta     (screenPtr0),y
+
+    ; assumes aligned such that there are no page crossing
+    inc     bgPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+    sta     RAMWRTOFF       ; Restore writing to main mem
+
+    rts    
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; Draw box
+;
+;-----------------------------------------------------------------------------
+
+.proc drawBox
+
+    ; Draw corners
+    lda     boxLeft
+    sta     tileX
+    lda     boxTop
+    sta     tileY
+    lda     #BOX_UPPER_LEFT
+    jsr     drawTile_7x8
+
+    lda     boxRight
+    sta     tileX    
+    lda     #BOX_UPPER_RIGHT
+    jsr     drawTile_7x8
+
+    lda     boxBottom
+    sta     tileY
+    lda     #BOX_LOWER_RIGHT
+    jsr     drawTile_7x8
+
+    lda     boxLeft
+    sta     tileX
+    lda     #BOX_LOWER_LEFT
+    jsr     drawTile_7x8
+
+    ; Draw horizontal
+
+    inc     tileX
+:
+    lda     boxTop
+    sta     tileY
+    lda     #BOX_HORZ
+    jsr     drawTile_7x8
+    
+    lda     boxBottom
+    sta     tileY
+    lda     #BOX_HORZ
+    jsr     drawTile_7x8
+    
+    inc     tileX
+    lda     boxRight
+    cmp     tileX
+    bne     :-
+
+    ; Draw vertical
+
+    lda     boxTop
+    sta     tileY
+    inc     tileY
+
+:
+    lda     boxLeft
+    sta     tileX
+    lda     #BOX_VERT
+    jsr     drawTile_7x8
+    
+    lda     boxRight
+    sta     tileX
+    lda     #BOX_VERT
+    jsr     drawTile_7x8
+    
+    inc     tileY
+    lda     boxBottom
+    cmp     tileY
+    bne     :-
+
+    rts
+
+.endproc
+
+;-----------------------------------------------------------------------------
 ; Init
 ;-----------------------------------------------------------------------------
 .proc init
@@ -304,12 +474,17 @@ loop:
 ; Globals
 ;-----------------------------------------------------------------------------
 
-; All the follow use 2-byte increments for X / Width
-;                and 8-byte increments for Y / Height
+; The follow use 2-byte increments for X / Width
+;            and 8-byte increments for Y / Height
 imageWidth: 	.byte 	10
 imageHeight: 	.byte 	8 	
 imageX: 		.byte 	1 		; [0..39-width]
 imageY: 		.byte 	1 		; [0..23-height]
+
+boxLeft:        .byte   0
+boxRight:       .byte   0
+boxTop:         .byte   0
+boxBottom:      .byte   0
 
 ;-----------------------------------------------------------------------------
 ; Utilies
@@ -373,6 +548,12 @@ linePage:
     .byte   >$22D0
     .byte   >$2350
     .byte   >$23D0
+
+;-----------------------------------------------------------------------
+
+.align 256
+tileSheet_7x8:
+.include "font7x8_apple2.asm"
 
 ;-----------------------------------------------------------------------
 

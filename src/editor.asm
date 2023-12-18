@@ -1239,6 +1239,32 @@ cont:
     sta     tileY
     lda     tileIndex
     jsr     drawTile_56x16
+
+
+    lda     #30
+    sta     tileX
+    lda     #6
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_56x16
+
+    lda     #34
+    sta     tileX
+    lda     tileIndex
+    jsr     drawTile_56x16
+ 
+    lda     #30
+    sta     tileX
+    lda     #8
+    sta     tileY
+    lda     tileIndex
+    jsr     drawTile_56x16
+
+    lda     #34
+    sta     tileX
+    lda     tileIndex
+    jsr     drawTile_56x16
+ 
     rts
 .endproc
 

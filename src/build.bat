@@ -16,8 +16,8 @@ ca65 -I ..\src -t apple2 ..\src\loader.asm -l loader.dis
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\loader.asm apple2.lib  -o loader.apple2 -C ..\src\start2000.cfg
 
 :: Image
-ca65 -I ..\src -t apple2 ..\src\displayImage.asm -l image.dis
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\displayImage.asm apple2.lib  -o image.apple2 -C ..\src\start6000.cfg
+ca65 -I ..\src -t apple2 --cpu 65C02 ..\src\displayImage.asm -l image.dis
+cl65 -I ..\src -t apple2 --cpu 65C02 -u __EXEHDR__ ..\src\displayImage.asm apple2.lib  -o image.apple2 -C ..\src\start6000.cfg
 
 ::---------------------------------------------------------------------------
 :: Compile assets
@@ -33,16 +33,15 @@ cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileset7x8_0.asm apple2.lib  -o ti
 :: Start with a blank prodos disk
 copy ..\disk\template_prodos.dsk mono_prodos.dsk
 
-:: Image
-java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2 
-
 :: Loader
 java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\cc65\target\apple2\util\loader.system
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.apple2 
 
+:: Image
+java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2 
+
 :: Editor
-java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk editor.system sys < C:\cc65\target\apple2\util\loader.system
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/editor bin < editor.apple2 
 
 :: Throw on basic

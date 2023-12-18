@@ -36,7 +36,13 @@
 ;
 ;   B000-B7FF   [ Font Tiles (128)              ]
 ;
+;   Is B800-BEFF available?  (BFxx is used by ProDos)
+;
+;   ProDos says addresses D000-FFFF in AUX memory
+;   are reserved, but probably could be used if needed.
+;   
 ;   ProDos buffer only needed if load/save supported
+;
 
 READBUFFER      :=  $4000    ; Share read buffer with page2
 
