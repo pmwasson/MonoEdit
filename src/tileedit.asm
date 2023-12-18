@@ -53,9 +53,13 @@ MODE_MASK       = 1
 
     jsr     DHGR_INIT
 
+    ; reset tile index
+    lda     #0
+    sta     tileIndex
+
     ; set default size
-    lda     #SIZE_56x16
-    ldx     #MODE_MASK
+    lda     #SIZE_28x8
+    ldx     #MODE_NO_MASK
     jsr     setTileSize
     jsr     initMonochrome  ; Turn on monochrome dhgr
     ;jsr     initColorMode
@@ -631,9 +635,6 @@ finishChangeTile_cont:
 
 .endproc
 
-
-
-
 ;-----------------------------------------------------------------------------
 ; printHelp
 ;-----------------------------------------------------------------------------
@@ -824,12 +825,29 @@ cont:
 .proc drawPreview_28x8
 
     ; erase previous box
-    lda     prevIndex
-    jsr     setupBox_28x8
+    lda     boxRightCopy
+    sta     boxRight
+    beq     :+              ; skip if not set
+    lda     boxBottomCopy
+    sta     boxBottom
+    beq     :+
+    lda     boxTopCopy
+    sta     boxTop
+    lda     boxLeftCopy
+    sta     boxLeft
     jsr     eraseBox
+:
 
-    ; Draw all tiles
-    lda     #0
+    ; Draw screen full of tiles
+    lda     tileIndex
+    and     #$e0
+    sta     previewOffset
+    lda     modeMasked
+    beq     :+
+    and     #$c0
+    sta     previewOffset
+:
+    lda     previewOffset
     sta     index
 
     lda     #2
@@ -840,13 +858,20 @@ yloop:
     sta     tileX
 
 xloop:
+    lda     modeMasked
+    beq     :+
+    lda     index
+    lsr
+    tax
+    lda     screenShuffle,x
+    jsr     drawTile_28x8
+    inc     index
+    jmp     cont
+:
     lda     index
     jsr     drawTile_28x8
-
-    lda     index
-    sec
-    adc     modeMasked
-    sta     index
+cont:
+    inc     index
 
     lda     tileX
     clc
@@ -861,10 +886,29 @@ xloop:
     cmp     #2+8*2          ; 8 high
     bne     yloop 
 
+    lda     modeMasked
+    beq     :+
     lda     tileIndex
-    sta     prevIndex
+    lsr
+    tax
+    lda     screenShuffle,x
+    jmp     cont2
+:
+    lda     tileIndex
+    sec
+    sbc     previewOffset
+cont2:
     jsr     setupBox_28x8
     jsr     drawBox
+
+    lda     boxTop
+    sta     tileY
+    lda     boxLeft
+    clc
+    adc     #2
+    sta     tileX
+    lda     tileIndex
+    jsr     drawNumber
 
     rts
 
@@ -882,9 +926,11 @@ setupBox_28x8:
     clc
     adc     #1 
     sta     boxTop
+    sta     boxTopCopy
     sec
     adc     #1              ; 1 (7x*) tile high
     sta     boxBottom
+    sta     boxBottomCopy
     txa
 
     and     #$3
@@ -894,14 +940,30 @@ setupBox_28x8:
     clc
     adc     #41
     sta     boxLeft
+    sta     boxLeftCopy
     sec
     adc     #4              ; 4 (7x8) tile wide
     sta     boxRight
+    sta     boxRightCopy
     rts
 
-index:      .byte 0
-prevIndex:  .byte 0
-boxIndex:   .byte 0
+previewOffset:  .byte 0
+index:          .byte 0
+boxIndex:       .byte 0
+boxTopCopy:     .byte 0
+boxBottomCopy:  .byte 0
+boxLeftCopy:    .byte 0
+boxRightCopy:   .byte 0
+
+screenShuffle:  
+    .byte   $00, $02, $08, $0a      ; 00 02 04 06
+    .byte   $10, $12, $18, $1a      ; 08 0a 0c 0e
+    .byte   $20, $22, $28, $2a      ; 10 12 14 16
+    .byte   $30, $32, $38, $3a      ; 18 1a 1c 1e
+    .byte   $04, $06, $0c, $0e      ; 20 22 24 26
+    .byte   $14, $16, $1c, $1e      ; 28 2a 2c 2e
+    .byte   $24, $26, $2c, $2e      ; 30 32 34 36
+    .byte   $34, $36, $3c, $3e      ; 38 3a 3c 3e
 
 .endproc
 
