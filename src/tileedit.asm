@@ -59,7 +59,7 @@ MODE_MASK       = 1
 
     ; set default size
     lda     #SIZE_28x8
-    ldx     #MODE_NO_MASK
+    ldx     #MODE_MASK
     jsr     setTileSize
     jsr     initMonochrome  ; Turn on monochrome dhgr
     ;jsr     initColorMode
@@ -863,7 +863,7 @@ xloop:
     lda     index
     lsr
     tax
-    lda     screenShuffle,x
+    lda     screenShuffleReverse,x
     jsr     drawTile_28x8
     inc     index
     jmp     cont
@@ -964,6 +964,16 @@ screenShuffle:
     .byte   $14, $16, $1c, $1e      ; 28 2a 2c 2e
     .byte   $24, $26, $2c, $2e      ; 30 32 34 36
     .byte   $34, $36, $3c, $3e      ; 38 3a 3c 3e
+
+screenShuffleReverse:  
+    .byte   $00, $02, $20, $22
+    .byte   $04, $06, $24, $26
+    .byte   $08, $0a, $28, $2a
+    .byte   $0c, $0e, $2c, $2e
+    .byte   $10, $12, $30, $32
+    .byte   $14, $16, $34, $36
+    .byte   $18, $1a, $38, $3a
+    .byte   $1c, $1e, $3c, $3e
 
 .endproc
 
