@@ -24,9 +24,9 @@ BOX_LOWER_LEFT  = $1e
 BOX_LOWER_RIGHT = $1f
 BOX_BLANK       = $20
 
-SIZE_28x8       = 0
-SIZE_56x16      = 1
-SIZE_56x32      = 2
+SIZE_28x8           = 0
+SIZE_56x16          = 1
+SIZE_56x32          = 2
 
 MODE_NO_MASK    = 0
 MODE_MASK       = 1
@@ -53,13 +53,9 @@ MODE_MASK       = 1
 
     jsr     DHGR_INIT
 
-    ; reset tile index
-    lda     #0
-    sta     tileIndex
-
     ; set default size
     lda     #SIZE_28x8
-    ldx     #MODE_MASK
+    ldx     #1
     jsr     setTileSize
     jsr     initMonochrome  ; Turn on monochrome dhgr
     ;jsr     initColorMode
@@ -170,8 +166,8 @@ down_good:
     bne     previous_continue
     lda     tileMax
 previous_continue:
-    clc
-    sbc     modeMasked  ; -1 or -2 if masked
+    sec
+    sbc     tileInc
     jmp     finishChangeTile
 :
     ;------------------
@@ -184,7 +180,7 @@ previous_continue:
 
     lda     tileIndex
     sec     
-    sbc     #8
+    sbc     tileInc8
     bpl     previous8_continue
     clc
     adc     tileMax
@@ -200,10 +196,10 @@ previous8_continue:
     .byte   "Next tile: ",0
 
     lda     tileIndex
-    sec
-    adc     modeMasked  ; +1 or +2 if masked
+    clc
+    adc     tileInc
     cmp     tileMax
-    bne     next_continue
+    bmi     next_continue
     lda     #0
 next_continue:
     jmp     finishChangeTile
@@ -218,7 +214,7 @@ next_continue:
 
     lda     tileIndex
     clc
-    adc     #8
+    adc     tileInc8
     cmp     tileMax
     bmi     next_continue8
     sec
@@ -281,31 +277,6 @@ deletePixelError:
     jsr     inline_print
     StringCR "Error: not in masked mode"
     jmp     command_loop
-:
-    ;------------------
-    ; ^M = Toggle Mask
-    ;------------------
-    cmp     #KEY_RETURN
-    bne     :+
-    jsr     inline_print
-    String  "Mask "
-    lda     modeMasked
-    beq     setModeMasked
-    jsr     inline_print
-    StringCR "Off"
-    ldx     #0
-    jmp     finishModeMask
-setModeMasked:
-    jsr     inline_print
-    StringCR "On"
-    ldx     #1
-finishModeMask:
-    lda     tileSize
-    jsr     setTileSize
-    lda     tileIndex
-    and     #$FE
-    sta     tileIndex
-    jmp     refresh_loop
 :
     ;------------------
     ; ^C = Copy Tile
@@ -380,11 +351,14 @@ fill_cancel:
 :
     jsr     inline_print
     StringCont "Tile size"
-    String "(0=28x8, 1=56x16, 2=56x32):"
-    lda     #3
+    String "(0=28x8 (unmasked), 1=28x8, 2=56x16, 3=56x32):"
+    lda     #4
     jsr     getInputNumber
     bmi     tileSizeCancel
-    ldx     modeMasked
+    tay
+    lda     convertMode,y     
+    tax
+    lda     convertSize,y
     jsr     setTileSize
     ; output size
     jsr     inline_print
@@ -400,6 +374,9 @@ fill_cancel:
     jmp     reset_loop
 tileSizeCancel:
     jmp     command_loop
+
+convertSize:    .byte   SIZE_28x8, SIZE_28x8, SIZE_56x16, SIZE_56x32
+convertMode:    .byte   0,         1,         1,          1
 
 afterTileSize:
 
@@ -620,14 +597,6 @@ finish_move:
 ; jump to after changing tile
 finishChangeTile:
     sta     tileIndex
-    lda     modeMasked
-    beq     :+
-    lda     tileIndex
-    lsr
-    jmp     finishChangeTile_cont    
-:
-    lda     tileIndex
-finishChangeTile_cont:
     jsr     PRBYTE
     lda     #13
     jsr     COUT
@@ -653,7 +622,6 @@ finishChangeTile_cont:
     StringCont  "  Ctrl-X:  eXchange pixels in a direction specified by an arrow key"
     StringCont  "  Ctrl-A:  Alternate colors (black <-> white)"    
     StringCont  "  Ctrl-T:  Set tile size"
-    StringCont  "  Ctrl-M:  Toggle between normal and masked mode"
     StringCont  "  -,=:     Go to previous/next tile (holding shift moves 8 tile)"
     StringCont  "  Ctrl-L:  Load tilesheet"
     StringCont  "  Ctrl-S:  Save tilesheet"
@@ -687,6 +655,10 @@ finishChangeTile_cont:
     sta     tileLength
     lda     sizeMax,x
     sta     tileMax
+    lda     sizeInc,x
+    sta     tileInc
+    lda     sizeInc8,x
+    sta     tileInc8
     lda     sizeCanvasLeft,x
     sta     canvasLeft
     lda     sizeCanvasTop,x
@@ -704,31 +676,14 @@ finishChangeTile_cont:
     lda     modeMasked
     beq     :+
     asl     tileLength
+    asl     tileInc
+    asl     tileInc8
 :
-
-    ; check that cursor is still in range
-    lda     tileWidth
-    cmp     curX
-    bpl     :+
-    lda     tileWidth
-    sta     curX
-    dec     curX
-:     
-    lda     tileHeight
-    cmp     curY
-    bpl     :+
-    lda     tileHeight
-    sta     curY
-    dec     curY
-:
-
-    ; check that tile index is still in range
-    lda     tileMax
-    cmp     tileIndex
-    bpl     :+
+    ; reset cursor and index
     lda     #0
+    sta     curX
+    sta     curY
     sta     tileIndex
-:
 
     rts
 
@@ -744,13 +699,11 @@ sizeCanvasBottom:   .byte   5,  9,   9
 sizePixelOffsetX:   .byte   2,  2,   2
 sizePixelOffsetY:   .byte   2,  2,   2
 
-; Tile max should be <= 4K
-; size   bytes/tile  4k/x    max    
-; 28x8   32          128     64
-; 56x16  128         32      32
-; 56x32  256         16      16
+; 4k / 4*8 = 128
+sizeMax:        .byte   128, 128, 128
+sizeInc:        .byte   1,   4,   8
+sizeInc8:       .byte   8,   16,  16
 
-sizeMax:        .byte   64, 32, 16
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -761,16 +714,22 @@ sizeMax:        .byte   64, 32, 16
 .proc drawPreview
 
     ; title
-    lda     #72
+    lda     #66
     sta     tileX
     lda     #0
     sta     tileY
     jsr     drawString
     String  "Tile:"
     lda     tileIndex
-cont:
     jsr     drawNumber
 
+    lda     modeMasked
+    beq     :+
+    lda     #74
+    sta     tileX
+    jsr     drawString
+    String  "Masked"
+:
     lda     tileSize
     cmp     #SIZE_28x8
     bne     :+
@@ -1145,127 +1104,38 @@ waitExit:
 ;-----------------------------------------------------------------------------
 
 .proc drawTile_56x16
+    sta     index
+    jsr     drawTile_28x8
 
-    ; tile index passes in A
-    jsr     setTilePointer_56x16
-
-    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
-
-    ; calculate screen pointer
-    ldx     tileY
-    lda     tileX           ; interpreting x as x*2
+    inc     tileX
+    inc     tileX
+    lda     index
     clc
-    adc     lineOffset,x    ; + lineOffset
-    sta     screenPtr0    
-    lda     linePage,x
-    sta     screenPtr1
+    adc     #2
+    jsr     drawTile_28x8
 
-    clc     ; no carry generated inside of loop
-    ldx     #8
-
-drawLoop:
-    ; Byte 0..3 in AUX memory
-    sta     RAMWRTON
-    ldy     #0
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #1
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #2
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #3
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-
-    ; Bytes 4..7 in MAIN memory
-    lda     bgPtr0
-    adc     #4
-    sta     bgPtr0
-    sta     RAMWRTOFF
-    ldy     #0
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #1
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #2
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #3
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    lda     bgPtr0
-    adc     #4
-    sta     bgPtr0
-
-    lda     screenPtr1
-    adc     #4
-    sta     screenPtr1
-
-    dex
-    bne     drawLoop
-
-
-    ; move to second half
-    lda     screenPtr0
+    dec     tileX
+    dec     tileX
+    inc     tileY
+    lda     index
     clc
-    adc     #$80
-    sta     screenPtr0
-    lda     screenPtr1
-    sbc     #$1f        ; subtract 20 if no carry, 19 if carry
-    sta     screenPtr1
-
-    clc     ; no carry generated inside of loop
-    ldx     #8
-
-drawLoop2:
-    ; Byte 0..3 in AUX memory
-    sta     RAMWRTON
-    ldy     #0
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #1
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #2
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #3
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-
-    ; Bytes 4..7 in MAIN memory
-    lda     bgPtr0
     adc     #4
-    sta     bgPtr0
-    sta     RAMWRTOFF
-    ldy     #0
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #1
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #2
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    ldy     #3
-    lda     (bgPtr0),y
-    sta     (screenPtr0),y
-    lda     bgPtr0
-    adc     #4
-    sta     bgPtr0
+    jsr     drawTile_28x8
 
-    lda     screenPtr1
-    adc     #4
-    sta     screenPtr1
+    inc     tileX
+    inc     tileX
+    lda     index
+    clc
+    adc     #6
+    jsr     drawTile_28x8
 
-    dex
-    bne     drawLoop2
+    dec     tileX
+    dec     tileX
+    dec     tileY
 
-    rts    
+    rts
 
+index:  .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -1533,15 +1403,41 @@ finish:
 ;-----------------------------------------------------------------------------
 
 .proc getPixelOffset
+    jmp     getPixelOffset_28x8
+.endproc
 
-    clc
+.proc getPixelOffset_56x16
+    ; find sub tile based on X and Y
+    
+    ; y/8 * 2 = y/4
+    lda     curY
+    lsr
+    lsr
+
+
+    
+
+pixelSubTileOffsetX:                         ; x/28 range (0..55)
+    .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte   1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    .byte   1,1,1,1,1,1,1,1,1,1,1,1,1,1
+
+pixelSubTileOffsetY:                         ; x/14
+    .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte   1,1,1,1,1,1,1,1,1,1,1,1,1,1
+ 
+.endproc
+
+
+.proc getPixelOffset_28x8
+
     ldx     curX
     lda     pixelByteOffset,x
-    adc     tileWidthBytes
-    tax     
+    tax
     lda     pixelInterLeaveOffset,x
 
-    ; multiply y by width in bytes
+    ; plus y multiplied by width in bytes
     ldx     curY
     beq     multY
 :
@@ -1555,6 +1451,25 @@ multY:
     ldx     curX
     lda     pixelByteMask,x
     rts
+
+; 28 bytes
+pixelByteOffset:                ; x / 7
+    .byte   0,0,0,0,0,0,0
+    .byte   1,1,1,1,1,1,1
+    .byte   2,2,2,2,2,2,2
+    .byte   3,3,3,3,3,3,3
+
+; 4 bytes
+pixelInterLeaveOffset:
+    .byte   0,2,1,3             ; 0..3
+
+; 28 bytes
+pixelByteMask:                  ; 1 << (x % 7)
+    .byte   $01,$02,$04,$08,$10,$20,$40
+    .byte   $01,$02,$04,$08,$10,$20,$40
+    .byte   $01,$02,$04,$08,$10,$20,$40
+    .byte   $01,$02,$04,$08,$10,$20,$40
+
 .endproc
 
 
@@ -1621,6 +1536,8 @@ curY:               .byte   0
 
 tileIndex:          .byte   0
 tileMax:            .byte   0
+tileInc:            .byte   0
+tileInc8:           .byte   0
 tileSize:           .byte   0
 tileWidth:          .byte   0
 tileWidthBytes:     .byte   0
@@ -1702,38 +1619,6 @@ linePage:
     .byte   >$22D0
     .byte   >$2350
     .byte   >$23D0
-
-.align      128
-
-; 56 bytes
-pixelByteOffset:                ; x / 7
-    .byte   0,0,0,0,0,0,0
-    .byte   1,1,1,1,1,1,1
-    .byte   2,2,2,2,2,2,2
-    .byte   3,3,3,3,3,3,3
-    .byte   4,4,4,4,4,4,4
-    .byte   5,5,5,5,5,5,5
-    .byte   6,6,6,6,6,6,6
-    .byte   7,7,7,7,7,7,7
-
-; 16 bytes
-pixelInterLeaveOffset:
-    .byte   255                 ; 0:     not used
-    .byte   0                   ; 1:     size 1 + (0)
-    .byte   0,1                 ; 2..3:  size 2 + (0..1)
-    .byte   0,2,1,3             ; 4..7:  size 4 + (0..3)
-    .byte   0,4,1,5,2,6,3,7     ; 8..15: size 8 + (0..7)
-
-; 56 bytes
-pixelByteMask:                  ; 1 << (x % 7)
-    .byte   $01,$02,$04,$08,$10,$20,$40
-    .byte   $01,$02,$04,$08,$10,$20,$40
-    .byte   $01,$02,$04,$08,$10,$20,$40
-    .byte   $01,$02,$04,$08,$10,$20,$40
-    .byte   $01,$02,$04,$08,$10,$20,$40
-    .byte   $01,$02,$04,$08,$10,$20,$40
-    .byte   $01,$02,$04,$08,$10,$20,$40
-    .byte   $01,$02,$04,$08,$10,$20,$40
 
 ; Tiles
 ;-----------------------------------------------------------------------------
