@@ -752,32 +752,39 @@ sizeInc8:       .byte   8,   16,  16
     lda     tileIndex
     jsr     drawTile_56x16
 
+    lda     tileIndex
+    beq     :+
 
+    sec
+    sbc     tileInc
+:
+    sta     index
     lda     #30
     sta     tileX
     lda     #6
     sta     tileY
-    lda     tileIndex
+    lda     index
     jsr     drawTile_56x16
 
-    lda     #34
-    sta     tileX
-    lda     tileIndex
-    jsr     drawTile_56x16
- 
-    lda     #30
-    sta     tileX
     lda     #8
     sta     tileY
-    lda     tileIndex
+    lda     index
+    clc
+    adc     tileInc
     jsr     drawTile_56x16
 
-    lda     #34
-    sta     tileX
-    lda     tileIndex
+    lda     #10
+    sta     tileY
+    lda     index
+    clc
+    adc     tileInc
+    adc     tileInc
     jsr     drawTile_56x16
  
     rts
+
+index:  .byte   0
+
 .endproc
 
 .proc drawPreview_28x8
@@ -1146,7 +1153,7 @@ index:  .byte   0
 .proc drawTile_28x8
 
     ; tile index passes in A
-    jsr     setTilePointer_28x8
+    jsr     setTilePointer
 
     sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
 
@@ -1202,22 +1209,6 @@ drawLoop:
 ;   Index passed in A
 ;-----------------------------------------------------------------------------
 .proc setTilePointer
-
-    ; Dispatch
-    ldy     tileSize
-    cpy     #SIZE_28x8
-    bne     :+
-    jmp     setTilePointer_28x8
-:   
-    cpy     #SIZE_56x16
-    bne     :+
-    jmp     setTilePointer_56x16
-:
-    brk
-
-.endproc
-
-.proc setTilePointer_28x8
     ; 32 bytes
     tay     ; copy A
     ; calculate tile pointer
@@ -1233,28 +1224,6 @@ drawLoop:
     lsr
     clc
     adc     currentSheet_28x8+1
-    sta     bgPtr1
-
-    rts
-
-.endproc
-
-.proc setTilePointer_56x16
-    ; 128 bytes
-    tay     ; copy A
-    ; calculate tile pointer
-    asl                     ; *128
-    asl
-    asl
-    asl
-    asl
-    asl
-    asl
-    sta     bgPtr0
-    tya     ; restore A
-    lsr                     ; /2
-    clc
-    adc     currentSheet_56x16+1
     sta     bgPtr1
 
     rts
@@ -1424,15 +1393,15 @@ finish:
 .proc getPixelOffset
     lda     tileWidth
     cmp     #28
-    beq     getPixelOffset_28x8
-    jmp     getPixelOffset_56x16
+    beq     getPixelOffset_28
+    jmp     getPixelOffset_56
 .endproc
 
-.proc getPixelOffset_56x16
+.proc getPixelOffset_56
     lda     #0
     sta     offset
 
-    ; check X range
+    ; check X range (>28)
     lda     curX
     sta     tempX
     sec
@@ -1442,7 +1411,7 @@ finish:
     lda     #64
     sta     offset
 :
-    ; check Y range
+    ; check Y range (>8)
     lda     curY
     sta     tempY
     sec
@@ -1455,7 +1424,7 @@ finish:
     sta     offset
 :
 
-    jsr     getPixelOffset_28x8
+    jsr     getPixelOffset_28
     ldx     tempX
     stx     curX
     ldx     tempY
@@ -1474,7 +1443,7 @@ tempY:      .byte   0
 
 .endproc
 
-.proc getPixelOffset_28x8
+.proc getPixelOffset_28
     ldx     curX
     lda     pixelByteOffset,x
     tax
