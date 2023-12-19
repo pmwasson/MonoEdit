@@ -1420,46 +1420,71 @@ finish:
 ; Note: mask byte is always +32 from pixel offset
 ;-----------------------------------------------------------------------------
 
+; Dispatch
 .proc getPixelOffset
-    jmp     getPixelOffset_28x8
+    lda     tileWidth
+    cmp     #28
+    beq     getPixelOffset_28x8
+    jmp     getPixelOffset_56x16
 .endproc
 
 .proc getPixelOffset_56x16
-    ; find sub tile based on X and Y
-    
-    ; y/8 * 2 = y/4
+    lda     #0
+    sta     offset
+
+    ; check X range
+    lda     curX
+    sta     tempX
+    sec
+    sbc     #28
+    bmi     :+
+    sta     curX
+    lda     #64
+    sta     offset
+:
+    ; check Y range
     lda     curY
-    lsr
-    lsr
+    sta     tempY
+    sec
+    sbc     #8
+    bmi     :+
+    sta     curY
+    clc
+    lda     offset
+    adc     #128
+    sta     offset
+:
 
+    jsr     getPixelOffset_28x8
+    ldx     tempX
+    stx     curX
+    ldx     tempY
+    stx     curY
+    pha     ; mask
+    tya
+    clc
+    adc     offset
+    tay
+    pla     ; restore mask
+    rts
 
-    
+offset:     .byte   0
+tempX:      .byte   0
+tempY:      .byte   0
 
-pixelSubTileOffsetX:                         ; x/28 range (0..55)
-    .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    .byte   1,1,1,1,1,1,1,1,1,1,1,1,1,1
-    .byte   1,1,1,1,1,1,1,1,1,1,1,1,1,1
-
-pixelSubTileOffsetY:                         ; x/14
-    .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    .byte   1,1,1,1,1,1,1,1,1,1,1,1,1,1
- 
 .endproc
 
-
 .proc getPixelOffset_28x8
-
     ldx     curX
     lda     pixelByteOffset,x
     tax
     lda     pixelInterLeaveOffset,x
-
     ; plus y multiplied by width in bytes
     ldx     curY
     beq     multY
+    clc
 :
-    adc     tileWidthBytes
+    adc     #4  ; hard code since used by other size (tileWidthBytes)
     dex
     bne     :-
 multY:
