@@ -55,7 +55,7 @@ MODE_MASK       = 1
 
     ; set default size
     lda     #SIZE_28x8
-    ldx     #1
+    ldx     #0
     jsr     setTileSize
     jsr     initMonochrome  ; Turn on monochrome dhgr
     ;jsr     initColorMode
@@ -240,10 +240,10 @@ next_continue8:
     bne     :+
     jsr     inline_print
     StringCR "Clear Pixel"
-    jsr     clearPixel
-    jsr     drawPreview
     lda     #PIXEL_BLACK
     sta     lastColor
+    jsr     copyPixel
+    jsr     drawPreview
     jmp     command_loop
 :
     ;------------------
@@ -253,10 +253,10 @@ next_continue8:
     bne     :+
     jsr     inline_print
     StringCR "Set Pixel"
-    jsr     setPixel
-    jsr     drawPreview
     lda     #PIXEL_WHITE
     sta     lastColor
+    jsr     copyPixel
+    jsr     drawPreview
     jmp     command_loop
 :
     ;------------------
@@ -268,10 +268,10 @@ next_continue8:
     StringCR "Delete Pixel"
     lda     modeMasked
     beq     deletePixelError
-    jsr     deletePixel
-    jsr     drawPreview
     lda     #PIXEL_BG_EVEN
     sta     lastColor
+    jsr     copyPixel
+    jsr     drawPreview
     jmp     command_loop
 deletePixelError:
     jsr     inline_print
@@ -305,7 +305,6 @@ deletePixelError:
     cmp     #KEY_CTRL_F
     bne     :+
     jsr     inline_print
-
 
     .byte   "Fill Color. Pick color (0=black 1=white, 2=background):",0
     clc
@@ -1279,87 +1278,114 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
 
 .endproc
 
-
 ; Return 0(black), 1(white) or 2(masked)
 .proc getPixelRaw
-    inc     tileIndex
-    lda     modeMasked
-    beq     :+
     lda     tileIndex
     jsr     setTilePointer
     jsr     getPixelOffset
+    ldx     modeMasked
+    beq     cont
+    pha     ; remember a
+    tya
+    clc
+    adc     #32
+    tay
+    pla
     and     (bgPtr0),y
-    beq     :+
-    dec     tileIndex
+    beq     :+              ; 0 mask -> foreground
+    ; return even/odd background byte
     lda     tileX
     and     #1
     ora     #2
     rts
 :
-    dec     tileIndex
-    lda     tileIndex
-    jsr     setTilePointer
     jsr     getPixelOffset
+cont:
     and     (bgPtr0),y
     beq     :+  ; 0 = black
     lda     #1  ; 1 = white
 :
     rts
+
 .endproc
 
 ;-----------------------------------------------------------------------------
 ; Routines to modify pixels
 ;
-; clearPixel    - set to black
-; setPixel      - set to white
 ; copyPixel     - set to passed in value
 ; togglePixel   - rotate through colors (black/white or black/white/masked)
 ; deletePixel   - set to masked
 ;-----------------------------------------------------------------------------
 
-.proc clearPixel
-    lda     modeMasked
-    beq     clearPixel1
-
-    ; When in masked mode, clear the mask also
-    inc     tileIndex
-    jsr     clearPixel1
-    dec     tileIndex
-
-clearPixel1:
+; Set the pixel at curX,curY to the color passed in A
+.proc copyPixel
+    sta     color
     lda     tileIndex
     jsr     setTilePointer
     jsr     getPixelOffset
+    sta     setMask
     eor     #$ff
+    sta     clearMask
+    sty     baseOffset
+    tya
+    clc
+    adc     #32
+    sta     maskOffset
+
+    ; assume masked if asked to set color to BG
+    lda     color
+    cmp     #PIXEL_BG_EVEN
+    beq     setBackground
+    cmp     #PIXEL_BG_ODD
+    beq     setBackground
+
+    ; if mask mode, set mask for white or black
+    ldx     modeMasked
+    beq     finishColor
+
+    ; set foreground
+    ldy     maskOffset
+    lda     clearMask
+    and     (bgPtr0),y
+    sta     (bgPtr0),y
+    lda     color
+
+finishColor:
+    cmp     #PIXEL_BLACK
+    bne     white
+    ldy     baseOffset
+    lda     clearMask
+    and     (bgPtr0),y
+    sta     (bgPtr0),y
+    rts    
+
+white:
+    ldy     baseOffset
+    lda     setMask
+    ora     (bgPtr0),y
+    sta     (bgPtr0),y
+    rts    
+
+setBackground:
+    ldy     maskOffset
+    lda     setMask
+    ora     (bgPtr0),y
+    sta     (bgPtr0),y
+    ; also clear pixel
+
+clearPixel:
+    ldy     baseOffset
+    lda     clearMask
     and     (bgPtr0),y
     sta     (bgPtr0),y
     rts
-.endproc
 
-.proc setPixel
-    lda     modeMasked
-    beq     setPixel1
+color:          .byte   0
+baseOffset:     .byte   0
+maskOffset:     .byte   0
+setMask:        .byte   0
+clearMask:      .byte   0
 
-    ; When in masked mode, clear the mask also
-    inc     tileIndex
-    jsr     clearPixel::clearPixel1
-    dec     tileIndex
-
-setPixel1:
-    lda     tileIndex
-    jsr     setTilePointer
-    jsr     getPixelOffset
-    ora     (bgPtr0),y
-    sta     (bgPtr0),y
-    rts
-.endproc
-
-.proc copyPixel
-    cmp     #PIXEL_BLACK
-    beq     clearPixel
-    cmp     #PIXEL_WHITE
-    beq     setPixel
-    jmp     deletePixel
 .endproc
 
 ; Masked black -> white -> background -> black ...
@@ -1385,21 +1411,13 @@ finish:
     jmp     copyPixel
 .endproc
 
-.proc deletePixel
-    ; Assuming in modeMasked, so not checking
-    ; Clearing foreground also to keep clean, but may not want to
-    jsr     clearPixel::clearPixel1
-    inc     tileIndex
-    jsr     setPixel::setPixel1
-    dec     tileIndex
-    rts
-.endproc
-
 ;-----------------------------------------------------------------------------
 ; getPixelOffset
 ;   input: curX, curY
-;   y = offset to byte in pixel array
+;   y = offset to pixel byte in pixel array
 ;   a = bitmask within byte
+;
+; Note: mask byte is always +32 from pixel offset
 ;-----------------------------------------------------------------------------
 
 .proc getPixelOffset

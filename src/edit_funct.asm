@@ -607,12 +607,14 @@ loopY:
     jsr     getPixel
     cmp     #PIXEL_WHITE
     bne     :+
-    jsr     clearPixel  ; white -> black
+    lda     #PIXEL_BLACK
+    jsr     copyPixel  ; white -> black
     jmp     cont
 :
     cmp     #PIXEL_BLACK
     bne     cont
-    jsr     setPixel    ; black -> white
+    lda     #PIXEL_WHITE    
+    jsr     copyPixel   ; black -> white
 cont:
 
     inc     curY
