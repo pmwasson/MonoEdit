@@ -54,8 +54,8 @@ MODE_MASK       = 1
     jsr     DHGR_INIT
 
     ; set default size
-    lda     #SIZE_28x8
-    ldx     #0
+    lda     #SIZE_56x16
+    ldx     #1
     jsr     setTileSize
     jsr     initMonochrome  ; Turn on monochrome dhgr
     ;jsr     initColorMode
@@ -161,13 +161,7 @@ down_good:
     bne     :+
     jsr     inline_print
     .byte   "Previous tile: ",0
-
-    lda     tileIndex
-    bne     previous_continue
-    lda     tileMax
-previous_continue:
-    sec
-    sbc     tileInc
+    jsr     decTileIndex
     jmp     finishChangeTile
 :
     ;------------------
@@ -178,13 +172,15 @@ previous_continue:
     jsr     inline_print
     .byte   "Previous 8 tiles: ",0
 
-    lda     tileIndex
-    sec     
-    sbc     tileInc8
-    bpl     previous8_continue
-    clc
-    adc     tileMax
-previous8_continue:
+    ; Really?  Didn't want to make a loop?
+    jsr     decTileIndex
+    jsr     decTileIndex
+    jsr     decTileIndex
+    jsr     decTileIndex
+    jsr     decTileIndex
+    jsr     decTileIndex
+    jsr     decTileIndex
+    jsr     decTileIndex
     jmp     finishChangeTile
 :
     ;------------------
@@ -195,13 +191,7 @@ previous8_continue:
     jsr     inline_print
     .byte   "Next tile: ",0
 
-    lda     tileIndex
-    clc
-    adc     tileInc
-    cmp     tileMax
-    bmi     next_continue
-    lda     #0
-next_continue:
+    jsr     incTileIndex
     jmp     finishChangeTile
 :
     ;------------------
@@ -211,15 +201,14 @@ next_continue:
     bne     :+
     jsr     inline_print
     .byte   "Next 8 tiles: ",0
-
-    lda     tileIndex
-    clc
-    adc     tileInc8
-    cmp     tileMax
-    bmi     next_continue8
-    sec
-    sbc     tileMax
-next_continue8:
+    jsr     incTileIndex
+    jsr     incTileIndex
+    jsr     incTileIndex
+    jsr     incTileIndex
+    jsr     incTileIndex
+    jsr     incTileIndex
+    jsr     incTileIndex
+    jsr     incTileIndex
     jmp     finishChangeTile
 :
     ;------------------
@@ -595,7 +584,6 @@ finish_move:
 
 ; jump to after changing tile
 finishChangeTile:
-    sta     tileIndex
     jsr     PRBYTE
     lda     #13
     jsr     COUT
@@ -633,6 +621,33 @@ finishChangeTile:
     StringCont  "  Tab:     Switch Tools"
     .byte   0
 
+    rts
+.endproc
+
+;-----------------------------------------------------------------------------
+; inc/dec tile index
+;-----------------------------------------------------------------------------
+
+.proc decTileIndex
+    lda     tileIndex
+    bne     :+
+    lda     tileMax
+:
+    sec
+    sbc     tileInc
+    sta     tileIndex
+    rts
+.endproc
+
+.proc incTileIndex
+    lda     tileIndex
+    clc
+    adc     tileInc
+    cmp     tileMax
+    bmi     :+
+    lda     #0
+:
+    sta     tileIndex
     rts
 .endproc
 
@@ -692,11 +707,11 @@ sizeWidthBytes:     .byte   4,  8,   8
 sizeHeight:         .byte   8,  16,  32
 sizeLength:         .byte   32, 128, 0
 sizeCanvasLeft:     .byte   0,  0,   0
-sizeCanvasTop:      .byte   0,  0,   0   
+sizeCanvasTop:      .byte   2,  2,   2   
 sizeCanvasRight:    .byte   17, 33,  66
-sizeCanvasBottom:   .byte   5,  9,   9
+sizeCanvasBottom:   .byte   7,  11,  11
 sizePixelOffsetX:   .byte   2,  2,   2
-sizePixelOffsetY:   .byte   2,  2,   2
+sizePixelOffsetY:   .byte   6,  6,   6
 
 ; 4k / 4*8 = 128
 sizeMax:        .byte   128, 128, 128
@@ -964,8 +979,63 @@ screenShuffleReverse:
     lda     curY
     sta     tempY
 
+
+    ; draw bottom of previous tile
+    jsr     decTileIndex
+    lda     pixelOffsetY
+    sta     tempOffsetY
+    sec
+    sbc     tileHeight
+    sbc     #1
+    sta     pixelOffsetY
     lda     #0
+    sta     curX
+    lda     tileHeight
+    sec
+    sbc     #4
     sta     curY
+    jsr     yloop
+    jsr     incTileIndex
+    lda     tempOffsetY
+    sta     pixelOffsetY
+
+    ; draw current tile
+    lda     #0
+    sta     curX
+    sta     curY
+    jsr     yloop
+
+    ; draw top of next
+    jsr     incTileIndex
+    lda     pixelOffsetY
+    sta     tempOffsetY
+    clc
+    adc     tileHeight
+    adc     #2
+    sta     pixelOffsetY
+    lda     #0
+    sta     curX
+    lda     tileHeight
+    sta     tempHeight
+    lda     #4
+    sta     tileHeight
+    lda     #0
+    sta     curX
+    sta     curY
+    jsr     yloop
+    jsr     decTileIndex
+    lda     tempOffsetY
+    sta     pixelOffsetY
+    lda     tempHeight
+    sta     tileHeight
+    
+    ; restore cursor
+    lda     tempX
+    sta     curX
+    lda     tempY
+    sta     curY
+
+    rts
 
 yloop:
     lda     #0
@@ -983,16 +1053,12 @@ xloop:
     cmp     tileHeight
     bne     yloop
 
-    ; restore cursor
-    lda     tempX
-    sta     curX
-    lda     tempY
-    sta     curY
-
     rts
 
-tempX:  .byte   0
-tempY:  .byte   0
+tempX:          .byte   0
+tempY:          .byte   0
+tempOffsetY:    .byte   0
+tempHeight:     .byte   0
 
 .endproc
 
@@ -1063,13 +1129,13 @@ waitExit:
 
 .proc drawPixel
 
-    clc
-
     ; set location
+    clc
     lda     curY
     adc     pixelOffsetY
     sta     tileY
 
+    clc
     lda     curX
     adc     pixelOffsetX
     sta     tileX
