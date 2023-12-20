@@ -31,7 +31,7 @@
 ;
 ;   6000-7FFF   [ Game          ][ Map 64x64x2  ]
 ;   8000-8FFF   [               ][ Dialog       ]
-;   
+;
 ;   9000-AFFF   [ Isometric Tiles (64)          ]
 ;
 ;   B000-B7FF   [ Font Tiles (128)              ]
@@ -40,7 +40,7 @@
 ;
 ;   ProDos says addresses D000-FFFF in AUX memory
 ;   are reserved, but probably could be used if needed.
-;   
+;
 ;   ProDos buffer only needed if load/save supported
 ;
 
@@ -155,8 +155,6 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
 :
 
     ; Initialize engine
-
-; FIXME!
     lda     #<ISOSTART
     sta     DHGR_TILE_28X8
     lda     #>ISOSTART
@@ -187,8 +185,8 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     .byte   13,0
 
     ; Jump to executables
-    jmp     TILEEDITSTART
-
+    ;jmp     TILEEDITSTART
+    jmp     DHGR_TEST
 .endproc
 
 

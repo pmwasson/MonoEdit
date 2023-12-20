@@ -411,10 +411,10 @@ screenPtr1Copy: .byte   0
 ;
 ;-----------------------------------------------------------------------------
 .proc drawTile_28x8
-
-    sta     CLR80COL        ; Use RAMWRT for aux mem
-
-    lda     tileIdx
+    bne     :+
+    rts
+:
+    sta     tileIdx
     ; calculate tile pointer
     asl                     ; *16
     asl
@@ -475,11 +475,9 @@ drawTile:
 drawLoop:
     ldy     #0
     lda     (tilePtr0),y
-    eor     invMask
     sta     (screenPtr0),y
     ldy     #1
     lda     (tilePtr0),y
-    eor     invMask
     sta     (screenPtr0),y
 
     ; assumes aligned such that there are no page crossing
@@ -511,9 +509,11 @@ screenPtr1Copy: .byte   0
 ;-----------------------------------------------------------------------------
 .proc drawTileMask_28x8
 
-    sta     CLR80COL        ; Use RAMWRT for aux mem
+    bne     :+
+    rts                     ; tile 0 is skip
+:
 
-    lda     tileIdx
+    sta     tileIdx
     ; calculate tile pointer
     asl                     ; *16
     asl
@@ -726,7 +726,7 @@ loop:
     beq     :+
     lda     #4*4            ; down 4 pixel for odd tile Y
 :
-    adc     linePage,x    
+    adc     linePage,x
     sta     screenPtr1
     sta     screenPtr1Copy
 
@@ -741,8 +741,8 @@ loop:
 
     ldx     colorIndex
     ; transfer to aux memory
-    sta     RAMWRTON  
-    sta     RAMRDON  
+    sta     RAMWRTON
+    sta     RAMRDON
 
     ; draw half of tile in aux mem
     lda     colorTable0a,x
@@ -755,7 +755,7 @@ loop:
     jsr     drawLine
 
     ; back to main
-    sta     RAMWRTOFF 
+    sta     RAMWRTOFF
     sta     RAMRDOFF
 
     clc
@@ -808,15 +808,15 @@ screenPtr1Copy:
 colorIndex: .byte   0
 colorMask:  .byte   0
 
-colorTable0a:     
+colorTable0a:
         .byte   $00, $ff, $55, $aa, $00
 colorTable1a:
         .byte   $00, $ff, $aa, $55, $00
-colorTable0b:     
+colorTable0b:
         .byte   $00, $ff, $aa, $55, $ff
 colorTable1b:
         .byte   $00, $ff, $55, $aa, $ff
-colorTable0c:     
+colorTable0c:
         .byte   $00, $00, $aa, $55, $00
 colorTable1c:
         .byte   $00, $00, $55, $aa, $00
@@ -826,7 +826,7 @@ colorTable1c:
 .align 256
 ; 8-byte mask per offset
 ; Even bytes (aux memory)
-pixelMaskEven:   
+pixelMaskEven:
     .byte   $07,$00,$00,$00     ; 0
     .byte   $70,$00,$00,$00     ; 1
     .byte   $00,$00,$00,$00     ; 2
@@ -843,7 +843,7 @@ pixelMaskEven:
     .byte   $00,$00,$00,$00     ; 13
 
 ; Odd bytes (main memory)
-pixelMaskOdd:   
+pixelMaskOdd:
     .byte   $00,$00,$00,$00     ; 0
     .byte   $00,$00,$00,$00     ; 1
     .byte   $0e,$00,$00,$00     ; 2
@@ -907,7 +907,7 @@ loopy:
 loopx:
 
     ; transfer to aux memory for read
-    sta     RAMRDON  
+    sta     RAMRDON
     lda     (mapPtr0),y     ; AUX
     sta     RAMRDOFF        ; AUX
 
@@ -998,7 +998,7 @@ linePage:
     .byte   >$23D0
 
 ; Lookup table to divide by 14 then *4 for screen x-offset
-pixelDiv14:  
+pixelDiv14:
     .byte    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
     .byte    4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4
     .byte    8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8
@@ -1009,7 +1009,7 @@ pixelDiv14:
     .byte   28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28
 
 ; Remainder / 14 for 4-byte lookup  * 4
-pixelRem14:  
+pixelRem14:
     .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
     .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
     .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
@@ -1048,78 +1048,55 @@ pixelRem14:
     ldx     #2
 :
     sta     SET80COL
-    sta     SET80VID 
+    sta     SET80VID
     sta     CLR80VID
     sta     DHIRESON
     sta     DHIRESOFF
-    sta     SET80VID 
+    sta     SET80VID
     sta     DHIRESON
     dex
     bne     :-
     sta     MIXSET      ; Mixed
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem
 
     ; Testing 28x8 mask
 
 TEST_XOFFSET := 1
 TEST_YOFFSET := 1
 
-TEST_WIDTH := 5
-TEST_HEIGHT := 5
+TEST_WIDTH := 4
+TEST_HEIGHT := 2
 
     ldx     #0
     stx     testIdx
 
     lda     #TEST_YOFFSET
-    sta     testY
-    jmp     firstLine
+    sta     tileY
 
 loopY:
-    lda     #TEST_XOFFSET+2
-    sta     testX
-
-loopX2:
-    clc
-    lda     testX
-    sta     tileX
-    lda     testY
-    sta     tileY
-    ldx     testIdx
-    lda     testMap,x
-    jsr     drawMacro    
-    inc     testIdx
-
-    clc
-    lda     testX
-    adc     #4
-    sta     testX
-    cmp     #TEST_XOFFSET+2+(TEST_WIDTH-1)*4
-    bmi     loopX2
-
-    inc     testY
-firstLine:
     lda     #TEST_XOFFSET
-    sta     testX
+    sta     tileX
 
 loopX1:
-    lda     testX
-    sta     tileX
-    lda     testY
-    sta     tileY
     ldx     testIdx
-    lda     testMap,x
-    jsr     drawMacro    
+    lda     testMap0,x
+    jsr     drawTile_28x8
+    ldx     testIdx
+    lda     testMap1,x
+    jsr     drawTileMask_28x8
     inc     testIdx
 
     clc
-    lda     testX
-    adc     #4
-    sta     testX
+    lda     tileX
+    adc     #2
+    sta     tileX
     cmp     #TEST_XOFFSET+TEST_WIDTH*4
     bmi     loopX1
 
-    inc     testY
-    lda     testY
-    cmp     #TEST_YOFFSET+TEST_HEIGHT*2-1
+    inc     tileY
+    lda     tileY
+    cmp     #TEST_YOFFSET+TEST_HEIGHT*2+2
     bmi     loopY
 
     ; Exit to monitor
@@ -1129,77 +1106,26 @@ testIdx:    .byte   0
 testX:      .byte   0
 testY:      .byte   0
 
-testMap:    ; 5x5
-    .byte       $08,  $00,  $00,  $18,  $08
-    .byte          $08,  $00,  $18,  $00
-    .byte       $00,  $08,  $18,  $00,  $00
-    .byte          $00,  $08,  $18,  $00
-    .byte       $00,  $18,  $08,  $18,  $00
-    .byte          $18,  $00,  $18,  $08
-    .byte       $00,  $18,  $18,  $08,  $08
-    .byte          $00,  $18,  $00,  $08
-    .byte       $08,  $00,  $00,  $00,  $08
+testMap0:   ; 5x5
+    .byte       $02,  $02,  $02,  $02,  $02,  $02,  $02,  $02
+    .byte       $02,  $02,  $1c,  $1e,  $1c,  $1e,  $1c,  $1e
+    .byte       $02,  $1c,  $1e,  $1c,  $1e,  $1c,  $1e,  $24
+    .byte       $1c,  $1e,  $1c,  $1e,  $1c,  $1e,  $1c,  $1e
+    .byte       $20,  $22,  $20,  $22,  $20,  $22,  $20,  $22
+    .byte       $02,  $02,  $02,  $02,  $02,  $02,  $02,  $02
 
-drawMacro:
-    bne     :+
-    rts
-:
-    sta     tileIdx
-    jsr     drawTileMask_28x8   ; 0
 
-    inc     tileX
-    inc     tileX
-    inc     tileIdx
-    inc     tileIdx
 
-    jsr     drawTileMask_28x8   ; 2
+testMap1:   ; 5x5
+    .byte       $00,  $00,  $18,  $1a,  $18,  $1a,  $18,  $1a
+    .byte       $00,  $18,  $1a,  $18,  $1a,  $18,  $1a,  $00
+    .byte       $18,  $1a,  $18,  $1a,  $18,  $1a,  $18,  $1a
+    .byte       $00,  $00,  $00,  $00,  $00,  $00,  $00,  $00
+    .byte       $00,  $00,  $00,  $00,  $00,  $00,  $00,  $00
+    .byte       $24,  $26,  $24,  $26,  $24,  $26,  $24,  $26
 
-    inc     tileY
-    dec     tileX
-    dec     tileX
-    inc     tileIdx
-    inc     tileIdx
 
-    jsr     drawTileMask_28x8   ; 4
 
-    inc     tileX
-    inc     tileX
-    inc     tileIdx
-    inc     tileIdx
-
-    jsr     drawTileMask_28x8   ; 6
-
-    inc     tileY
-    dec     tileX
-    dec     tileX
-    inc     tileIdx
-    inc     tileIdx
-
-    jsr     drawTileMask_28x8   ; 8
-
-    inc     tileX
-    inc     tileX
-    inc     tileIdx
-    inc     tileIdx
-
-    jsr     drawTileMask_28x8   ; 10
-
-    inc     tileY
-    dec     tileX
-    dec     tileX
-    inc     tileIdx
-    inc     tileIdx
-
-    jsr     drawTileMask_28x8   ; 12
-
-    inc     tileX
-    inc     tileX
-    inc     tileIdx
-    inc     tileIdx
-
-    jsr     drawTileMask_28x8   ; 14
-
-    rts
 
 clearScreen:
     lda     #$00
@@ -1216,14 +1142,15 @@ loop:
     ldy     #0
 
     ; aux mem
-    sta     RAMWRTON  
+    sta     RAMWRTON
 
+    lda     #0
 :
     lda     #$2a
     eor     pattern
     sta     (screenPtr0),y
     iny
-    bne     :-   
+    bne     :-
 
     sta     RAMWRTOFF
 
@@ -1233,7 +1160,7 @@ loop:
     eor     pattern
     sta     (screenPtr0),y
     iny
-    bne     :-    
+    bne     :-
 
     inc     screenPtr1
 
