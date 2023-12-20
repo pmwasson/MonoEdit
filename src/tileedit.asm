@@ -501,6 +501,20 @@ flip_after:
 :
 
     ;------------------
+    ; I = Iso Map preview
+    ;------------------
+    cmp     #$80 + 'I'
+    bne     :+
+    jsr     inline_print
+    .byte   "Drawing isometric map (press any key to exit)",0
+
+    jsr     isoDrawMap
+    jsr     getInput
+    lda     #13
+    jsr     COUT
+    jmp     reset_loop
+
+    ;------------------
     ; ^L = Load
     ;------------------
     cmp     #KEY_CTRL_L
@@ -1583,6 +1597,7 @@ pixelByteMask:                  ; 1 << (x % 7)
 
 .include "edit_funct.asm"
 .include "inline_print.asm"
+.include "iso.asm"
 
 ; Global Variables
 ;-----------------------------------------------------------------------------

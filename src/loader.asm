@@ -185,8 +185,8 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     .byte   13,0
 
     ; Jump to executables
-    ;jmp     TILEEDITSTART
-    jmp     DHGR_TEST
+    jmp     TILEEDITSTART
+    ;jmp     DHGR_TEST
 .endproc
 
 
