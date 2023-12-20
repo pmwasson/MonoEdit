@@ -63,7 +63,7 @@ MAPEND          :=  READBUFFER + MAPLENGTH - 1
 ISOSTART         :=  $A000
 ISOLENGTH        =   256*16
 ISOEND           :=  READBUFFER + ISOLENGTH - 1
-ISOI4END         :=  ISOSTART + ISOLENGTH/2 - 1
+ISOI2END         :=  ISOSTART + ISOLENGTH/2 - 1
 
 FONT0START      :=  $B000
 FONT0LENGTH     =   8*128
@@ -158,14 +158,9 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
 
 ; FIXME!
     lda     #<ISOSTART
-    sta     DHGR_TILE_56X16
+    sta     DHGR_TILE_28X8
     lda     #>ISOSTART
-    sta     DHGR_TILE_56X16+1
-
-    lda     #<ISOSTART
-    sta     DHGR_TILE_MASK_56X16
-    lda     #>ISOSTART
-    sta     DHGR_TILE_MASK_56X16+1
+    sta     DHGR_TILE_28X8+1
 
     lda     #<FONT0START
     sta     DHGR_TILE_7X8
@@ -727,7 +722,7 @@ fileDescription:    ; type, name, address, size, dest, interleave
     ;       0               2                 4               6               8           10              12              14 
     ;       --------------- ---------------   -----------     -----------     ----------- -----------     --------------- --------------- -------
     .word   fileTypeFont,   fileNameFont0,    FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_BOTH,   0               ; 0
-    .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I4, ISOI4END        ; 16
+    .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I2, ISOI2END        ; 16
     .word   fileTypeExe,    fileNameEngine,   ENGINESTART,    ENGINELENGTH,   0,          ENGINESTART,    INSTALL_MAIN,   0               ; 32
     .word   fileTypeExe,    fileNameGame,     GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 48
     .word   fileTypeExe,    fileNameFontEdit, FONTEDITSTART,  FONTEDITLENGTH, 0,          FONTEDITSTART,  INSTALL_MAIN,   0               ; 64

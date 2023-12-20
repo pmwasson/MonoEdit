@@ -239,7 +239,7 @@ imageEnd:   .byte   0
     asl                     ; *8
     asl
     asl
-    sta     bgPtr0
+    sta     tilePtr0
     tya     ; restore A
     lsr                     ; /32
     lsr
@@ -248,7 +248,7 @@ imageEnd:   .byte   0
     lsr
     clc
     adc     #>tileSheet_7x8
-    sta     bgPtr1
+    sta     tilePtr1
     sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
 
     ; calculate screen pointer
@@ -268,11 +268,11 @@ imageEnd:   .byte   0
     ldx     #8
     ldy     #0
 drawLoop:
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
 
     ; assumes aligned such that there are no page crossing
-    inc     bgPtr0
+    inc     tilePtr0
 
     lda     screenPtr1
     adc     #4

@@ -233,7 +233,7 @@ dump_loop:
     lda     #$80 + '$'
     jsr     COUT
     ldy     dump_count
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     jsr     PRBYTE
     inc     dump_count
     lda     dump_count
@@ -506,7 +506,7 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
 
     ldy     #0
 :
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     clipboardData,y
 
     iny
@@ -526,7 +526,7 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
     ldy     #0
 :
     lda     clipboardData,y
-    sta     (bgPtr0),y
+    sta     (tilePtr0),y
 
     iny
     cpy     tileLength

@@ -18,6 +18,7 @@
     jmp     engineInit
     jmp     drawTile_7x8
     jmp     drawTile_28x8
+    jmp     drawTileMask_28x8
     jmp     drawTile_56x16
     jmp     drawTileMask_56x16
     jmp     readMap
@@ -83,7 +84,7 @@ auxMemStart:
     asl                     ; *8
     asl
     asl
-    sta     bgPtr0
+    sta     tilePtr0
     tya     ; restore A
     lsr                     ; /32
     lsr
@@ -92,7 +93,7 @@ auxMemStart:
     lsr
     clc
     adc     tileSheet_7x8+1
-    sta     bgPtr1
+    sta     tilePtr1
 
 
     sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
@@ -114,11 +115,11 @@ auxMemStart:
     ldx     #8
     ldy     #0
 drawLoop:
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
 
     ; assumes aligned such that there are no page crossing
-    inc     bgPtr0
+    inc     tilePtr0
 
     lda     screenPtr1
     adc     #4
@@ -147,20 +148,20 @@ drawLoop:
 
     sta     CLR80COL        ; Use RAMWRT for aux mem
 
-    lda     bgTile
+    lda     tileIdx
     ror                     ; *64
     ror
     ror
     and     #$c0
-    sta     bgPtr0
-    sta     bgPtr0Copy
+    sta     tilePtr0
+    sta     tilePtr0Copy
 
-    lda     bgTile
+    lda     tileIdx
     lsr
     lsr
     clc
     adc     tileSheet_56x16+1
-    sta     bgPtr1
+    sta     tilePtr1
 
     ; calculate screen pointer
     ldx     tileY
@@ -178,8 +179,8 @@ drawLoop:
     jsr     drawTile
 
     ; restore tile pointers (page byte doesn't change)
-    lda     bgPtr0Copy
-    sta     bgPtr0
+    lda     tilePtr0Copy
+    sta     tilePtr0
 
     ; restore screen pointer
     lda     screenPtr0Copy
@@ -205,24 +206,24 @@ drawTile:
 
 drawLoop:
     ldy     #0
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
     ldy     #1
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
     ldy     #2
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
     ldy     #3
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
 
     ; Add 4 to tile pointers
     ; assumes aligned such that there are no page crossing
     clc
-    lda     bgPtr0
+    lda     tilePtr0
     adc     #4
-    sta     bgPtr0
+    sta     tilePtr0
 
     ; Go to next line
 
@@ -250,7 +251,7 @@ done:
     rts    
 
 ; locals
-bgPtr0Copy:     .byte   0
+tilePtr0Copy:     .byte   0
 screenPtr0Copy: .byte   0
 screenPtr1Copy: .byte   0
 
@@ -271,21 +272,21 @@ screenPtr1Copy: .byte   0
 
     ; Assume fg tile is followed by mask
     ; calculate tile pointer
-    lda     fgTile
+    lda     tileIdx
     lsr                     ; *128
     lda     #0
     ror
-    sta     fgPtr0
-    sta     fgPtr0Copy
+    sta     tilePtr0
+    sta     tilePtr0Copy
     ora     #$40            ; add 64
     sta     maskPtr0
     sta     maskPtr0Copy
 
-    lda     fgTile
+    lda     tileIdx
     lsr                     ; /2
     clc
     adc     tileSheetMask_56x16+1
-    sta     fgPtr1
+    sta     tilePtr1
     sta     maskPtr1
 
     ; calculate screen pointer
@@ -304,8 +305,8 @@ screenPtr1Copy: .byte   0
     jsr     drawTile
 
     ; restore tile pointers (page byte doesn't change)
-    lda     fgPtr0Copy
-    sta     fgPtr0
+    lda     tilePtr0Copy
+    sta     tilePtr0
     lda     maskPtr0Copy
     sta     maskPtr0
 
@@ -335,22 +336,22 @@ drawLoop:
     ldy     #0
     lda     (screenPtr0),y
     and     (maskPtr0),y
-    ora     (fgPtr0),y
+    ora     (tilePtr0),y
     sta     (screenPtr0),y
     ldy     #1
     lda     (screenPtr0),y
     and     (maskPtr0),y
-    ora     (fgPtr0),y
+    ora     (tilePtr0),y
     sta     (screenPtr0),y
     ldy     #2
     lda     (screenPtr0),y
     and     (maskPtr0),y
-    ora     (fgPtr0),y
+    ora     (tilePtr0),y
     sta     (screenPtr0),y
     ldy     #3
     lda     (screenPtr0),y
     and     (maskPtr0),y
-    ora     (fgPtr0),y
+    ora     (tilePtr0),y
     sta     (screenPtr0),y
 
     ; Add 4 to tile pointers
@@ -360,9 +361,9 @@ drawLoop:
     adc     #4
     sta     maskPtr0
 
-    lda     fgPtr0
+    lda     tilePtr0
     adc     #4
-    sta     fgPtr0
+    sta     tilePtr0
 
     ; Go to next line
 
@@ -390,7 +391,7 @@ done:
     rts    
 
 ; locals
-fgPtr0Copy:     .byte   0
+tilePtr0Copy:     .byte   0
 maskPtr0Copy:   .byte   0
 screenPtr0Copy: .byte   0
 screenPtr1Copy: .byte   0
@@ -413,22 +414,22 @@ screenPtr1Copy: .byte   0
 
     sta     CLR80COL        ; Use RAMWRT for aux mem
 
-    lda     bgTile
+    lda     tileIdx
     ; calculate tile pointer
     asl                     ; *16
     asl
     asl
     asl
-    sta     bgPtr0
-    sta     bgPtr0Copy
-    lda     bgTile
+    sta     tilePtr0
+    sta     tilePtr0Copy
+    lda     tileIdx
     lsr                     ; /16
     lsr
     lsr
     lsr
     clc
     adc     tileSheet_28x8+1
-    sta     bgPtr1
+    sta     tilePtr1
 
     ; calculate screen pointer
     ldx     tileY
@@ -445,8 +446,8 @@ screenPtr1Copy: .byte   0
     jsr     drawTile
 
     ; restore tile pointers (page byte doesn't change)
-    lda     bgPtr0Copy
-    sta     bgPtr0
+    lda     tilePtr0Copy
+    sta     tilePtr0
 
     ; restore screen pointer
     lda     screenPtr0Copy
@@ -473,18 +474,18 @@ drawTile:
 
 drawLoop:
     ldy     #0
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     eor     invMask
     sta     (screenPtr0),y
     ldy     #1
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     eor     invMask
     sta     (screenPtr0),y
 
     ; assumes aligned such that there are no page crossing
-    lda     bgPtr0
+    lda     tilePtr0
     adc     #2
-    sta     bgPtr0
+    sta     tilePtr0
 
     lda     screenPtr1
     adc     #4
@@ -496,7 +497,7 @@ drawLoop:
     rts    
 
 ; locals
-bgPtr0Copy:     .byte   0
+tilePtr0Copy:     .byte   0
 screenPtr0Copy: .byte   0
 screenPtr1Copy: .byte   0
 
@@ -512,26 +513,26 @@ screenPtr1Copy: .byte   0
 
     sta     CLR80COL        ; Use RAMWRT for aux mem
 
-    lda     bgTile
+    lda     tileIdx
     ; calculate tile pointer
-    asl                     ; *32
+    asl                     ; *16
     asl
     asl
     asl
-    asl
-    sta     bgPtr0
-    sta     bgPtr0Copy
+    sta     tilePtr0
+    sta     tilePtr0Copy
     clc
     adc     #16
-    sta     fgPtr0
-    lda     bgTile
-    lsr                     ; /8
+    sta     maskPtr0
+    lda     tileIdx
+    lsr                     ; /16
+    lsr
     lsr
     lsr
     clc
     adc     tileSheet_28x8+1
-    sta     bgPtr1
-    sta     fgPtr1
+    sta     tilePtr1
+    sta     maskPtr1
 
     ; calculate screen pointer
     ldx     tileY
@@ -547,12 +548,13 @@ screenPtr1Copy: .byte   0
 
     jsr     drawTile
 
+
     ; restore tile pointers (page byte doesn't change)
-    lda     bgPtr0Copy
-    sta     bgPtr0
+    lda     tilePtr0Copy
+    sta     tilePtr0
     clc
     adc     #16
-    sta     fgPtr0
+    sta     maskPtr0
 
     ; restore screen pointer
     lda     screenPtr0Copy
@@ -579,21 +581,24 @@ drawTile:
 
 drawLoop:
     ldy     #0
-    lda     (bgPtr0),y
+    lda     (screenPtr0),y
+    and     (maskPtr0),y
+    ora     (tilePtr0),y
     sta     (screenPtr0),y
     ldy     #1
-    lda     (bgPtr0),y
-    eor     invMask
+    lda     (screenPtr0),y
+    and     (maskPtr0),y
+    ora     (tilePtr0),y
     sta     (screenPtr0),y
 
     ; assumes aligned such that there are no page crossing
-    lda     bgPtr0
+    lda     tilePtr0
     adc     #2
-    sta     bgPtr0
+    sta     tilePtr0
 
-    lda     fgPtr0
+    lda     maskPtr0
     adc     #2
-    sta     fgPtr0
+    sta     maskPtr0
 
     lda     screenPtr1
     adc     #4
@@ -605,8 +610,8 @@ drawLoop:
     rts    
 
 ; locals
-bgPtr0Copy:     .byte   0
-fgPtr0Copy:     .byte   0
+tilePtr0Copy:     .byte   0
+maskPtr0Copy:     .byte   0
 screenPtr0Copy: .byte   0
 screenPtr1Copy: .byte   0
 
@@ -625,6 +630,8 @@ screenPtr1Copy: .byte   0
 ;   The alternative is to calculate the 4 bytes and store them and then
 ;   read them later, which would add 4 sta + 4 lda = 4*6 + 4*5 = 44 cycles 
 ;-----------------------------------------------------------------------------
+
+; FIXME: not using this, not tested, delete?
 
 .proc isoDrawTile4x4
     ; Need 8 pointers (4 pixels + 4 masks)
@@ -728,9 +735,9 @@ loop:
     lda     pixelRem14,y
     clc
     adc     #<pixelMaskEven
-    sta     bgPtr0
+    sta     tilePtr0
     lda     #>pixelMaskEven
-    sta     bgPtr1
+    sta     tilePtr1
 
     ldx     colorIndex
     ; transfer to aux memory
@@ -752,9 +759,9 @@ loop:
     sta     RAMRDOFF
 
     clc
-    lda     bgPtr0
+    lda     tilePtr0
     adc     #(pixelMaskOdd-pixelMaskEven)
-    sta     bgPtr0
+    sta     tilePtr0
 
     lda     screenPtr1Copy
     sta     screenPtr1
@@ -774,11 +781,11 @@ drawLine:
     sta     colorMask
     ldy     #0
 :
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     eor     #$ff
     and     (screenPtr0),y
     sta     temp
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     and     colorMask
     ora     temp
     sta     (screenPtr0),y
@@ -1051,86 +1058,148 @@ pixelRem14:
     bne     :-
     sta     MIXSET      ; Mixed
 
-;     ; test font
-; 
-;     lda     #0    
-;     sta     bgTile
-;     sta     tileX
-;     sta     tileY
-; 
-; :
-;     jsr     drawTile_7x8
-;     inc     tileX
-;     inc     tileX
-;     inc     bgTile
-; 
-;     lda     bgTile
-;     and     #$0F
-;     bne     :-
-; 
-;     lda     #0
-;     sta     tileX
-;     inc     tileY
-; 
-;     lda     tileY
-;     cmp     #4
-;     bne     :-
-; 
-;     lda     #0
-;     sta     bgTile
-;
-;
-;:
-;    jsr     drawTile_56x16
-;    inc     tileX
-;    inc     tileX
-;    inc     tileX
-;    inc     tileX
-;    inc     bgTile
-;
-;    lda     bgTile
-;    and     #$07
-;    bne     :-
-;
-;    lda     #0
-;    sta     tileX
-;    inc     tileY
-;    inc     tileY
-;
-;    lda     tileY
-;    cmp     #8
-;    bne     :-
-;
+    ; Testing 28x8 mask
 
-    lda     #0
-    sta     bgTile
-    sta     fgTile
+TEST_XOFFSET := 1
+TEST_YOFFSET := 1
+
+TEST_WIDTH := 5
+TEST_HEIGHT := 5
+
+    ldx     #0
+    stx     testIdx
+
+    lda     #TEST_YOFFSET
+    sta     testY
+    jmp     firstLine
+
+loopY:
+    lda     #TEST_XOFFSET+2
+    sta     testX
+
+loopX2:
+    clc
+    lda     testX
     sta     tileX
+    lda     testY
     sta     tileY
-:
-    jsr     drawTileMask_56x16
-    inc     tileX
-    inc     tileX
-    inc     tileX
-    inc     tileX
-    inc     bgTile
-    inc     fgTile
+    ldx     testIdx
+    lda     testMap,x
+    jsr     drawMacro    
+    inc     testIdx
 
-    lda     bgTile
-    and     #$07
-    bne     :-
+    clc
+    lda     testX
+    adc     #4
+    sta     testX
+    cmp     #TEST_XOFFSET+2+(TEST_WIDTH-1)*4
+    bmi     loopX2
 
-    lda     #0
+    inc     testY
+firstLine:
+    lda     #TEST_XOFFSET
+    sta     testX
+
+loopX1:
+    lda     testX
     sta     tileX
-    inc     tileY
-    inc     tileY
+    lda     testY
+    sta     tileY
+    ldx     testIdx
+    lda     testMap,x
+    jsr     drawMacro    
+    inc     testIdx
 
-    lda     tileY
-    cmp     #4
-    bne     :-
+    clc
+    lda     testX
+    adc     #4
+    sta     testX
+    cmp     #TEST_XOFFSET+TEST_WIDTH*4
+    bmi     loopX1
+
+    inc     testY
+    lda     testY
+    cmp     #TEST_YOFFSET+TEST_HEIGHT*2-1
+    bmi     loopY
 
     ; Exit to monitor
     jmp     MONZ        ; enter monitor
+
+testIdx:    .byte   0
+testX:      .byte   0
+testY:      .byte   0
+
+testMap:    ; 5x5
+    .byte       $08,  $00,  $00,  $18,  $08
+    .byte          $08,  $00,  $18,  $00
+    .byte       $00,  $08,  $18,  $00,  $00
+    .byte          $00,  $08,  $18,  $00
+    .byte       $00,  $18,  $08,  $18,  $00
+    .byte          $18,  $00,  $18,  $08
+    .byte       $00,  $18,  $18,  $08,  $08
+    .byte          $00,  $18,  $00,  $08
+    .byte       $08,  $00,  $00,  $00,  $08
+
+drawMacro:
+    bne     :+
+    rts
+:
+    sta     tileIdx
+    jsr     drawTileMask_28x8   ; 0
+
+    inc     tileX
+    inc     tileX
+    inc     tileIdx
+    inc     tileIdx
+
+    jsr     drawTileMask_28x8   ; 2
+
+    inc     tileY
+    dec     tileX
+    dec     tileX
+    inc     tileIdx
+    inc     tileIdx
+
+    jsr     drawTileMask_28x8   ; 4
+
+    inc     tileX
+    inc     tileX
+    inc     tileIdx
+    inc     tileIdx
+
+    jsr     drawTileMask_28x8   ; 6
+
+    inc     tileY
+    dec     tileX
+    dec     tileX
+    inc     tileIdx
+    inc     tileIdx
+
+    jsr     drawTileMask_28x8   ; 8
+
+    inc     tileX
+    inc     tileX
+    inc     tileIdx
+    inc     tileIdx
+
+    jsr     drawTileMask_28x8   ; 10
+
+    inc     tileY
+    dec     tileX
+    dec     tileX
+    inc     tileIdx
+    inc     tileIdx
+
+    jsr     drawTileMask_28x8   ; 12
+
+    inc     tileX
+    inc     tileX
+    inc     tileIdx
+    inc     tileIdx
+
+    jsr     drawTileMask_28x8   ; 14
+
+    rts
 
 clearScreen:
     lda     #$00
@@ -1140,31 +1209,48 @@ clearScreen:
 
     sta     CLR80COL        ; Use RAMWRT for aux mem
 
+    lda     #$ff
+    sta     pattern
+
 loop:
     ldy     #0
 
     ; aux mem
-    lda     #0
     sta     RAMWRTON  
 
 :
+    lda     #$2a
+    eor     pattern
     sta     (screenPtr0),y
     iny
-    bne     :-    
+    bne     :-   
 
     sta     RAMWRTOFF
 
     ; main mem
 :
+    lda     #$55
+    eor     pattern
     sta     (screenPtr0),y
     iny
     bne     :-    
 
     inc     screenPtr1
+
+    lda     screenPtr1
+    and     #$3
+    bne     :+
+    lda     pattern
+    eor     #$ff
+    sta     pattern
+:
+
     lda     #$40
     cmp     screenPtr1
     bne     loop
     rts
+
+pattern:    .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------

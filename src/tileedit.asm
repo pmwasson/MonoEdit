@@ -26,7 +26,6 @@ BOX_BLANK       = $20
 
 SIZE_28x8           = 0
 SIZE_56x16          = 1
-SIZE_56x32          = 2
 
 MODE_NO_MASK    = 0
 MODE_MASK       = 1
@@ -339,8 +338,8 @@ fill_cancel:
 :
     jsr     inline_print
     StringCont "Tile size"
-    String "(0=28x8 (unmasked), 1=28x8, 2=56x16, 3=56x32):"
-    lda     #4
+    String "(0=28x8 (unmasked), 1=28x8, 2=56x16):"
+    lda     #3
     jsr     getInputNumber
     bmi     tileSizeCancel
     tay
@@ -363,8 +362,8 @@ fill_cancel:
 tileSizeCancel:
     jmp     command_loop
 
-convertSize:    .byte   SIZE_28x8, SIZE_28x8, SIZE_56x16, SIZE_56x32
-convertMode:    .byte   0,         1,         1,          1
+convertSize:    .byte   SIZE_28x8, SIZE_28x8, SIZE_56x16
+convertMode:    .byte   0,         1,         1
 
 afterTileSize:
 
@@ -499,22 +498,6 @@ flip_after:
     .byte   "Help (ESC when done)",13,0
     jsr     printHelp
     jmp     command_loop
-:
-
-    ;------------------
-    ; I = Iso Map preview
-    ;------------------
-    cmp     #$80 + 'I' 
-    bne     :+
-    jsr     inline_print
-    .byte   "Drawing isometric map (press any key to exit)",0
-
-    jsr     clearScreen
-    jsr     isoDrawMap
-    jsr     getInput
-    lda     #13
-    jsr     COUT
-    jmp     reset_loop
 :
 
     ;------------------
@@ -702,21 +685,21 @@ finishChangeTile:
     rts
 
 .align 8
-sizeWidth:          .byte   28, 56,  56
-sizeWidthBytes:     .byte   4,  8,   8
-sizeHeight:         .byte   8,  16,  32
-sizeLength:         .byte   32, 128, 0
-sizeCanvasLeft:     .byte   0,  0,   0
-sizeCanvasTop:      .byte   2,  2,   2   
-sizeCanvasRight:    .byte   17, 33,  66
-sizeCanvasBottom:   .byte   7,  11,  11
-sizePixelOffsetX:   .byte   2,  2,   2
-sizePixelOffsetY:   .byte   6,  6,   6
+sizeWidth:          .byte   28, 56 
+sizeWidthBytes:     .byte   4,  8   
+sizeHeight:         .byte   8,  16  
+sizeLength:         .byte   32, 128 
+sizeCanvasLeft:     .byte   0,  0  
+sizeCanvasTop:      .byte   2,  2   
+sizeCanvasRight:    .byte   17, 33  
+sizeCanvasBottom:   .byte   7,  11  
+sizePixelOffsetX:   .byte   2,  2   
+sizePixelOffsetY:   .byte   6,  6   
 
 ; 4k / 4*8 = 128
-sizeMax:        .byte   128, 128, 128
-sizeInc:        .byte   1,   4,   8
-sizeInc8:       .byte   8,   16,  16
+sizeMax:        .byte   128, 128
+sizeInc:        .byte   1,   4 
+sizeInc8:       .byte   8,   16
 
 .endproc
 
@@ -753,8 +736,7 @@ sizeInc8:       .byte   8,   16,  16
     bne     :+
     jmp     drawPreview_56x16
 :
-    ; Assuming only 56x32 left
-    ;jmp     drawPreview_56x32
+    ; Unexpected size
     brk
 
 .endproc
@@ -1028,7 +1010,7 @@ screenShuffleReverse:
     sta     pixelOffsetY
     lda     tempHeight
     sta     tileHeight
-    
+
     ; restore cursor
     lda     tempX
     sta     curX
@@ -1239,24 +1221,24 @@ drawLoop:
     ; Byte 0,1 in AUX memory
     sta     RAMWRTON
     ldy     #0
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
     ldy     #1
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
 
     ; Bytes 2,3 in MAIN memory
-    inc     bgPtr0
-    inc     bgPtr0
+    inc     tilePtr0
+    inc     tilePtr0
     sta     RAMWRTOFF
     ldy     #0
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
     ldy     #1
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
-    inc     bgPtr0
-    inc     bgPtr0
+    inc     tilePtr0
+    inc     tilePtr0
 
     lda     screenPtr1
     adc     #4
@@ -1283,14 +1265,14 @@ drawLoop:
     asl
     asl
     asl
-    sta     bgPtr0
+    sta     tilePtr0
     tya     ; restore A
     lsr                     ; /8
     lsr
     lsr
     clc
     adc     currentSheet_28x8+1
-    sta     bgPtr1
+    sta     tilePtr1
 
     rts
 
@@ -1326,7 +1308,7 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
     adc     #32
     tay
     pla
-    and     (bgPtr0),y
+    and     (tilePtr0),y
     beq     :+              ; 0 mask -> foreground
     ; return even/odd background byte
     lda     tileX
@@ -1336,7 +1318,7 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
 :
     jsr     getPixelOffset
 cont:
-    and     (bgPtr0),y
+    and     (tilePtr0),y
     beq     :+  ; 0 = black
     lda     #1  ; 1 = white
 :
@@ -1381,8 +1363,8 @@ cont:
     ; set foreground
     ldy     maskOffset
     lda     clearMask
-    and     (bgPtr0),y
-    sta     (bgPtr0),y
+    and     (tilePtr0),y
+    sta     (tilePtr0),y
     lda     color
 
 finishColor:
@@ -1390,29 +1372,29 @@ finishColor:
     bne     white
     ldy     baseOffset
     lda     clearMask
-    and     (bgPtr0),y
-    sta     (bgPtr0),y
+    and     (tilePtr0),y
+    sta     (tilePtr0),y
     rts    
 
 white:
     ldy     baseOffset
     lda     setMask
-    ora     (bgPtr0),y
-    sta     (bgPtr0),y
+    ora     (tilePtr0),y
+    sta     (tilePtr0),y
     rts    
 
 setBackground:
     ldy     maskOffset
     lda     setMask
-    ora     (bgPtr0),y
-    sta     (bgPtr0),y
+    ora     (tilePtr0),y
+    sta     (tilePtr0),y
     ; also clear pixel
 
 clearPixel:
     ldy     baseOffset
     lda     clearMask
-    and     (bgPtr0),y
-    sta     (bgPtr0),y
+    and     (tilePtr0),y
+    sta     (tilePtr0),y
     rts
 
 color:          .byte   0
@@ -1601,7 +1583,6 @@ pixelByteMask:                  ; 1 << (x % 7)
 
 .include "edit_funct.asm"
 .include "inline_print.asm"
-.include "iso.asm"
 
 ; Global Variables
 ;-----------------------------------------------------------------------------

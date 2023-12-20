@@ -33,8 +33,8 @@ A4              :=  $42
 ; User defined
 ;--------------
 ; pointers
-bgPtr0          :=  $06     ; Background Tile pointer
-bgPtr1          :=  $07
+tilePtr0        :=  $06     ; Tile pointer
+tilePtr1        :=  $07
 maskPtr0        :=  $19     ; mask pointer
 maskPtr1        :=  $1a
 screenPtr0      :=  $1b     ; Screen pointer
@@ -60,16 +60,13 @@ ptrDB0          :=  $fc
 ptrDB1          :=  $fd
 
 ; Indexes
-bgTile          :=  $1d
-fgTile          :=  $1e
+tileIdx         :=  $1d
 tileX           :=  $e3
 tileY           :=  $e8
 
 ; Can probably reuse more since not planning on support dos3.3
 
 ; Engine zero page (overlaps with above)
-fgPtr0          :=  $08     ; Foreground Tile pointer
-fgPtr1          :=  $09
 drawPage        :=  $d7
 invMask         :=  $ee
 mapPtr0         :=  $ec
@@ -182,16 +179,16 @@ DHGR_TEST               := $C00
 DHGR_INIT               := $C03
 DHGR_DRAW_7X8           := $C06
 DHGR_DRAW_28X8          := $C09
-DHGR_DRAW_56X16         := $C0C
-DHGR_DRAW_MASK_56X16    := $C0F
-DHGR_READ_MAP           := $C12
-DHGR_DRAW_PIXEL_4X4     := $C15
+DHGR_DRAW_MASK_28X8     := $C0C
+DHGR_DRAW_56X16         := $C0F
+DHGR_DRAW_MASK_56X16    := $C12
+DHGR_READ_MAP           := $C15
+DHGR_DRAW_PIXEL_4X4     := $C18
 
 DHGR_TILE_7X8           := $C20
 DHGR_TILE_28X8          := $C22
 DHGR_TILE_56X16         := $C24
 DHGR_TILE_MASK_56X16    := $C26
-
 
 DHGR_MAP_SHEET          := $C28
 DHGR_MAP_BUFFER_WIDTH   := $C2A

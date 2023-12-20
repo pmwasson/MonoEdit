@@ -855,11 +855,11 @@ waitExit:
     ldx     #8
     ldy     #0
 drawLoop:
-    lda     (bgPtr0),y
+    lda     (tilePtr0),y
     sta     (screenPtr0),y
 
     ; assumes aligned such that there are no page crossing
-    inc     bgPtr0
+    inc     tilePtr0
 
     lda     screenPtr1
     adc     #4
@@ -887,7 +887,7 @@ drawLoop:
     asl                     ; *8
     asl
     asl
-    sta     bgPtr0
+    sta     tilePtr0
     tya     ; restore A
     lsr                     ; /32
     lsr
@@ -896,7 +896,7 @@ drawLoop:
     lsr
     clc
     adc     currentSheet_7x8+1
-    sta     bgPtr1
+    sta     tilePtr1
 
     rts
 
@@ -925,7 +925,7 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE
     lda     tileIndex
     jsr     setTilePointer
     jsr     getPixelOffset
-    and     (bgPtr0),y
+    and     (tilePtr0),y
     beq     :+  ; 0 = black
     lda     #1  ; 1 = white
 :
@@ -947,8 +947,8 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE
     jsr     setTilePointer
     jsr     getPixelOffset
     eor     #$ff
-    and     (bgPtr0),y
-    sta     (bgPtr0),y
+    and     (tilePtr0),y
+    sta     (tilePtr0),y
     rts
 .endproc
 
@@ -956,8 +956,8 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE
     lda     tileIndex
     jsr     setTilePointer
     jsr     getPixelOffset
-    ora     (bgPtr0),y
-    sta     (bgPtr0),y
+    ora     (tilePtr0),y
+    sta     (tilePtr0),y
     rts
 .endproc
 
