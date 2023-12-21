@@ -13,7 +13,7 @@
 ;-----------------------------------------------------------------------------
 
 MAP_XOFFSET := 4
-MAP_YOFFSET := 3
+MAP_YOFFSET := 2
 
 ; map-width     map-height  map-length <= 256
 ; ---------     ----------  ----------
@@ -30,7 +30,7 @@ MAP_WIDTH       = 8     ;  MAP_WIDTH    *2
 MAP_HEIGHT      = 6     ; (MAP_HEIGHT+2)*2
 MAP_LENGTH      = (MAP_WIDTH*2)*(MAP_HEIGHT+2)*2
 
-CURSOR_TILE     = $30
+CURSOR_TILE     = $38
 CURSOR_INIT     = 2*MAP_WIDTH*2
 
 CURSOR_W        = 256 - 2
@@ -805,13 +805,13 @@ macroList:
 ; 2 - water
 .byte   $28,$2a
 .byte   $2c,$2e
-.byte   $00,$00
-.byte   MBG,MBG
+.byte   $30,$32
+.byte   $34,$36
 .res    8
 
 ; 3 - tile
-.byte   $30,$32
-.byte   $34,$36
+.byte   $38,$3a
+.byte   $3c,$3e
 .byte   $00,$00
 .byte   MBG,MBG
 .res    8
