@@ -12,8 +12,8 @@
 ; Constants
 ;-----------------------------------------------------------------------------
 
-MAP_XOFFSET := 1
-MAP_YOFFSET := 1
+MAP_XOFFSET := 4
+MAP_YOFFSET := 3
 
 ; map-width     map-height  map-length <= 256
 ; ---------     ----------  ----------
