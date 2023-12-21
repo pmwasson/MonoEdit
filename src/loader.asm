@@ -44,48 +44,51 @@
 ;   ProDos buffer only needed if load/save supported
 ;
 
-READBUFFER      :=  $4000    ; Share read buffer with page2
+READBUFFER          :=  $4000    ; Share read buffer with page2
 
-MAPSTART        :=  $6000
-MAPLENGTH       =   64*64*2
-MAPEND          :=  READBUFFER + MAPLENGTH - 1
+MAPSTART            :=  $6000
+MAPLENGTH           =   64*64*2
+MAPEND              :=  READBUFFER + MAPLENGTH - 1
 
 ; Not yet implemented
-; DIALOGSTART     :=  $8000
-; DIALOGLENGTH    =   $1000
-; DIALOGEND       :=  READBUFFER + DIALOGLENGTH - 1
+; DIALOGSTART       :=  $8000
+; DIALOGLENGTH      =   $1000
+; DIALOGEND         :=  READBUFFER + DIALOGLENGTH - 1
 
-; BGSTART         :=  $9000
-; BGLENGTH        =   128*64
-; BGEND           :=  READBUFFER + BGLENGTH - 1
-; BGI4END         :=  BGSTART + BGLENGTH/2 - 1
+; BGSTART           :=  $9000
+; BGLENGTH          =   128*64
+; BGEND             :=  READBUFFER + BGLENGTH - 1
+; BGI4END           :=  BGSTART + BGLENGTH/2 - 1
 
-ISOSTART         :=  $A000
-ISOLENGTH        =   256*16
-ISOEND           :=  READBUFFER + ISOLENGTH - 1
-ISOI2END         :=  ISOSTART + ISOLENGTH/2 - 1
+ISOSTART            :=  $A000
+ISOLENGTH           =   256*16
+ISOEND              :=  READBUFFER + ISOLENGTH - 1
+ISOI2END            :=  ISOSTART + ISOLENGTH/2 - 1
 
-FONT0START      :=  $B000
-FONT0LENGTH     =   8*128
-FONT0END        :=  READBUFFER + FONT0LENGTH - 1
-FONT0I2END      :=  FONT0START + FONT0LENGTH/2 - 1
+FONT0START          :=  $B000
+FONT0LENGTH         =   8*128
+FONT0END            :=  READBUFFER + FONT0LENGTH - 1
+FONT0I2END          :=  FONT0START + FONT0LENGTH/2 - 1
 
-; FONT2START      :=  $B400
-; FONT2LENGTH     =   32*64
-; FONT2END        :=  READBUFFER + FONT2LENGTH - 1
-; FONT2I2END      :=  FONT2START + FONT2LENGTH/2 - 1
+; FONT2START        :=  $B400
+; FONT2LENGTH       =   32*64
+; FONT2END          :=  READBUFFER + FONT2LENGTH - 1
+; FONT2I2END        :=  FONT2START + FONT2LENGTH/2 - 1
 
-ENGINESTART     :=  $C00
-ENGINELENGTH    =   $2000 - ENGINESTART
+ENGINESTART         :=  $C00
+ENGINELENGTH        =   $2000 - ENGINESTART
 
-GAMESTART       :=  $6000
-GAMELENGTH      =   $9000 - GAMESTART
+GAMESTART           :=  $6000
+GAMELENGTH          =   $9000 - GAMESTART
 
-FONTEDITSTART     :=  $4000
-FONTEDITLENGTH    =   $6000 - FONTEDITSTART
+FONTEDITSTART       :=  $4000
+FONTEDITLENGTH      =   $6000 - FONTEDITSTART
 
-TILEEDITSTART     :=  $6000
-TILEEDITLENGTH    =   $9000 - TILEEDITSTART
+MAPEDITSTART        :=  $4000
+MAPEDITLENGTH       =   $6000 - MAPEDITSTART
+
+TILEEDITSTART       :=  $6000
+TILEEDITLENGTH      =   $9000 - TILEEDITSTART
 
 ;------------------------------------------------
 ; Constants
@@ -142,7 +145,9 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     jsr     loadAsset
 
     ; Font edit lives in read buffer, so must be last!
-    ldx     #assetFontEdit
+;    ldx     #assetFontEdit
+;    jsr     loadAsset
+    ldx     #assetMapEdit
     jsr     loadAsset
 
     lda     fileError
@@ -185,7 +190,8 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     .byte   13,0
 
     ; Jump to executables
-    jmp     TILEEDITSTART
+    jmp     MAPEDITSTART
+    ;jmp     TILEEDITSTART
     ;jmp     DHGR_TEST
 .endproc
 
@@ -260,7 +266,7 @@ quit_params:
 ;-----------------------------------------------------------------------------
 
 .proc loadAsset
-    
+
     stx     assetNum
 
     lda     fileDescription+0,x
@@ -270,7 +276,7 @@ quit_params:
     jsr     print
 
     jsr    inline_print
-    .byte  ":",13,"  ",0   
+    .byte  ":",13,"  ",0
 
     ldx     assetNum
 
@@ -296,7 +302,7 @@ quit_params:
     jsr     loadData
 
     jsr     inline_print
-    String "  Installing data to location "   
+    String "  Installing data to location "
 
     ldx     assetNum
     lda     fileDescription+12,x
@@ -378,7 +384,7 @@ quit_params:
     rts
 
 moveCopyBuffer:
-    
+
     ldy     #0
 :
     lda     copyBuffer,y
@@ -561,7 +567,7 @@ setCopyParam:
     sta     A2+1
 
     ; destination (aux)
-    lda     fileDescription+10,x       
+    lda     fileDescription+10,x
     sta     A4
     lda     fileDescription+11,x
     sta     A4+1
@@ -589,7 +595,7 @@ setCopyParamInterleave:
     sta     A2+1
 
     ; destination (aux)
-    lda     fileDescription+10,x       
+    lda     fileDescription+10,x
     sta     A4
     lda     fileDescription+11,x
     sta     A4+1
@@ -624,7 +630,7 @@ copyBuffer:     .res    256
     String "Reading "
 
     lda     open_params+1
-    sta     stringPtr0   
+    sta     stringPtr0
     lda     open_params+2
     sta     stringPtr1
     jsr     print_length
@@ -644,7 +650,7 @@ copyBuffer:     .res    256
     rts
 :
 
-    ; set reference number 
+    ; set reference number
     lda     open_params+5
     sta     read_params+1
     sta     close_params+1
@@ -682,7 +688,7 @@ fileError:  .byte   0
 
 open_params:
     .byte   $3
-    .word   $0                  ; *OVERWRITE* pathname     
+    .word   $0                  ; *OVERWRITE* pathname
     .word   FILEBUFFER
     .byte   $0                  ;             reference number
 
@@ -712,12 +718,13 @@ fileNameISO:        StringLen "/DHGR/DATA/TILESHEET.0"
 fileNameEngine:     StringLen "/DHGR/DATA/ENGINE"
 fileNameGame:       StringLen "/DHGR/DATA/GAME"
 fileNameFontEdit:   StringLen "/DHGR/DATA/FONTEDIT"
+fileNameMapEdit:    StringLen "/DHGR/DATA/MAPEDIT"
 fileNameTileEdit:   StringLen "/DHGR/DATA/TILEEDIT"
 
 ; Asset List
 fileDescription:    ; type, name, address, size, dest, interleave
     ;       TYPE            NAME              BUFFER          LENGTH          END         STARTDEST       MODE            DESTEND (INT)   OFFSET
-    ;       0               2                 4               6               8           10              12              14 
+    ;       0               2                 4               6               8           10              12              14
     ;       --------------- ---------------   -----------     -----------     ----------- -----------     --------------- --------------- -------
     .word   fileTypeFont,   fileNameFont0,    FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_BOTH,   0               ; 0
     .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I2, ISOI2END        ; 16
@@ -725,6 +732,7 @@ fileDescription:    ; type, name, address, size, dest, interleave
     .word   fileTypeExe,    fileNameGame,     GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 48
     .word   fileTypeExe,    fileNameFontEdit, FONTEDITSTART,  FONTEDITLENGTH, 0,          FONTEDITSTART,  INSTALL_MAIN,   0               ; 64
     .word   fileTypeExe,    fileNameTileEdit, TILEEDITSTART,  TILEEDITLENGTH, 0,          TILEEDITSTART,  INSTALL_MAIN,   0               ; 80
+    .word   fileTypeExe,    fileNameMapEdit,  MAPEDITSTART,   MAPEDITLENGTH,  0,          MAPEDITSTART,   INSTALL_MAIN,   0               ; 96
 
 assetFont0    =   16*0
 assetISO      =   16*1
@@ -732,6 +740,7 @@ assetEngine   =   16*2
 assetGame     =   16*3
 assetFontEdit =   16*4
 assetTileEdit =   16*5
+assetMapEdit  =   16*6
 
 ;-----------------------------------------------------------------------------
 ; Utilies

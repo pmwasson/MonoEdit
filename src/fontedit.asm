@@ -2,10 +2,9 @@
 ; Paul Wasson - 2024
 ;-----------------------------------------------------------------------------
 ; Font Edit
-
-;------------------------------------------------
 ;------------------------------------------------
 
+;------------------------------------------------
 .include "defines.asm"
 .include "macros.asm"
 
@@ -49,6 +48,10 @@ SIZE_7x8        = 0
     jsr     DHGR_INIT
 
     jsr     initMonochrome  ; Turn on monochrome dhgr
+
+    lda     #0
+    sta     clearColor+0
+    sta     clearColor+1
 
 reset_loop:
     jsr     clearScreen

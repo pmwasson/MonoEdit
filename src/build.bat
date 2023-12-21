@@ -8,6 +8,10 @@ cd ..\build
 ca65 -I ..\src -t apple2 ..\src\fontedit.asm -l fontedit.dis || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\fontedit.asm apple2.lib  -o fontedit.apple2 -C ..\src\start4000.cfg || exit
 
+:: Map Editor
+ca65 -I ..\src -t apple2 ..\src\mapedit.asm -l mapedit.dis || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\mapedit.asm apple2.lib  -o mapedit.apple2 -C ..\src\start4000.cfg || exit
+
 :: Tile Editor
 ca65 -I ..\src -t apple2 ..\src\tileedit.asm -l tileedit.dis || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileedit.asm apple2.lib  -o tileedit.apple2 -C ..\src\start6000.cfg || exit
@@ -50,6 +54,9 @@ java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2
 
 :: Font Editor
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/fontedit bin < fontedit.apple2  || exit
+
+:: Map Editor
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/mapedit bin < mapedit.apple2  || exit
 
 :: Tile Editor
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tileedit bin < tileedit.apple2  || exit

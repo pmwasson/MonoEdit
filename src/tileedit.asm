@@ -59,6 +59,9 @@ MODE_MASK       = 1
     jsr     initMonochrome  ; Turn on monochrome dhgr
     ;jsr     initColorMode
 
+    lda     #0
+    sta     clearColor+0
+    sta     clearColor+1
 reset_loop:
     jsr     clearScreen
 
@@ -501,20 +504,6 @@ flip_after:
 :
 
     ;------------------
-    ; I = Iso Map preview
-    ;------------------
-    cmp     #$80 + 'I'
-    bne     :+
-    jsr     inline_print
-    .byte   "Drawing isometric map (press any key to exit)",0
-
-    jsr     isoDrawMap
-    jsr     getInput
-    lda     #13
-    jsr     COUT
-    jmp     reset_loop
-
-    ;------------------
     ; ^L = Load
     ;------------------
     cmp     #KEY_CTRL_L
@@ -531,7 +520,7 @@ flip_after:
 
 load_exit:
     jmp     command_loop
-:    
+:
 
     ;------------------
     ; ^S = Save
@@ -1597,7 +1586,6 @@ pixelByteMask:                  ; 1 << (x % 7)
 
 .include "edit_funct.asm"
 .include "inline_print.asm"
-.include "iso.asm"
 
 ; Global Variables
 ;-----------------------------------------------------------------------------

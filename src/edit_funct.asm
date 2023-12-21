@@ -3,9 +3,9 @@
 ;-----------------------------------------------------------------------------
 ; Edit functions
 ;   Input/Output:
-;       - initMonochrome
-;       - initColor
-;       - clearScreen
+;       - initMonochrome*
+;       - initColor*
+;       - clearScreen*
 ;       - getInputNumber
 ;       - getInputDirection
 ;       - printAll
@@ -25,10 +25,12 @@
 ;       - rotateLeft
 ;       - rotateRight
 ;   OS:
-;       - quit
+;       - quit*
 ;       - loadSheet
 ;       - saveSheet
 ;-----------------------------------------------------------------------------
+
+.include "common_funct.asm"
 
 ;-----------------------------------------------------------------------------
 ; Constants
@@ -38,86 +40,6 @@ PIXEL_BLACK     = $20           ; (0) Space
 PIXEL_WHITE     = $0e           ; (1) 
 PIXEL_BG_EVEN   = $16           ; (2)
 PIXEL_BG_ODD    = $17
-
-;-----------------------------------------------------------------------------
-; Init double hi-res monochrome
-;-----------------------------------------------------------------------------
-
-.proc initMonochrome
-    sta     MIXCLR
-    sta     HIRES
-    sta     TXTCLR
-    sta     LOWSCR
-    ldx     #2
-:
-    sta     SET80COL
-    sta     SET80VID 
-    sta     CLR80VID
-    sta     DHIRESON
-    sta     DHIRESOFF
-    sta     SET80VID 
-    sta     DHIRESON
-    dex
-    bne     :-
-    sta     MIXSET      ; Mixed
-    rts
-.endproc
-
-;-----------------------------------------------------------------------------
-; Init color mode
-;
-; Reset into color mode
-;-----------------------------------------------------------------------------
-.proc initColorMode
-    sta     TXTCLR      ; Graphics
-    sta     HIRES       ; Hi-res
-    sta     MIXSET      ; Mixed
-    sta     LOWSCR      ; Display page 1
-    sta     DHIRESON    ; Annunciator 2 On
-    sta     SET80VID    ; 80 column on
-    rts
-.endproc
-
-;-----------------------------------------------------------------------------
-; DHGR clear screen
-;-----------------------------------------------------------------------------
-
-.proc clearScreen
-    lda     #$00
-    sta     screenPtr0
-    lda     #$20
-    sta     screenPtr1
-
-    sta     CLR80COL        ; Use RAMWRT for aux mem
-
-loop:
-    ldy     #0
-
-    ; aux mem
-    lda     #0
-;    lda     #$2a
-    sta     RAMWRTON  
-
-:
-    sta     (screenPtr0),y
-    iny
-    bne     :-    
-
-;    lda     #$55
-    sta     RAMWRTOFF
-    ; main mem
-:
-    sta     (screenPtr0),y
-    iny
-    bne     :-    
-
-    inc     screenPtr1
-    lda     #$40
-    cmp     screenPtr1
-    bne     loop
-    rts
-
-.endproc
 
 ;-----------------------------------------------------------------------------
 ; getInputNumber
@@ -985,27 +907,6 @@ tempY:  .byte   0
 temp:   .byte   0
 
 .endproc
-
-;-----------------------------------------------------------------------------
-; Quit
-;
-;   Exit to ProDos
-;-----------------------------------------------------------------------------
-.proc quit
-    bit     TXTSET          ; Make sure in text mode
-
-    jsr     MLI
-    .byte   CMD_QUIT
-    .word  quit_params
-
-quit_params:
-    .byte   4               ; 4 parameters
-    .byte   0               ; 0 is the only quit type
-    .word   0               ; Reserved pointer for future use (what future?)
-    .byte   0               ; Reserved byte for future use (what future?)
-    .word   0               ; Reserved pointer for future use (what future?)
-.endproc
-
 
 ;-----------------------------------------------------------------------------
 ; Load sheet
