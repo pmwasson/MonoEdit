@@ -543,7 +543,7 @@ finishChangeTile_cont:
     StringCont  "  Ctrl-L:  Load font"
     StringCont  "  Ctrl-S:  Save font"
     StringCont  "  !:       Dump bytes of this tile"
-    StringCont  "  Ctrl-P:  Print all tiles (do a 1^P in monitor first!)"
+    StringCont  "  Ctrl-P:  Print all tiles (do a 1^P in monitor first, 3^P after!)"
     StringCont  "  ?:       This help screen"
     StringCont  "  \:       Monitor"
     StringCont  "  Ctrl-Q:  Quit"

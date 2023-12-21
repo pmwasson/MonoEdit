@@ -780,7 +780,7 @@ sizeInc8:       .byte   8,   16
     adc     tileInc
     adc     tileInc
     jsr     drawTile_56x16
- 
+
     rts
 
 index:  .byte   0
