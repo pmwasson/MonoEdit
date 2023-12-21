@@ -65,9 +65,14 @@ CURSOR_SW       =       MAP_WIDTH*2   - 1
     jsr     initMonochrome  ; Turn on monochrome dhgr
 
     ; set background to gray
-    lda     #$55
+    ;lda     #$55
+    ;sta     clearColor+0
+    ;lda     #$2a
+    ;sta     clearColor+1
+
+    ; white background
+    lda     #$00
     sta     clearColor+0
-    lda     #$2a
     sta     clearColor+1
 
 reset_loop:
@@ -776,6 +781,9 @@ macroIndex: .byte   1
 ; Data
 ;-----------------------------------------------------------------------------
 
+; map background (2,4,6)
+MBG = $02
+
 .align 256
 
 macroList:
@@ -794,11 +802,19 @@ macroList:
 .byte   $24,$26
 .res    8
 
-; 2
-.res    16
+; 2 - water
+.byte   $28,$2a
+.byte   $2c,$2e
+.byte   $00,$00
+.byte   MBG,MBG
+.res    8
 
-; 3
-.res    16
+; 3 - tile
+.byte   $30,$32
+.byte   $34,$36
+.byte   $00,$00
+.byte   MBG,MBG
+.res    8
 
 ; 4
 .res    16
@@ -822,7 +838,7 @@ macroList:
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $06,$06
+.byte   MBG,MBG
 .res    8
 
 
@@ -830,22 +846,22 @@ macroList:
 .align 256
 
 isoMap0:
-.byte $06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06
-.byte $06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06
-.byte $06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06
-.byte $06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06
-.byte $06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06
-.byte $06,$06,$06,$06,$06,$06,$14,$16,$06,$06,$06,$06,$14,$16,$06,$06
-.byte $06,$06,$06,$06,$06,$14,$16,$06,$06,$24,$26,$14,$16,$14,$16,$06
-.byte $24,$26,$06,$06,$14,$16,$06,$06,$24,$26,$14,$16,$06,$06,$14,$16
-.byte $06,$24,$26,$24,$26,$14,$16,$24,$26,$14,$16,$24,$26,$06,$06,$06
-.byte $06,$06,$24,$26,$24,$26,$14,$16,$14,$16,$24,$26,$06,$06,$06,$06
-.byte $06,$24,$26,$24,$26,$24,$26,$14,$16,$24,$26,$06,$06,$06,$06,$06
-.byte $06,$06,$24,$26,$24,$26,$24,$26,$14,$16,$24,$26,$06,$06,$14,$16
-.byte $06,$06,$06,$06,$06,$24,$26,$24,$26,$14,$16,$06,$06,$14,$16,$06
-.byte $06,$06,$06,$06,$06,$06,$24,$26,$24,$26,$14,$16,$14,$16,$06,$06
-.byte $06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$14,$16,$06,$06,$06
-.byte $06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06,$06
+.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
+.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
+.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
+.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
+.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
+.byte MBG,MBG,MBG,MBG,MBG,MBG,$14,$16,MBG,MBG,MBG,MBG,$14,$16,MBG,MBG
+.byte MBG,MBG,MBG,MBG,MBG,$14,$16,MBG,MBG,$24,$26,$14,$16,$14,$16,MBG
+.byte $24,$26,MBG,MBG,$14,$16,MBG,MBG,$24,$26,$14,$16,MBG,MBG,$14,$16
+.byte MBG,$24,$26,$24,$26,$14,$16,$24,$26,$14,$16,$24,$26,MBG,MBG,MBG
+.byte MBG,MBG,$24,$26,$24,$26,$14,$16,$14,$16,$24,$26,MBG,MBG,MBG,MBG
+.byte MBG,$24,$26,$24,$26,$24,$26,$14,$16,$24,$26,MBG,MBG,MBG,MBG,MBG
+.byte MBG,MBG,$24,$26,$24,$26,$24,$26,$14,$16,$24,$26,MBG,MBG,$14,$16
+.byte MBG,MBG,MBG,MBG,MBG,$24,$26,$24,$26,$14,$16,MBG,MBG,$14,$16,MBG
+.byte MBG,MBG,MBG,MBG,MBG,MBG,$24,$26,$24,$26,$14,$16,$14,$16,MBG,MBG
+.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,$14,$16,MBG,MBG,MBG
+.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
 
 isoMap1:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
