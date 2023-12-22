@@ -587,7 +587,10 @@ imageTable:
     .word   robotOdd
     .word   gypsy1Even
     .word   gypsy1Odd
-
+    .word   computerEven
+    .word   computerOdd
+    .word   rebelEven
+    .word   rebelOdd
 
 imageTableEnd:
 

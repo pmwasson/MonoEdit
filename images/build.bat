@@ -11,7 +11,7 @@ python3 imageConvert.py warrior3.jpeg   ..\build\warrior3.png   140 64 >> ..\bui
 python3 imageConvert.py wizard.jpg      ..\build\wizard.png     140 64 >> ..\build\images.asm  || exit
 python3 imageConvert.py robot.jpg       ..\build\robot.png      140 64 >> ..\build\images.asm  || exit
 python3 imageConvert.py gypsy1.jpg      ..\build\gypsy1.png     140 64 >> ..\build\images.asm  || exit
+python3 imageConvert.py computer.jpg    ..\build\computer.png   140 64 >> ..\build\images.asm  || exit
+python3 imageConvert.py rebel.jpg       ..\build\rebel.png      140 64 >> ..\build\images.asm  || exit
 
-
-python3 imageConvert.py ParallelParadox.jpg      ..\build\ParallelParadox.png     560 192 > ..\build\title.asm  || exit
-python3 imageConvert.py ParallelParadox2.jpg      ..\build\ParallelParadox2.png     560 192 > ..\build\title.asm  || exit
+python3 imageConvert.py title.jpg      ..\build\title.png       560 192 > ..\build\title.asm   || exit
