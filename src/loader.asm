@@ -22,6 +22,7 @@
 ;   0C00-1FFF   [ Engine                        ]
 ;
 ;   2000-3FFF   [ DGHR Page 1                   ]
+;               [ Loader        ]
 ;
 ;   4000-5FFF   [ DGHR Page 2                   ]
 ;               [ Read data     ]
@@ -32,7 +33,7 @@
 ;
 ;   9000-AFFF   [ Isometric Tiles (64)          ]
 ;
-;   B000-B7FF   [ Font Tiles (128)              ]
+;   B000-B7FF   [ Unused        ][ Font x2      ]
 ;
 ;   Is B800-BEFF available?  (BFxx is used by ProDos)
 ;
