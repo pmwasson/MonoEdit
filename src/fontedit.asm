@@ -584,15 +584,26 @@ finishChangeTile_cont:
     lda     #$20
     sta     $200,x
     inx     
-    cpx     #80
+    cpx     #40
     bcc     :-
 
-    lda     #19
-    sta     tileY
 
+    ; scroll previous test
+    lda     #10
+    sta     tileY
+    lda     #19
+    sta     tileY2
     lda     #0
     sta     tileX
     sta     offset
+    lda     #19
+    sta     tileX2
+    jsr     DHGR_SCROLL_LINE
+
+    ; set tileY to last row
+    lda     #19
+    sta     tileY
+
 :
     ldx     offset
     lda     $200,x
@@ -601,7 +612,7 @@ finishChangeTile_cont:
     inc     tileX
     inc     offset
     lda     offset
-    cmp     #80
+    cmp     #40
     bcc     :-
 
     rts

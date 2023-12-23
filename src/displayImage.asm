@@ -164,7 +164,7 @@ imageNumber:
 ;-----------------------------------------------------------------------------
 ; Draw Image
 ;
-; 	Data is split between even and odd using ptrAA and ptrAB
+; 	Data is split between even and odd using tilePtr and maskPtr
 ;-----------------------------------------------------------------------------
 .proc drawImage
     sta     CLR80COL        ; Use RAMWRT for aux mem
@@ -173,13 +173,13 @@ imageNumber:
     asl     ; *4
     tax
     lda     imageTable,x
-    sta     ptrAA0
+    sta     tilePtr0
     lda     imageTable+1,x
-    sta     ptrAA1
+    sta     tilePtr1
     lda     imageTable+2,x
-    sta     ptrAB0
+    sta     maskPtr0
     lda     imageTable+3,x
-    sta     ptrAB1
+    sta     maskPtr1
 
     lda     imageY
     tax
@@ -202,10 +202,10 @@ loop8:
     ldy 	#0
 loopX:
     sta     RAMWRTON  			; aux  
-    lda		(ptrAA0),y
+    lda		(tilePtr0),y
     sta 	(screenPtr0),y
     sta     RAMWRTOFF  			; main  
-    lda		(ptrAB0),y
+    lda		(maskPtr0),y
     sta 	(screenPtr0),y
     iny
     cpy 	imageWidth
@@ -215,19 +215,19 @@ loopX:
 
     clc
     lda 	imageWidth
-    adc 	ptrAA0
-   	sta 	ptrAA0
+    adc 	tilePtr0
+   	sta 	tilePtr0
    	lda 	#0
-   	adc 	ptrAA1
-   	sta 	ptrAA1
+   	adc 	tilePtr1
+   	sta 	tilePtr1
 
     clc
     lda 	imageWidth
-    adc 	ptrAB0
-   	sta 	ptrAB0
+    adc 	maskPtr0
+   	sta 	maskPtr0
    	lda 	#0
-   	adc 	ptrAB1
-   	sta 	ptrAB1
+   	adc 	maskPtr1
+   	sta 	maskPtr1
 
     clc
    	lda     screenPtr1

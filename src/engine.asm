@@ -20,6 +20,7 @@
     jmp     drawTile_28x8
     jmp     drawTileMask_28x8
     jmp     drawPixel4x4
+    jmp     scrollLine
 
 ; Variables (in fixed locations)
 .align 32
@@ -505,6 +506,89 @@ pixelMaskOdd:
     .byte   $00,$00,$00,$00     ; 11
     .byte   $00,$00,$00,$03     ; 12
     .byte   $00,$00,$00,$38     ; 13
+
+.endproc
+
+
+;-----------------------------------------------------------------------------
+; scroll line
+;   Scroll 8 lines up in box defined by tileX,tileY,tileX2,tileY2
+;   Where x can range from 0..39 and y 0..23
+;-----------------------------------------------------------------------------
+.proc scrollLine
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem
+
+    ldx     tileY           ; top line
+
+loop:
+    ; Initial screen pointer
+    lda     lineOffset,x
+    sta     screenPtr0
+    lda     linePage,x
+    clc
+    adc     drawPage
+    sta     screenPtr1
+
+    inx                     ; next line
+
+    lda     lineOffset,x
+    sta     screen2Ptr0
+    lda     linePage,x
+    clc
+    adc     drawPage
+    sta     screen2Ptr1
+
+    ldx     #0
+
+loop8:
+    ldy     tileX
+:
+    lda     (screen2Ptr0),y
+    sta     (screenPtr0),y
+
+    iny
+    cpy     tileX2
+    bcc     :-
+    beq     :-          ; one more!
+
+    ; transfer to aux memory
+    sta     RAMWRTON  
+    sta     RAMRDON  
+
+    ldy     tileX
+:
+    lda     (screen2Ptr0),y
+    sta     (screenPtr0),y
+
+    iny
+    cpy     tileX2
+    bcc     :-
+    beq     :-          ; one more!
+
+    ; back to main
+    sta     RAMWRTOFF
+    sta     RAMRDOFF
+
+    ; line line
+    clc
+    lda     screenPtr1
+    adc     #$4
+    sta     screenPtr1
+    lda     screen2Ptr1
+    adc     #$4
+    sta     screen2Ptr1
+
+    inx
+    cpx     #8
+    bne     loop8
+
+    inc     tileY
+    ldx     tileY
+    cpx     tileY2
+    bcc     loop
+
+    rts
 
 .endproc
 

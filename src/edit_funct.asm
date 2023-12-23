@@ -125,6 +125,9 @@ max_digit:  .byte   0
     lda     tileIndex
     cmp     tileMax
     bne     :-
+
+    lda     temp
+    sta     tileIndex
     rts
 
 temp:   .byte   0

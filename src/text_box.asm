@@ -9,8 +9,8 @@
 ; A text box is defined by the following parameters:
 ;   Absolute coordinate defining the extent of the box:
 ;       top
-;       bottom
 ;       left
+;       bottom
 ;       right
 ;   Relative coordinates of where the next charact is drawn
 ;       curX
@@ -19,6 +19,12 @@
 ; Text to be drawn is passed in strings with special characters that
 ; are interpreted to perform functions on the box.
 
+
+;   top left bottom right curX curY padding
+textBoxParameters:
+    0,  0,   19,    79,   0,   0,   0, 0    ; full screen
+    0,  0,   19,    79,   0,   0,   0, 0    ; mixed top
+    20, 0,   23,    79,   0,   0,   0, 0    ; mixed bottom
 
 .proc inline_print
     ; Pop return address to find string

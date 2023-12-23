@@ -32,47 +32,46 @@ A4              :=  $42
 
 ; User defined
 ;--------------
-; pointers
+; Pointers
 tilePtr0        :=  $06     ; Tile pointer
 tilePtr1        :=  $07
 maskPtr0        :=  $19     ; mask pointer
 maskPtr1        :=  $1a
 screenPtr0      :=  $1b     ; Screen pointer
 screenPtr1      :=  $1c
+screen2Ptr0     :=  $1d
+screen2Ptr1     :=  $1e
 stringPtr0      :=  $fe
 stringPtr1      :=  $ff
-
-ptrAA0          :=  $06
-ptrAA1          :=  $07
-ptrAB0          :=  $08
-ptrAB1          :=  $09
-ptrBA0          :=  $19
-ptrBA1          :=  $1a
-ptrBB0          :=  $1d
-ptrBB1          :=  $1e
-ptrCA0          :=  $ce
-ptrCA1          :=  $cf
-ptrCB0          :=  $ee
-ptrCB1          :=  $ef
-ptrDA0          :=  $fa
-ptrDA1          :=  $fb
-ptrDB0          :=  $fc
-ptrDB1          :=  $fd
+mapPtr0         :=  $ec
+mapPtr1         :=  $ed
 
 ; Indexes
 tileIdx         :=  $1d
 tileX           :=  $e3
 tileY           :=  $e8
-
-; Can probably reuse more since not planning on support dos3.3
-
-; Engine zero page (overlaps with above)
-drawPage        :=  $d7
-invMask         :=  $ee
-mapPtr0         :=  $ec
-mapPtr1         :=  $ed
+tileX2 			:=  $fc
+tileY2 			:=  $fd
 mapWindowX      :=  $ef
 mapWindowY      :=  $fa
+
+; Controls
+drawPage        :=  $d7
+invMask         :=  $ee
+
+; following are available to use
+;               :=  $08
+;               :=  $09
+;               :=  $19
+;               :=  $1a
+;               :=  $ce
+;               :=  $cf
+;               :=  $ee
+;               :=  $ef
+;               :=  $fa
+;               :=  $fb
+
+
 
 ; Memory map
 ;---------------------------------------------------------
@@ -183,6 +182,7 @@ DHGR_DRAW_7X8           := $C06
 DHGR_DRAW_28X8          := $C09
 DHGR_DRAW_MASK_28X8     := $C0C
 DHGR_DRAW_PIXEL_4X4     := $C0F
+DHGR_SCROLL_LINE        := $C12
 
 DHGR_TILE_7X8           := $C20
 DHGR_TILE_28X8          := $C22
