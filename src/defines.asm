@@ -110,6 +110,7 @@ VTAB            := $FC22    ; Move the cursor to line CV
 HOME            := $FC58    ; Clear text screen
 CR              := $FC62    ; Output carriage return
 RDKEY           := $FD0C    ; Read 1 char
+GETLN           := $FD6A    ; Read a line of characters
 COUT            := $FDED    ; Output a character
 MON             := $FF65    ; Enter monitor (BRK)
 MONZ            := $FF69    ; Enter monitor
@@ -181,18 +182,8 @@ DHGR_INIT               := $C03
 DHGR_DRAW_7X8           := $C06
 DHGR_DRAW_28X8          := $C09
 DHGR_DRAW_MASK_28X8     := $C0C
-DHGR_DRAW_56X16         := $C0F
-DHGR_DRAW_MASK_56X16    := $C12
-DHGR_READ_MAP           := $C15
-DHGR_DRAW_PIXEL_4X4     := $C18
+DHGR_DRAW_PIXEL_4X4     := $C0F
 
 DHGR_TILE_7X8           := $C20
 DHGR_TILE_28X8          := $C22
-DHGR_TILE_56X16         := $C24
-DHGR_TILE_MASK_56X16    := $C26
 
-DHGR_MAP_SHEET          := $C28
-DHGR_MAP_BUFFER_WIDTH   := $C2A
-DHGR_MAP_BUFFER_HEIGHT  := $C2B
-
-MAP_BUFFER              := $B00

@@ -378,6 +378,17 @@ flip_cancel:
 flip_after:
 
     ;------------------
+    ; ^T = Test
+    ;------------------
+    cmp     #KEY_CTRL_T
+    bne     :+
+    jsr     inline_print
+    StringCR   "Test font"
+    jsr     fontTest
+    jmp     command_loop
+:    
+
+    ;------------------
     ; ^L = Load
     ;------------------
     cmp     #KEY_CTRL_L
@@ -544,6 +555,7 @@ finishChangeTile_cont:
     StringCont  "  Ctrl-S:  Save font"
     StringCont  "  !:       Dump bytes of this tile"
     StringCont  "  Ctrl-P:  Print all tiles (do a 1^P in monitor first, 3^P after!)"
+    StringCont  "  Ctrl-T:  Display input text to test font"
     StringCont  "  ?:       This help screen"
     StringCont  "  \:       Monitor"
     StringCont  "  Ctrl-Q:  Quit"
@@ -552,6 +564,50 @@ finishChangeTile_cont:
     .byte   0
 
     rts
+.endproc
+
+;-----------------------------------------------------------------------------
+; fontTest 
+;
+;-----------------------------------------------------------------------------
+
+.proc fontTest
+
+    jsr     inline_print
+    .byte   "Enter text to display",0
+    lda     #':' | $80
+    sta     PROMPT
+    jsr     GETLN
+
+    ; pad out with spaces
+:
+    lda     #$20
+    sta     $200,x
+    inx     
+    cpx     #80
+    bcc     :-
+
+    lda     #19
+    sta     tileY
+
+    lda     #0
+    sta     tileX
+    sta     offset
+:
+    ldx     offset
+    lda     $200,x
+    and     #$7f
+    jsr     drawTile_7x8
+    inc     tileX
+    inc     offset
+    lda     offset
+    cmp     #80
+    bcc     :-
+
+    rts
+
+offset:     .byte   0
+
 .endproc
 
 ;-----------------------------------------------------------------------------

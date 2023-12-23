@@ -17,13 +17,11 @@
 ;   0000-07FF   [ System usage / text pages     ]
 ;
 ;   0800-09FF   [ ProDos buffer ][ Unused       ]
-;
 ;   0A00-0AFF   [ Unused                        ]
-;   0B00-0BFF   [ Map Buffer    ][ Unused       ]
-;   0C00-1FFF   [ Engine routines               ]
+;
+;   0C00-1FFF   [ Engine                        ]
 ;
 ;   2000-3FFF   [ DGHR Page 1                   ]
-;               [ Loader        ]
 ;
 ;   4000-5FFF   [ DGHR Page 2                   ]
 ;               [ Read data     ]
@@ -67,13 +65,11 @@ ISOI2END            :=  ISOSTART + ISOLENGTH/2 - 1
 
 FONT0START          :=  $B000
 FONT0LENGTH         =   8*128
-FONT0END            :=  READBUFFER + FONT0LENGTH - 1
-FONT0I2END          :=  FONT0START + FONT0LENGTH/2 - 1
+FONT0END            :=  FONT0START + FONT0LENGTH - 1
 
-; FONT2START        :=  $B400
-; FONT2LENGTH       =   32*64
-; FONT2END          :=  READBUFFER + FONT2LENGTH - 1
-; FONT2I2END        :=  FONT2START + FONT2LENGTH/2 - 1
+FONT1START          :=  $B400
+FONT1LENGTH         =   32*64
+FONT1END            :=  FONT1START + FONT1LENGTH - 1
 
 ENGINESTART         :=  $C00
 ENGINELENGTH        =   $2000 - ENGINESTART
@@ -137,6 +133,8 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
 
     ldx     #assetFont0
     jsr     loadAsset
+    ldx     #assetFont1
+    jsr     loadAsset
     ldx     #assetISO
     jsr     loadAsset
     ldx     #assetEngine
@@ -145,10 +143,10 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     jsr     loadAsset
 
     ; Font edit lives in read buffer, so must be last!
-;    ldx     #assetFontEdit
-;    jsr     loadAsset
-    ldx     #assetMapEdit
+    ldx     #assetFontEdit
     jsr     loadAsset
+;    ldx     #assetMapEdit
+;    jsr     loadAsset
 
     lda     fileError
     beq     :+
@@ -190,8 +188,8 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     .byte   13,0
 
     ; Jump to executables
-    jmp     MAPEDITSTART
-    ;jmp     TILEEDITSTART
+    ;jmp     MAPEDITSTART
+    jmp     FONTEDITSTART
     ;jmp     DHGR_TEST
 .endproc
 
@@ -714,6 +712,7 @@ fileTypeExe:    String "Executable"
 
 ; File names
 fileNameFont0:      StringLen "/DHGR/DATA/FONT7X8.0"
+fileNameFont1:      StringLen "/DHGR/DATA/FONT7X8.1"
 fileNameISO:        StringLen "/DHGR/DATA/TILESHEET.0"
 fileNameEngine:     StringLen "/DHGR/DATA/ENGINE"
 fileNameGame:       StringLen "/DHGR/DATA/GAME"
@@ -726,21 +725,23 @@ fileDescription:    ; type, name, address, size, dest, interleave
     ;       TYPE            NAME              BUFFER          LENGTH          END         STARTDEST       MODE            DESTEND (INT)   OFFSET
     ;       0               2                 4               6               8           10              12              14
     ;       --------------- ---------------   -----------     -----------     ----------- -----------     --------------- --------------- -------
-    .word   fileTypeFont,   fileNameFont0,    FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_BOTH,   0               ; 0
-    .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I2, ISOI2END        ; 16
-    .word   fileTypeExe,    fileNameEngine,   ENGINESTART,    ENGINELENGTH,   0,          ENGINESTART,    INSTALL_MAIN,   0               ; 32
-    .word   fileTypeExe,    fileNameGame,     GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 48
-    .word   fileTypeExe,    fileNameFontEdit, FONTEDITSTART,  FONTEDITLENGTH, 0,          FONTEDITSTART,  INSTALL_MAIN,   0               ; 64
-    .word   fileTypeExe,    fileNameTileEdit, TILEEDITSTART,  TILEEDITLENGTH, 0,          TILEEDITSTART,  INSTALL_MAIN,   0               ; 80
-    .word   fileTypeExe,    fileNameMapEdit,  MAPEDITSTART,   MAPEDITLENGTH,  0,          MAPEDITSTART,   INSTALL_MAIN,   0               ; 96
+    .word   fileTypeFont,   fileNameFont0,    FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_AUX,    0               ; 0
+    .word   fileTypeFont,   fileNameFont1,    FONT1START,     FONT1LENGTH,    FONT1END,   FONT1START,     INSTALL_AUX,    0               ; 16
+    .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I2, ISOI2END        ; 32
+    .word   fileTypeExe,    fileNameEngine,   ENGINESTART,    ENGINELENGTH,   0,          ENGINESTART,    INSTALL_MAIN,   0               ; 48
+    .word   fileTypeExe,    fileNameGame,     GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 64
+    .word   fileTypeExe,    fileNameFontEdit, FONTEDITSTART,  FONTEDITLENGTH, 0,          FONTEDITSTART,  INSTALL_MAIN,   0               ; 80
+    .word   fileTypeExe,    fileNameTileEdit, TILEEDITSTART,  TILEEDITLENGTH, 0,          TILEEDITSTART,  INSTALL_MAIN,   0               ; 96
+    .word   fileTypeExe,    fileNameMapEdit,  MAPEDITSTART,   MAPEDITLENGTH,  0,          MAPEDITSTART,   INSTALL_MAIN,   0               ; 112
 
 assetFont0    =   16*0
-assetISO      =   16*1
-assetEngine   =   16*2
-assetGame     =   16*3
-assetFontEdit =   16*4
-assetTileEdit =   16*5
-assetMapEdit  =   16*6
+assetFont1    =   16*1
+assetISO      =   16*2
+assetEngine   =   16*3
+assetGame     =   16*4
+assetFontEdit =   16*5
+assetTileEdit =   16*6
+assetMapEdit  =   16*7
 
 ;-----------------------------------------------------------------------------
 ; Utilies

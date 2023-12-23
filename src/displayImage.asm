@@ -9,7 +9,7 @@
 ;-----------------------------------------------------------------------------
 
 .segment "CODE"
-.org    $6000
+.org    $4000
 
 ;-----------------------------------------------------------------------------
 
@@ -26,10 +26,31 @@ BOX_LOWER_RIGHT = $1f
 	jsr 	init
     jsr     clearScreen
 
-    bra     :+
-    brk
-:
+showTitle:
 
+    ; set param
+    lda     #40
+    sta     imageWidth
+    lda     #24
+    sta     imageHeight
+    lda     #0
+    sta     imageX
+    sta     imageY
+    lda     imageCount
+    jsr     drawImage
+
+    jsr     RDKEY
+
+    jsr     clearScreen
+
+    ; set param
+    lda     #10
+    sta     imageWidth
+    lda     #8
+    sta     imageHeight
+    lda     #1
+    sta     imageX
+    sta     imageY
     lda     #0
     sta     imageNumber
 
@@ -93,6 +114,12 @@ slideShow:
     jsr     decImage
 
     jsr     RDKEY
+
+    cmp     #KEY_SPACE
+    bne     :+
+    jmp     showTitle
+:
+
     cmp     #KEY_LEFT
     bne     :+
     jsr     decImage
@@ -399,7 +426,7 @@ drawLoop:
     sta     DHIRESON
     dex
     bne     :-
-    sta     MIXSET
+    sta     MIXCLR
     rts
 .endproc
 
@@ -560,27 +587,27 @@ tileSheet_7x8:
 ; DHGR (20 bytes x 64 bytes) -> (140 pixels x 64 pixels)
 
 imageCount:
-    .byte   (imageTableEnd-imageTable)/4
+    .byte   (imageTableEnd-imageTable)/4-1  ; skip title
 
 imageTable:
     .word   goblinEven
     .word   goblinOdd
     .word   ogreEven
     .word   ogreOdd
-    .word   warriorEven
-    .word   warriorOdd
+;    .word   warriorEven
+;    .word   warriorOdd
     .word   warrior2Even
     .word   warrior2Odd
     .word   warrior3Even
     .word   warrior3Odd
-    .word   elf1Even
-    .word   elf1Odd
-    .word   girlEven
-    .word   girlOdd
-    .word   girl3Even
-    .word   girl3Odd
-    .word   heroEven
-    .word   heroOdd
+;    .word   elf1Even
+;    .word   elf1Odd
+;    .word   girlEven
+;    .word   girlOdd
+;    .word   girl3Even
+;    .word   girl3Odd
+;    .word   heroEven
+;    .word   heroOdd
     .word   wizardEven
     .word   wizardOdd
     .word   robotEven
@@ -591,7 +618,10 @@ imageTable:
     .word   computerOdd
     .word   rebelEven
     .word   rebelOdd
-
+    .word   titleEven
+    .word   titleOdd
 imageTableEnd:
 
 .include "images.asm"
+
+.include "title.asm"
