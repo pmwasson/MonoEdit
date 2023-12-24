@@ -138,7 +138,7 @@ temp:   .byte   0
 ;-----------------------------------------------------------------------------
 .proc printDump
     lda     currentTile
-    jsr     setTilePointer
+    jsr     DHGR_DUMP_INIT
 
     jsr     inline_print
     String  "; index $"
@@ -158,7 +158,7 @@ dump_loop:
     lda     #$80 + '$'
     jsr     COUT
     ldy     dump_count
-    lda     (tilePtr0),y
+    jsr     DHGR_DUMP_BYTE
     jsr     PRBYTE
     inc     dump_count
     lda     dump_count
@@ -427,17 +427,25 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
 .proc copyTile
 
     lda     currentTile
-    jsr     setTilePointer
+    jsr     DHGR_DUMP_INIT
 
-    ldy     #0
+    lda     #0
+    sta     offset
 :
-    lda     (tilePtr0),y
+    ldy     offset
+    jsr     DHGR_DUMP_BYTE
+    ldy     offset
     sta     clipboardData,y
 
-    iny
-    cpy     tileLength
+    inc     offset
+    lda     offset
+    cmp     tileLength
     bne     :-
+
     rts
+
+offset:     .byte   0
+
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -446,17 +454,24 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
 .proc pasteTile
 
     lda     currentTile
-    jsr     setTilePointer
+    jsr     DHGR_DUMP_INIT
 
-    ldy     #0
+    lda     #0
+    sta     offset
+
 :
+    ldy     offset
     lda     clipboardData,y
-    sta     (tilePtr0),y
+    jsr     DHGR_SET_BYTE
 
-    iny
-    cpy     tileLength
+    inc     offset
+    lda     offset
+    cmp     tileLength
     bne     :-
     rts
+
+offset:     .byte   0
+
 .endproc
 
 ;-----------------------------------------------------------------------------

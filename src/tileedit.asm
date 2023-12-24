@@ -1253,8 +1253,32 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
 
 .endproc
 
-; Return 0(black), 1(white) or 2(masked)
+; Return 0(black), 1(white) or 2/3(masked even/odd)
 .proc getPixelRaw
+
+    jsr     setSubTile
+
+    lda     modeMasked
+    bne     :+
+    jsr     DHGR_GET_PIXEL_MASK_28X8
+    and     #1
+    rts
+:
+    ; masked
+    jsr     DHGR_GET_PIXEL_MASK_28X8
+    and     #2
+    bne     :+
+    lda     pixelResult
+    rts
+:
+    lda     tileX
+    and     #1
+    ora     #2
+    rts
+
+.endproc
+
+.proc setSubTile
 
     lda     currentTile
     sta     tileIdx
@@ -1279,26 +1303,9 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
     adc     #4
     sta     tileIdx
 :
-    lda     modeMasked
-    bne     :+
-    jsr     DHGR_GET_PIXEL_MASK_28X8
-    and     #1
-    rts
-:
-    ; masked
-    jsr     DHGR_GET_PIXEL_MASK_28X8
-    and     #2
-    bne     :+
-    lda     pixelResult
-    rts
-:
-    lda     tileX
-    and     #1
-    ora     #2
     rts
 
 .endproc
-
 ;-----------------------------------------------------------------------------
 ; Routines to modify pixels
 ;
@@ -1310,17 +1317,8 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
 ; Set the pixel at curX,curY to the color passed in A
 .proc copyPixel
     sta     color
-    lda     currentTile
-    jsr     setTilePointer
-    jsr     getPixelOffset
-    sta     setMask
-    eor     #$ff
-    sta     clearMask
-    sty     baseOffset
-    tya
-    clc
-    adc     #32
-    sta     maskOffset
+
+    jsr     setSubTile
 
     ; assume masked if asked to set color to BG
     lda     color
@@ -1331,50 +1329,33 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
 
     ; if mask mode, set mask for white or black
     ldx     modeMasked
-    beq     finishColor
+    beq     finishColor     ; not mask mode
 
     ; set foreground
-    ldy     maskOffset
-    lda     clearMask
-    and     (tilePtr0),y
-    sta     (tilePtr0),y
+    lda     #0
+    jsr     DHGR_SET_MASK_28X8
     lda     color
 
 finishColor:
     cmp     #PIXEL_BLACK
     bne     white
-    ldy     baseOffset
-    lda     clearMask
-    and     (tilePtr0),y
-    sta     (tilePtr0),y
+    lda     #0
+    jsr     DHGR_SET_PIXEL_28X8
     rts    
 
 white:
-    ldy     baseOffset
-    lda     setMask
-    ora     (tilePtr0),y
-    sta     (tilePtr0),y
+    lda     #$ff
+    jsr     DHGR_SET_PIXEL_28X8
     rts    
 
 setBackground:
-    ldy     maskOffset
-    lda     setMask
-    ora     (tilePtr0),y
-    sta     (tilePtr0),y
-    ; also clear pixel
-
-clearPixel:
-    ldy     baseOffset
-    lda     clearMask
-    and     (tilePtr0),y
-    sta     (tilePtr0),y
+    lda     #$ff
+    jsr     DHGR_SET_MASK_28X8
+    lda     #0
+    jsr     DHGR_SET_PIXEL_28X8
     rts
 
 color:          .byte   0
-baseOffset:     .byte   0
-maskOffset:     .byte   0
-setMask:        .byte   0
-clearMask:      .byte   0
 
 .endproc
 

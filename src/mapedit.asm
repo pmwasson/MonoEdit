@@ -880,7 +880,7 @@ macroList:
 .byte   $08,$0a
 .byte   $0c,$0e
 .byte   $10,$12
-.byte   $14,$16
+.byte   MBG,MBG
 .res    4
 
 ; 1 - grass
@@ -889,7 +889,7 @@ macroList:
 .byte   $18,$1a
 .byte   $1c,$1e
 .byte   $20,$22
-.byte   $24,$26
+.byte   MBG,MBG
 .res    4
 
 ; 2 - water
@@ -915,8 +915,8 @@ macroList:
 .byte   $44,$46
 .byte   $48,$4a
 .byte   $4c,$4e
-.byte   $50,$52
 .byte   $54,$56
+.byte   MBG,MBG
 .res    4
 
 ; 5 - tree
@@ -925,7 +925,7 @@ macroList:
 .byte   $60,$62
 .byte   $64,$66
 .byte   $20,$22
-.byte   $24,$26
+.byte   MBG,MBG
 .res    4
 
 ; 6 - reed

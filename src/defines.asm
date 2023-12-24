@@ -181,7 +181,12 @@ DHGR_DRAW_MASK_28X8     	:= $C0C
 DHGR_DRAW_PIXEL_4X4     	:= $C0F
 DHGR_SCROLL_LINE        	:= $C12
 DHGR_GET_PIXEL_MASK_28X8    := $C15
+DHGR_SET_PIXEL_28X8         := $C18
+DHGR_SET_MASK_28X8          := $C1B
+DHGR_DUMP_INIT              := $C1E
+DHGR_DUMP_BYTE              := $C21
+DHGR_SET_BYTE               := $C24
 
-DHGR_TILE_7X8           	:= $C20
-DHGR_TILE_28X8          	:= $C22
+DHGR_TILE_7X8           	:= $C40
+DHGR_TILE_28X8          	:= $C42
 

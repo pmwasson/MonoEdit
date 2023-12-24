@@ -22,9 +22,14 @@
     jmp     drawPixel4x4
     jmp     scrollLine
     jmp     getPixelMask_28x8
+    jmp     setPixel_28x8
+    jmp     setMask_28x8
+    jmp     dumpInit
+    jmp     dumpByte
+    jmp     setByte
 
 ; Variables (in fixed locations)
-.align 32
+.align 64
 tileSheet_7x8:          .word   $B000
 tileSheet_28x8:         .word   $B000
 
@@ -357,27 +362,7 @@ screenPtr1Copy: .byte   0
 ;-----------------------------------------------------------------------------
 .proc getPixelMask_28x8
 
-    lda     tileIdx
-    ; calculate tile pointer
-    asl                     ; *16
-    asl
-    asl
-    asl
-    clc
-    adc     tileY           ; + y*2
-    adc     tileY
-    sta     tilePtr0
-    adc     #16
-    sta     maskPtr0
-    lda     tileIdx
-    lsr                     ; /16
-    lsr
-    lsr
-    lsr
-    clc
-    adc     tileSheet_28x8+1
-    sta     tilePtr1
-    sta     maskPtr1
+    jsr     pixelTilePtr_28x8
 
     lda     #0
     sta     pixelResult
@@ -408,6 +393,32 @@ screenPtr1Copy: .byte   0
 
 .endproc
 
+
+.proc pixelTilePtr_28x8
+    lda     tileIdx
+    ; calculate tile pointer
+    asl                     ; *16
+    asl
+    asl
+    asl
+    clc
+    adc     tileY           ; + y*2
+    adc     tileY
+    sta     tilePtr0
+    adc     #16
+    sta     maskPtr0
+    lda     tileIdx
+    lsr                     ; /16
+    lsr
+    lsr
+    lsr
+    clc
+    adc     tileSheet_28x8+1
+    sta     tilePtr1
+    sta     maskPtr1
+    rts
+.endproc
+
 pixelBank:
     .byte   $00,$00,$00,$00,$00,$00,$00     ;  0..6  -> Aux
     .byte   $01,$01,$01,$01,$01,$01,$01     ;  7..13 -> Main
@@ -425,6 +436,149 @@ pixelMask:
     .byte   $01,$02,$04,$08,$10,$20,$40     ;  7..13 -> Main
     .byte   $01,$02,$04,$08,$10,$20,$40     ; 14..20 -> Aux
     .byte   $01,$02,$04,$08,$10,$20,$40     ; 21..27 -> Main
+
+;-----------------------------------------------------------------------------
+; set pixel
+;   set pixel pointed to by tileX, tileY and value passed in A
+;   A      = 00    -- set pixel to 0 (black), don't change mask
+;          = ff    -- set pixel to 1 (white), don't change mask
+;          all other values reserved
+;          
+;-----------------------------------------------------------------------------
+.proc setPixel_28x8
+    sta     pixelResult
+
+    jsr     pixelTilePtr_28x8
+
+    ldx     tileX
+    ldy     pixelOffset,x
+
+    lda     pixelBank,x
+    bne     :+
+    sta     RAMRDON         ; aux if even
+    sta     RAMWRTON        ; aux if even
+:
+
+    lda     pixelMask,x
+    and     pixelResult
+    sta     pixelResult
+
+    lda     pixelMask,x
+    eor     #$ff
+    and     (tilePtr0),y
+    ora     pixelResult
+    sta     (tilePtr0),y
+
+    sta     RAMRDOFF        ; back to main memory
+    sta     RAMWRTOFF       ; back to main memory
+    rts
+.endproc
+
+.proc setMask_28x8
+    sta     pixelResult
+
+    jsr     pixelTilePtr_28x8
+
+
+    ldx     tileX
+    ldy     pixelOffset,x
+
+    lda     pixelBank,x
+    bne     :+
+    sta     RAMRDON         ; aux if even
+    sta     RAMWRTON        ; aux if even
+:
+
+    lda     pixelMask,x
+    and     pixelResult
+    sta     pixelResult
+
+    lda     pixelMask,x
+    eor     #$ff
+    and     (maskPtr0),y
+    ora     pixelResult
+    sta     (maskPtr0),y
+
+    sta     RAMRDOFF        ; back to main memory
+    sta     RAMWRTOFF       ; back to main memory
+    rts
+.endproc
+
+
+;-----------------------------------------------------------------------------
+; dumpInit
+;   Set up pointers for tile passed in A
+;-----------------------------------------------------------------------------
+.proc dumpInit
+    sta     tileIdx
+    lda     #0
+    sta     tileX
+    sta     tileY  
+    jsr     pixelTilePtr_28x8
+    rts
+.endproc
+
+;-----------------------------------------------------------------------------
+; dumpByte
+;   Return the Yth byte of the tile
+;
+; Note that this function maintains the 2-byte interleave, but since nothing
+; is taking advantage of that, it may be better to go to a more straight forward
+; 1 byte interleave.
+;-----------------------------------------------------------------------------
+.proc dumpByte
+    tya
+    and     #2
+    bne     :+              ; If bit 1 set, main memory
+    sta     RAMRDON         ; aux
+:
+    tya
+    and     #1
+    tax
+    tya
+    lsr
+    and     #$7e
+    ora     offset,x        ; don't have orx, so use lookup
+    tay
+    lda     (tilePtr0),y
+    sta     RAMRDOFF
+    rts
+
+offset:     .byte   0,1
+.endproc
+
+;-----------------------------------------------------------------------------
+; setByte
+;   Set the Yth byte of the tile to A
+;
+; Note that this function maintains the 2-byte interleave, but since nothing
+; is taking advantage of that, it may be better to go to a more straight forward
+; 1 byte interleave.
+;-----------------------------------------------------------------------------
+.proc setByte
+    sta     temp
+    sta     CLR80COL        ; Use RAMWRT for aux mem
+    tya
+    and     #2
+    bne     :+              ; If bit 1 set, main memory
+    sta     RAMWRTON        ; aux
+:
+    tya
+    and     #1
+    tax
+    tya
+    lsr
+    and     #$7e
+    ora     offset,x        ; don't have orx, so use lookup
+    tay
+    lda     temp
+    sta     (tilePtr0),y
+    sta     RAMWRTOFF
+    rts
+
+temp:       .byte   0
+offset:     .byte   0,1
+.endproc
 
 ;-----------------------------------------------------------------------------
 ; drawPixel
