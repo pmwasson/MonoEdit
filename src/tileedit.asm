@@ -1488,6 +1488,106 @@ pixelByteMask:                  ; 1 << (x % 7)
 
 
 ;-----------------------------------------------------------------------------
+; copyTile
+;-----------------------------------------------------------------------------
+.proc copyTile
+
+    lda     currentTile
+    jsr     DHGR_DUMP_INIT
+
+    lda     #0
+    sta     offset
+:
+    ldy     offset
+    jsr     DHGR_DUMP_BYTE
+    ldy     offset
+    sta     clipboardData,y
+
+    inc     offset
+    lda     offset
+    cmp     tileLength
+    bne     :-
+
+    rts
+
+offset:     .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; pasteTile
+;-----------------------------------------------------------------------------
+.proc pasteTile
+
+    lda     currentTile
+    jsr     DHGR_DUMP_INIT
+
+    lda     #0
+    sta     offset
+
+:
+    ldy     offset
+    lda     clipboardData,y
+    jsr     DHGR_SET_BYTE
+
+    inc     offset
+    lda     offset
+    cmp     tileLength
+    bne     :-
+    rts
+
+offset:     .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; printDump
+;-----------------------------------------------------------------------------
+.proc printDump
+    lda     currentTile
+    jsr     DHGR_DUMP_INIT
+
+    jsr     inline_print
+    String  "; index $"
+    lda     currentTile
+    jsr     PRBYTE
+
+    jsr     inline_print
+    .byte   13,".byte ",0
+
+    lda     #0
+    sta     dump_count
+    jmp     dump_loop
+dump_comma:
+    lda     #$80 + ','
+    jsr     COUT
+dump_loop:
+    lda     #$80 + '$'
+    jsr     COUT
+    ldy     dump_count
+    jsr     DHGR_DUMP_BYTE
+    jsr     PRBYTE
+    inc     dump_count
+    lda     dump_count
+    cmp     tileLength
+    beq     dump_finish
+    lda     dump_count
+    and     #$f
+    bne     dump_comma
+    jsr     inline_print
+    .byte   13,".byte ",0
+    jmp     dump_loop
+
+dump_finish:
+    lda     #13
+    jsr     COUT
+    rts
+
+dump_count: .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
 ; Set file params
 ;
 ;   A = file number
