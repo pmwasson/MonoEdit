@@ -919,17 +919,41 @@ macroList:
 .byte   $54,$56
 .res    4
 
-; 5
-.res    16
+; 5 - tree
+.byte   $58,$5a
+.byte   $5c,$5e
+.byte   $60,$62
+.byte   $64,$66
+.byte   $20,$22
+.byte   $24,$26
+.res    4
 
-; 6
-.res    16
+; 6 - reed
+.byte   $00,$00
+.byte   $00,$00
+.byte   $68,$6a
+.byte   $6c,$6e
+.byte   $30,$32
+.byte   $34,$36
+.res    4
 
-; 7
-.res    16
+; 7 - Chair Left
+.byte   $70,$72
+.byte   $74,$76
+.byte   $78,$7a
+.byte   $7c,$7e
+.byte   $10,$12
+.byte   $14,$16
+.res    4
 
-; 8
-.res    16
+; 8 - Chair Right
+.byte   $80,$82
+.byte   $84,$86
+.byte   $88,$8a
+.byte   $8c,$8e
+.byte   $10,$12
+.byte   $14,$16
+.res    4
 
 ; 9
 .res    16

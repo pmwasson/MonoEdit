@@ -630,7 +630,7 @@ finishChangeTile:
     clc
     adc     tileInc
     cmp     tileMax
-    bmi     :+
+    bcc     :+
     lda     #0
 :
     sta     tileIndex
@@ -699,8 +699,8 @@ sizeCanvasBottom:   .byte   7,  11
 sizePixelOffsetX:   .byte   2,  2   
 sizePixelOffsetY:   .byte   6,  6   
 
-; 4k / 4*8 = 128
-sizeMax:        .byte   128, 128
+; 6k / 4*8 = 192
+sizeMax:        .byte   192, 192
 sizeInc:        .byte   1,   4 
 sizeInc8:       .byte   8,   16
 
@@ -1560,15 +1560,15 @@ pixelByteMask:                  ; 1 << (x % 7)
     sta     stringPtr1
 
     ; set address
-    lda     #<tileSheet_4k
+    lda     #<tileSheet
     sta     rw_params+2
-    lda     #>tileSheet_4k
+    lda     #>tileSheet
     sta     rw_params+3
 
     ; set size
-    lda     #<tileSheet_4k_size
+    lda     #<tileSheet_size
     sta     rw_params+4
-    lda     #>tileSheet_4k_size
+    lda     #>tileSheet_size
     sta     rw_params+5
 
     lda     #':' + $80
@@ -1617,8 +1617,7 @@ lastColor:          .byte   PIXEL_WHITE
 
 ; General
 
-currentSheet_28x8:  .word   tileSheet_4k
-currentSheet_56x16: .word   tileSheet_4k
+currentSheet_28x8:  .word   tileSheet
 
 ; ProDos pathname
 
@@ -1687,10 +1686,10 @@ linePage:
 
 .align 256
 
-tileSheet_4k_size = tileSheet_4k_end - tileSheet_4k
+tileSheet_size = tileSheet_end - tileSheet
 
-tileSheet_4k:
+tileSheet:
 .include "tilesheet_iso.asm"
-tileSheet_4k_end:
+tileSheet_end:
 
     .dword  .time   ; Time of compilation

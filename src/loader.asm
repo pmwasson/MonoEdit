@@ -144,10 +144,10 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     jsr     loadAsset
 
     ; Font edit lives in read buffer, so must be last!
-    ldx     #assetFontEdit
-    jsr     loadAsset
-;    ldx     #assetMapEdit
+;    ldx     #assetFontEdit
 ;    jsr     loadAsset
+    ldx     #assetMapEdit
+    jsr     loadAsset
 
     lda     fileError
     beq     :+
@@ -189,8 +189,8 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     .byte   13,0
 
     ; Jump to executables
-    ;jmp     MAPEDITSTART
-    jmp     FONTEDITSTART
+    jmp     MAPEDITSTART
+    ;jmp     FONTEDITSTART
     ;jmp     DHGR_TEST
 .endproc
 
