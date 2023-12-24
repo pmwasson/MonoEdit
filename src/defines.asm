@@ -52,12 +52,13 @@ tileX           :=  $e3
 tileY           :=  $e8
 tileX2 			:=  $fc
 tileY2 			:=  $fd
-mapWindowX      :=  $ef
-mapWindowY      :=  $fa
+mapWindowX      :=  $fa
+mapWindowY      :=  $fb
 
 ; Controls
 drawPage        :=  $d7
 invMask         :=  $ee
+pixelResult 	:=  tileX2
 
 ; following are available to use
 ;               :=  $08
@@ -66,10 +67,6 @@ invMask         :=  $ee
 ;               :=  $1a
 ;               :=  $ce
 ;               :=  $cf
-;               :=  $ee
-;               :=  $ef
-;               :=  $fa
-;               :=  $fb
 
 
 
@@ -176,14 +173,15 @@ DIR_DOWN        =   3
 ; DHGR Engine
 ;---------------------------------------------------------
 
-DHGR_TEST               := $C00
-DHGR_INIT               := $C03
-DHGR_DRAW_7X8           := $C06
-DHGR_DRAW_28X8          := $C09
-DHGR_DRAW_MASK_28X8     := $C0C
-DHGR_DRAW_PIXEL_4X4     := $C0F
-DHGR_SCROLL_LINE        := $C12
+DHGR_TEST               	:= $C00
+DHGR_INIT               	:= $C03
+DHGR_DRAW_7X8           	:= $C06
+DHGR_DRAW_28X8          	:= $C09
+DHGR_DRAW_MASK_28X8     	:= $C0C
+DHGR_DRAW_PIXEL_4X4     	:= $C0F
+DHGR_SCROLL_LINE        	:= $C12
+DHGR_GET_PIXEL_MASK_28X8    := $C15
 
-DHGR_TILE_7X8           := $C20
-DHGR_TILE_28X8          := $C22
+DHGR_TILE_7X8           	:= $C20
+DHGR_TILE_28X8          	:= $C22
 

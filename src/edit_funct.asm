@@ -115,19 +115,19 @@ max_digit:  .byte   0
 ;-----------------------------------------------------------------------------
 .proc printAll
 
-    lda     tileIndex
+    lda     currentTile
     sta     temp
     lda     #0
-    sta     tileIndex
+    sta     currentTile
 :
     jsr     printDump
-    inc     tileIndex
-    lda     tileIndex
+    inc     currentTile
+    lda     currentTile
     cmp     tileMax
     bne     :-
 
     lda     temp
-    sta     tileIndex
+    sta     currentTile
     rts
 
 temp:   .byte   0
@@ -137,12 +137,12 @@ temp:   .byte   0
 ; printDump
 ;-----------------------------------------------------------------------------
 .proc printDump
-    lda     tileIndex
+    lda     currentTile
     jsr     setTilePointer
 
     jsr     inline_print
     String  "; index $"
-    lda     tileIndex
+    lda     currentTile
     jsr     PRBYTE
 
     jsr     inline_print
@@ -426,7 +426,7 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
 ;-----------------------------------------------------------------------------
 .proc copyTile
 
-    lda     tileIndex
+    lda     currentTile
     jsr     setTilePointer
 
     ldy     #0
@@ -445,7 +445,7 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
 ;-----------------------------------------------------------------------------
 .proc pasteTile
 
-    lda     tileIndex
+    lda     currentTile
     jsr     setTilePointer
 
     ldy     #0

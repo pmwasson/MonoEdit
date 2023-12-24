@@ -21,6 +21,7 @@
     jmp     drawTileMask_28x8
     jmp     drawPixel4x4
     jmp     scrollLine
+    jmp     getPixelMask_28x8
 
 ; Variables (in fixed locations)
 .align 32
@@ -143,9 +144,9 @@ drawLoop:
 ;
 ;-----------------------------------------------------------------------------
 .proc drawTile_28x8
-    bne     :+
-    rts
-:
+;    bne     :+
+;    rts
+;:
     sta     tileIdx
     ; calculate tile pointer
     asl                     ; *16
@@ -348,6 +349,82 @@ screenPtr0Copy: .byte   0
 screenPtr1Copy: .byte   0
 
 .endproc
+
+
+;-----------------------------------------------------------------------------
+; get pixel
+;   get pixel pointed to by tileX, tileY
+;-----------------------------------------------------------------------------
+.proc getPixelMask_28x8
+
+    lda     tileIdx
+    ; calculate tile pointer
+    asl                     ; *16
+    asl
+    asl
+    asl
+    clc
+    adc     tileY           ; + y*2
+    adc     tileY
+    sta     tilePtr0
+    adc     #16
+    sta     maskPtr0
+    lda     tileIdx
+    lsr                     ; /16
+    lsr
+    lsr
+    lsr
+    clc
+    adc     tileSheet_28x8+1
+    sta     tilePtr1
+    sta     maskPtr1
+
+    lda     #0
+    sta     pixelResult
+
+    ldx     tileX
+    lda     pixelBank,x
+    bne     :+
+    sta     RAMRDON         ; aux if even
+:
+
+    ldx     tileX
+    ldy     pixelOffset,x
+    lda     pixelMask,x
+    and     (maskPtr0),y
+    beq     :+
+    lda     #2
+    sta     pixelResult
+:
+    lda     pixelMask,x
+    and     (tilePtr0),y
+    beq     :+
+    lda     #1
+    ora     pixelResult
+    sta     pixelResult
+:
+    sta     RAMRDOFF        ; done
+    rts
+
+.endproc
+
+pixelBank:
+    .byte   $00,$00,$00,$00,$00,$00,$00     ;  0..6  -> Aux
+    .byte   $01,$01,$01,$01,$01,$01,$01     ;  7..13 -> Main
+    .byte   $00,$00,$00,$00,$00,$00,$00     ; 14..20 -> Aux
+    .byte   $01,$01,$01,$01,$01,$01,$01     ; 21..27 -> Main
+
+pixelOffset:
+    .byte   $00,$00,$00,$00,$00,$00,$00     ;  0..6  -> Aux
+    .byte   $00,$00,$00,$00,$00,$00,$00     ;  7..13 -> Main
+    .byte   $01,$01,$01,$01,$01,$01,$01     ; 14..20 -> Aux
+    .byte   $01,$01,$01,$01,$01,$01,$01     ; 21..27 -> Main
+
+pixelMask:
+    .byte   $01,$02,$04,$08,$10,$20,$40     ;  0..6  -> Aux
+    .byte   $01,$02,$04,$08,$10,$20,$40     ;  7..13 -> Main
+    .byte   $01,$02,$04,$08,$10,$20,$40     ; 14..20 -> Aux
+    .byte   $01,$02,$04,$08,$10,$20,$40     ; 21..27 -> Main
 
 ;-----------------------------------------------------------------------------
 ; drawPixel
@@ -591,6 +668,7 @@ loop8:
     rts
 
 .endproc
+
 
 auxMemEnd:
 

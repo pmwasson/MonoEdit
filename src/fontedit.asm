@@ -156,7 +156,7 @@ down_good:
     jsr     inline_print
     .byte   "Previous tile: ",0
 
-    lda     tileIndex
+    lda     currentTile
     bne     previous_continue
     lda     tileMax
 previous_continue:
@@ -172,7 +172,7 @@ previous_continue:
     jsr     inline_print
     .byte   "Previous 16 tiles: ",0
 
-    lda     tileIndex
+    lda     currentTile
     sec     
     sbc     #16
     bpl     previous16_continue
@@ -189,7 +189,7 @@ previous16_continue:
     jsr     inline_print
     .byte   "Next tile: ",0
 
-    lda     tileIndex
+    lda     currentTile
     clc
     adc     #1
     cmp     tileMax
@@ -206,7 +206,7 @@ next_continue:
     jsr     inline_print
     .byte   "Next 16 tiles: ",0
 
-    lda     tileIndex
+    lda     currentTile
     clc
     adc     #16
     cmp     tileMax
@@ -431,7 +431,7 @@ save_exit:
     bit     TXTSET
     jsr     inline_print
     .byte   "Dump Tile ",0
-    lda     tileIndex
+    lda     currentTile
     jsr     PRBYTE
     jsr     inline_print
     .byte   " (ESC when done) ",13,0
@@ -525,7 +525,7 @@ finish_move:
 
 ; jump to after changing tile
 finishChangeTile:
-    sta     tileIndex
+    sta     currentTile
 finishChangeTile_cont:
     jsr     PRBYTE
     lda     #13
@@ -635,7 +635,7 @@ offset:     .byte   0
     sta     tileY
     jsr     drawString
     String  "Tile:"
-    lda     tileIndex
+    lda     currentTile
     jsr     drawNumber
     jmp     drawPreview_7x8
     
@@ -676,7 +676,7 @@ xloop:
     cmp     #2+8*2          ; 8 high
     bne     yloop 
 
-    lda     tileIndex
+    lda     currentTile
     sta     prevIndex
     jsr     setupBox_7x8
     jsr     drawBox
@@ -992,7 +992,7 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE
 
 ; Return 0(black), 1(white) or 2(masked)
 .proc getPixelRaw
-    lda     tileIndex
+    lda     currentTile
     jsr     setTilePointer
     jsr     getPixelOffset
     and     (tilePtr0),y
@@ -1013,7 +1013,7 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE
 ;-----------------------------------------------------------------------------
 
 .proc clearPixel
-    lda     tileIndex
+    lda     currentTile
     jsr     setTilePointer
     jsr     getPixelOffset
     eor     #$ff
@@ -1023,7 +1023,7 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE
 .endproc
 
 .proc setPixel
-    lda     tileIndex
+    lda     currentTile
     jsr     setTilePointer
     jsr     getPixelOffset
     ora     (tilePtr0),y
@@ -1139,7 +1139,7 @@ color:              .byte   0
 curX:               .byte   0
 curY:               .byte   0
 
-tileIndex:          .byte   0
+currentTile:          .byte   0
 tileSize:           .byte   0
 
 ; fixed parameters fo 7x8

@@ -163,7 +163,7 @@ down_good:
     bne     :+
     jsr     inline_print
     .byte   "Previous tile: ",0
-    jsr     decTileIndex
+    jsr     decCurrentTile
     jmp     finishChangeTile
 :
     ;------------------
@@ -175,14 +175,14 @@ down_good:
     .byte   "Previous 8 tiles: ",0
 
     ; Really?  Didn't want to make a loop?
-    jsr     decTileIndex
-    jsr     decTileIndex
-    jsr     decTileIndex
-    jsr     decTileIndex
-    jsr     decTileIndex
-    jsr     decTileIndex
-    jsr     decTileIndex
-    jsr     decTileIndex
+    jsr     decCurrentTile
+    jsr     decCurrentTile
+    jsr     decCurrentTile
+    jsr     decCurrentTile
+    jsr     decCurrentTile
+    jsr     decCurrentTile
+    jsr     decCurrentTile
+    jsr     decCurrentTile
     jmp     finishChangeTile
 :
     ;------------------
@@ -193,7 +193,7 @@ down_good:
     jsr     inline_print
     .byte   "Next tile: ",0
 
-    jsr     incTileIndex
+    jsr     incCurrentTile
     jmp     finishChangeTile
 :
     ;------------------
@@ -203,14 +203,14 @@ down_good:
     bne     :+
     jsr     inline_print
     .byte   "Next 8 tiles: ",0
-    jsr     incTileIndex
-    jsr     incTileIndex
-    jsr     incTileIndex
-    jsr     incTileIndex
-    jsr     incTileIndex
-    jsr     incTileIndex
-    jsr     incTileIndex
-    jsr     incTileIndex
+    jsr     incCurrentTile
+    jsr     incCurrentTile
+    jsr     incCurrentTile
+    jsr     incCurrentTile
+    jsr     incCurrentTile
+    jsr     incCurrentTile
+    jsr     incCurrentTile
+    jsr     incCurrentTile
     jmp     finishChangeTile
 :
     ;------------------
@@ -441,7 +441,7 @@ flip_after:
     bit     TXTSET
     jsr     inline_print
     .byte   "Dump Tile ",0
-    lda     tileIndex
+    lda     currentTile
     jsr     PRBYTE
     jsr     inline_print
     .byte   " (ESC when done) ",13,0
@@ -614,26 +614,26 @@ finishChangeTile:
 ; inc/dec tile index
 ;-----------------------------------------------------------------------------
 
-.proc decTileIndex
-    lda     tileIndex
+.proc decCurrentTile
+    lda     currentTile
     bne     :+
     lda     tileMax
 :
     sec
     sbc     tileInc
-    sta     tileIndex
+    sta     currentTile
     rts
 .endproc
 
-.proc incTileIndex
-    lda     tileIndex
+.proc incCurrentTile
+    lda     currentTile
     clc
     adc     tileInc
     cmp     tileMax
     bcc     :+
     lda     #0
 :
-    sta     tileIndex
+    sta     currentTile
     rts
 .endproc
 
@@ -683,7 +683,7 @@ finishChangeTile:
     lda     #0
     sta     curX
     sta     curY
-    sta     tileIndex
+    sta     currentTile
 
     rts
 
@@ -720,7 +720,7 @@ sizeInc8:       .byte   8,   16
     sta     tileY
     jsr     drawString
     String  "Tile:"
-    lda     tileIndex
+    lda     currentTile
     jsr     drawNumber
 
     lda     modeMasked
@@ -749,10 +749,10 @@ sizeInc8:       .byte   8,   16
     sta     tileX
     lda     #2
     sta     tileY
-    lda     tileIndex
+    lda     currentTile
     jsr     drawTile_56x16
 
-    lda     tileIndex
+    lda     currentTile
     beq     :+
 
     sec
@@ -804,7 +804,7 @@ index:  .byte   0
 :
 
     ; Draw screen full of tiles
-    lda     tileIndex
+    lda     currentTile
     and     #$e0
     sta     previewOffset
     lda     modeMasked
@@ -853,13 +853,13 @@ cont:
 
     lda     modeMasked
     beq     :+
-    lda     tileIndex
+    lda     currentTile
     lsr
     tax
     lda     screenShuffle,x
     jmp     cont2
 :
-    lda     tileIndex
+    lda     currentTile
     sec
     sbc     previewOffset
 cont2:
@@ -872,7 +872,7 @@ cont2:
     clc
     adc     #2
     sta     tileX
-    lda     tileIndex
+    lda     currentTile
     jsr     drawNumber
 
     rts
@@ -966,7 +966,7 @@ screenShuffleReverse:
 
 
     ; draw bottom of previous tile
-    jsr     decTileIndex
+    jsr     decCurrentTile
     lda     pixelOffsetY
     sta     tempOffsetY
     sec
@@ -980,7 +980,7 @@ screenShuffleReverse:
     sbc     #4
     sta     curY
     jsr     yloop
-    jsr     incTileIndex
+    jsr     incCurrentTile
     lda     tempOffsetY
     sta     pixelOffsetY
 
@@ -991,7 +991,7 @@ screenShuffleReverse:
     jsr     yloop
 
     ; draw top of next
-    jsr     incTileIndex
+    jsr     incCurrentTile
     lda     pixelOffsetY
     sta     tempOffsetY
     clc
@@ -1008,7 +1008,7 @@ screenShuffleReverse:
     sta     curX
     sta     curY
     jsr     yloop
-    jsr     decTileIndex
+    jsr     decCurrentTile
     lda     tempOffsetY
     sta     pixelOffsetY
     lda     tempHeight
@@ -1114,6 +1114,10 @@ waitExit:
 
 .proc drawPixel
 
+    ; small pixels
+    jsr     getPixelRaw
+    tax
+
     ; set location
     clc
     lda     curY
@@ -1125,9 +1129,6 @@ waitExit:
     adc     pixelOffsetX
     sta     tileX
 
-    ; small pixels
-    jsr     getPixelRaw
-    tax
     jsr     DHGR_DRAW_PIXEL_4X4
     rts
 
@@ -1203,54 +1204,7 @@ index:  .byte   0
 ;-----------------------------------------------------------------------------
 .proc drawTile_28x8
 
-    ; tile index passes in A
-    jsr     setTilePointer
-
-    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
-
-    ; calculate screen pointer
-    ldx     tileY
-    lda     tileX           ; index by half - tiles in X
-    clc
-    adc     lineOffset,x    ; + lineOffset
-    sta     screenPtr0    
-    lda     linePage,x
-    sta     screenPtr1
-
-    clc     ; no carry generated inside of loop
-    ldx     #8
-
-drawLoop:
-    ; Byte 0,1 in AUX memory
-    sta     RAMWRTON
-    ldy     #0
-    lda     (tilePtr0),y
-    sta     (screenPtr0),y
-    ldy     #1
-    lda     (tilePtr0),y
-    sta     (screenPtr0),y
-
-    ; Bytes 2,3 in MAIN memory
-    inc     tilePtr0
-    inc     tilePtr0
-    sta     RAMWRTOFF
-    ldy     #0
-    lda     (tilePtr0),y
-    sta     (screenPtr0),y
-    ldy     #1
-    lda     (tilePtr0),y
-    sta     (screenPtr0),y
-    inc     tilePtr0
-    inc     tilePtr0
-
-    lda     screenPtr1
-    adc     #4
-    sta     screenPtr1
-
-    dex
-    bne     drawLoop
-
-    rts    
+    jmp     DHGR_DRAW_28X8
 
 .endproc
 
@@ -1289,6 +1243,7 @@ drawLoop:
 ;-----------------------------------------------------------------------------
 
 .proc getPixel
+
     jsr     getPixelRaw
     tax
     lda     colorChar,x
@@ -1300,31 +1255,46 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
 
 ; Return 0(black), 1(white) or 2(masked)
 .proc getPixelRaw
-    lda     tileIndex
-    jsr     setTilePointer
-    jsr     getPixelOffset
-    ldx     modeMasked
-    beq     cont
-    pha     ; remember a
-    tya
+
+    lda     currentTile
+    sta     tileIdx
+
+    lda     curX
+    sta     tileX
+    sec
+    sbc     #28
+    bmi     :+
+    sta     tileX
+    inc     tileIdx
+    inc     tileIdx
+:
+    lda     curY
+    sta     tileY
+    sec
+    sbc     #8
+    bmi     :+
+    sta     tileY
+    lda     tileIdx
     clc
-    adc     #32
-    tay
-    pla
-    and     (tilePtr0),y
-    beq     :+              ; 0 mask -> foreground
-    ; return even/odd background byte
+    adc     #4
+    sta     tileIdx
+:
+    lda     modeMasked
+    bne     :+
+    jsr     DHGR_GET_PIXEL_MASK_28X8
+    and     #1
+    rts
+:
+    ; masked
+    jsr     DHGR_GET_PIXEL_MASK_28X8
+    and     #2
+    bne     :+
+    lda     pixelResult
+    rts
+:
     lda     tileX
     and     #1
     ora     #2
-    rts
-:
-    jsr     getPixelOffset
-cont:
-    and     (tilePtr0),y
-    beq     :+  ; 0 = black
-    lda     #1  ; 1 = white
-:
     rts
 
 .endproc
@@ -1340,7 +1310,7 @@ cont:
 ; Set the pixel at curX,curY to the color passed in A
 .proc copyPixel
     sta     color
-    lda     tileIndex
+    lda     currentTile
     jsr     setTilePointer
     jsr     getPixelOffset
     sta     setMask
@@ -1596,7 +1566,7 @@ color:              .byte   0
 curX:               .byte   0
 curY:               .byte   0
 
-tileIndex:          .byte   0
+currentTile:          .byte   0
 tileMax:            .byte   0
 tileInc:            .byte   0
 tileInc8:           .byte   0
@@ -1689,7 +1659,10 @@ linePage:
 tileSheet_size = tileSheet_end - tileSheet
 
 tileSheet:
-.include "tilesheet_iso.asm"
+
+;.include "tilesheet_iso.asm"
+.res    4096
+
 tileSheet_end:
 
     .dword  .time   ; Time of compilation
