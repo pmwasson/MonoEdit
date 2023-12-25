@@ -616,8 +616,8 @@ imageTable:
     .word   gypsy1Odd
     .word   computerEven
     .word   computerOdd
-    .word   rebelEven
-    .word   rebelOdd
+    .word   ffEven
+    .word   ffOdd
     .word   titleEven
     .word   titleOdd
 imageTableEnd:

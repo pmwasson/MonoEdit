@@ -12,6 +12,6 @@ python3 imageConvert.py wizard.jpg      ..\build\wizard.png     140 64 >> ..\bui
 python3 imageConvert.py robot.jpg       ..\build\robot.png      140 64 >> ..\build\images.asm  || exit
 python3 imageConvert.py gypsy1.jpg      ..\build\gypsy1.png     140 64 >> ..\build\images.asm  || exit
 python3 imageConvert.py computer.jpg    ..\build\computer.png   140 64 >> ..\build\images.asm  || exit
-python3 imageConvert.py rebel.jpg       ..\build\rebel.png      140 64 >> ..\build\images.asm  || exit
+python3 imageConvert.py ff.jpg          ..\build\ff.png         140 64 >> ..\build\images.asm  || exit
 
 python3 imageConvert.py title2.jpg      ..\build\title.png       560 192 > ..\build\title.asm   || exit
