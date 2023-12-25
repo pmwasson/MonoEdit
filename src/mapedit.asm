@@ -198,6 +198,29 @@ toggle_text_off:
     jmp     refresh_loop
 :
 
+
+    ;------------------
+    ; ^E = erase map 
+    ;------------------
+    cmp     #KEY_CTRL_E
+    bne     :+
+    jsr     inline_print
+    StringCR   "Erase map"
+    jsr     eraseMap
+    jmp     refresh_loop
+:
+
+    ;------------------
+    ; ^O = Optimize map
+    ;------------------
+    cmp     #KEY_CTRL_O
+    bne     :+
+    jsr     inline_print
+    StringCR   "Experiment to optimize map to 3 levels"
+    jsr     optimizeMap
+    jmp     refresh_loop
+:
+
     ;------------------
     ; ^P = Print
     ;------------------
@@ -848,6 +871,101 @@ dump_finish:
 
 dump_count: .byte   0
 
+.endproc
+
+;-----------------------------------------------------------------------------
+; optimized map
+;   find first (3) levels that are non zero and remove the rest
+;-----------------------------------------------------------------------------
+
+
+.proc optimizeMap
+
+    ldy     #0
+loop:
+    ldx     #0
+
+    ; clear stack
+    lda     #0
+    sta     stack
+    sta     stack+1
+    sta     stack+2
+
+    lda     isoMap5,y
+    jsr     push
+    bcs     next
+
+    lda     isoMap4,y
+    jsr     push
+    bcs     next
+
+    lda     isoMap3,y
+    jsr     push
+    bcs     next
+
+    lda     isoMap2,y
+    jsr     push
+    bcs     next
+
+    lda     isoMap1,y
+    jsr     push
+    bcs     next
+
+    ; if we still have room, always push 0
+    lda     isoMap0,y
+    sta     stack,x    
+    inx
+next:
+    ; write results
+    lda     #0
+    sta     isoMap5,y
+    sta     isoMap4,y
+    sta     isoMap3,y
+    lda     stack
+    sta     isoMap2,y
+    lda     stack+1
+    sta     isoMap1,y
+    lda     stack+2
+    sta     isoMap0,y
+
+    iny
+    bne     loop
+    rts
+
+push:
+    beq     :+
+    sta     stack,x    
+    inx
+    cpx     #3
+    bne     :+
+    sec
+    rts
+:
+    clc
+    rts
+
+stack: .byte   0,0,0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; erase map
+;-----------------------------------------------------------------------------
+
+.proc eraseMap
+    ldy     #0
+loop:
+    lda     #0
+    sta     isoMap5,y
+    sta     isoMap4,y
+    sta     isoMap3,y
+    sta     isoMap2,y
+    sta     isoMap1,y
+    lda     #MBG
+    sta     isoMap0,y
+    iny
+    bne     loop
+    rts
 .endproc
 
 ;-----------------------------------------------------------------------------
