@@ -46,6 +46,59 @@
 ; clearScreen
 ;
 ;-----------------------------------------------------------------------------
+;
+; bg0 bg1
+; bg2 bg3       pattern
+;
+; 00  00        black           00
+; 00  00                        00
+;
+; 2A  55        25%             01
+; 00  00                        00
+;
+; 55  2a        25%             10
+; 00  00                        00
+;
+; 00  00        25%             00
+; 2A  55                        01
+;
+; 00  00        25%             00
+; 55  2a                        10
+;
+; 7f 7f         horizontal      11
+; 00 00                         00
+;
+; 00 00         horizontal      00
+; 7f 7f                         11
+;
+; 2a 55         vertical        01
+; 2a 55                         01
+;
+; 55 2a         vertical        10
+; 55 2a                         10
+;
+; 2a 55         checkered       01
+; 55 2a                         10
+;
+; 55 2a         checkered       10
+; 2a 55                         01
+;
+; 7f 7f         75%             11
+; 2a 55                         01
+;
+; 7f 7f         75%             11
+; 55 2a                         10
+;
+; 2a 55         75%             01
+; 7f 7f                         11
+;
+; 55 2a         75%             10
+; 7f 7f                         11
+;
+; 7f 7f         white           11
+; 7f 7f                         11
+;
+
 .proc clearScreen
     lda     #$00
     sta     screenPtr0
@@ -79,11 +132,18 @@ loop:
     lda     screenPtr1
     and     #$3
     bne     :+
+
     ; swap colors on odd rows
-    ldx     clearColor+1
+
+    ldx     clearColor+2
     lda     clearColor+0
-    sta     clearColor+1
+    sta     clearColor+2
     stx     clearColor+0
+
+    ldx     clearColor+3
+    lda     clearColor+1
+    sta     clearColor+3
+    stx     clearColor+1
 :
 
     lda     #$40

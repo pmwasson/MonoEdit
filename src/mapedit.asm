@@ -73,9 +73,14 @@ MACRO_ERASE     = 10
     ;sta     clearColor+1
 
     ; white background
-    lda     #$00
+    lda     #$7f
     sta     clearColor+0
+    lda     #$7f    
     sta     clearColor+1
+    lda     #$55
+    sta     clearColor+2
+    lda     #$2a
+    sta     clearColor+3
 
 reset_loop:
     jsr     clearScreen
@@ -992,6 +997,13 @@ MBG = $02
 
 macroList:
 
+;  Upper
+;  Upper
+;  Floor
+;  Floor
+;  Below
+;  Below  (needed?)
+
 ; 0 - cube
 .byte   $00,$00
 .byte   $00,$00
@@ -1029,11 +1041,11 @@ macroList:
 .res    4
 
 ; 4 - brick wall
+.byte   $00,$00
 .byte   $40,$42
 .byte   $44,$46
 .byte   $48,$4a
 .byte   $4c,$4e
-.byte   $54,$56
 .byte   MBG,MBG
 .res    4
 

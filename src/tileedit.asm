@@ -62,6 +62,9 @@ MODE_MASK       = 1
     lda     #0
     sta     clearColor+0
     sta     clearColor+1
+    sta     clearColor+2
+    sta     clearColor+3
+
 reset_loop:
     jsr     clearScreen
 
