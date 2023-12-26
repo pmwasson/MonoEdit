@@ -186,6 +186,9 @@ toggle_text_off:
     bne     :+
     jsr     inline_print
     StringCR "Set tile"
+    ldy     macroIndex
+    lda     macroOverlay,y
+    tax
     lda     macroIndex
     jsr     setMapTile
     jmp     refresh_loop
@@ -199,6 +202,7 @@ toggle_text_off:
     jsr     inline_print
     StringCR "Delete tile"
     lda     #MACRO_ERASE
+    ldx     #1
     jsr     setMapTile
     jmp     refresh_loop
 :
@@ -427,6 +431,12 @@ loopX1:
     ldx     isoIdx
     lda     isoMap5,x
     jsr     DHGR_DRAW_MASK_28X8
+    ldx     isoIdx
+    lda     isoMap6,x
+    jsr     DHGR_DRAW_MASK_28X8
+    ldx     isoIdx
+    lda     isoMap7,x
+    jsr     DHGR_DRAW_MASK_28X8
 
     inc     isoIdx
 
@@ -597,6 +607,12 @@ drawQuarter:
     ldx     index
     lda     isoMap5,x
     jsr     DHGR_DRAW_MASK_28X8
+    ldx     index
+    lda     isoMap6,x
+    jsr     DHGR_DRAW_MASK_28X8
+    ldx     index
+    lda     isoMap7,x
+    jsr     DHGR_DRAW_MASK_28X8
     rts
 
 index:   .byte   0
@@ -693,100 +709,152 @@ temp:   .byte   0
 
     ;---------------------------------
     ; above (2 rows above cursor)
-    ; -> map5/4
+    ; -> map7/6
     ldy     #0                  ; above
     lda     mapCursor
     clc
     adc     #CURSOR_N
     tax
+    clc
+    adc     #MAP_WIDTH*2
+    sta     nextLineIndex
 
     ; above - row 0
     lda     (tilePtr0),y
-    iny
-    sta     isoMap5,x
-    inx
+    ora     overwrite
+    beq     :+
     lda     (tilePtr0),y
+    sta     isoMap7,x
+    inx
     iny
-    sta     isoMap5,x
+    lda     (tilePtr0),y
+    sta     isoMap7,x
 
-    txa
-    clc
-    adc     #MAP_WIDTH*2-1
-    tax
-
+:
+    ldx     nextLineIndex
+    ldy     #2
     ; above - row 1
     lda     (tilePtr0),y
-    iny
-    sta     isoMap4,x
+    ora     overwrite
+    beq     :+
+    lda     (tilePtr0),y
+    sta     isoMap6,x
     inx
+    iny
+    lda     (tilePtr0),y
+    sta     isoMap6,x
+:
+    ;---------------------------------
+    ; overlay (at cursor)
+    ; -> map5/4
+    ldy     #4                  ; above
+    lda     mapCursor
+    tax
+    clc
+    adc     #MAP_WIDTH*2
+    sta     nextLineIndex
+
+    ; overlay - row 0
+    lda     (tilePtr0),y
+    ora     overwrite
+    beq     :+
+    lda     (tilePtr0),y
+    sta     isoMap5,x
+    inx
+    iny
+    lda     (tilePtr0),y
+    sta     isoMap5,x
+    
+:
+    ldx     nextLineIndex
+    ldy     #6
+    ; overlay - row 1
+    lda     (tilePtr0),y
+    ora     overwrite
+    beq     :+
     lda     (tilePtr0),y
     sta     isoMap4,x
-
+    inx
+    iny
+    lda     (tilePtr0),y
+    sta     isoMap4,x
+:
     ;---------------------------------
     ; floor (at cursor)
     ; -> map3/2
-    ldy     #4                  ; floor
-    ldx     mapCursor
+    ldy     #8                  ; floor
+    lda     mapCursor
+    tax
+    clc
+    adc     #MAP_WIDTH*2
+    sta     nextLineIndex
+
     ; floor - row 0
     lda     (tilePtr0),y
-    iny
+    ora     overwrite
+    beq     :+
+    lda     (tilePtr0),y
     sta     isoMap3,x
     inx
-    lda     (tilePtr0),y
     iny
+    lda     (tilePtr0),y
     sta     isoMap3,x
-
-    txa
-    clc
-    adc     #MAP_WIDTH*2-1
-    tax
-
+:
+    ldx     nextLineIndex
+    ldy     #10
     ; floor - row 1
     lda     (tilePtr0),y
-    iny
-    sta     isoMap2,x
-    inx
+    ora     overwrite
+    beq     :+
     lda     (tilePtr0),y
     sta     isoMap2,x
-
+    inx
+    iny
+    lda     (tilePtr0),y
+    sta     isoMap2,x
+:
     ;---------------------------------
     ; below (2 rows below cursor)
     ; -> map1/0
-    ldy     #8                  ; below
+    ldy     #12                 ; below
     lda     mapCursor
     clc
     adc     #CURSOR_S
     tax
+    clc
+    adc     #MAP_WIDTH*2
+    sta     nextLineIndex
 
     ; below - row 0
     lda     (tilePtr0),y
-    iny
+    ora     overwrite
+    beq     :+
+    lda     (tilePtr0),y
     sta     isoMap1,x
     inx
-    lda     (tilePtr0),y
     iny
+    lda     (tilePtr0),y
     sta     isoMap1,x
-
-    txa
-    clc
-    adc     #MAP_WIDTH*2-1
-    tax
-
+:
+    ldx     nextLineIndex
+    ldy     #14
     ; below - row 1
     lda     (tilePtr0),y
-
-    iny
-    sta     isoMap0,x
-    inx
+    ora     overwrite
+    beq     :+
     lda     (tilePtr0),y
     sta     isoMap0,x
-
+    inx
+    iny
+    lda     (tilePtr0),y
+    sta     isoMap0,x
+:
     rts
 
+overwrite:      .byte   0
+nextLineIndex:  .byte   0
 
-overwrite:  .byte   0
 .endproc
-
 
 ;-----------------------------------------------------------------------------
 ; printMap
@@ -841,6 +909,22 @@ overwrite:  .byte   0
     StringCR    "isoMap5:"
     jsr     printMapSection
 
+    lda     #<isoMap6
+    sta     tilePtr0
+    lda     #>isoMap6
+    sta     tilePtr1
+    jsr     inline_print
+    StringCR    "isoMap6:"
+    jsr     printMapSection
+
+    lda     #<isoMap7
+    sta     tilePtr0
+    lda     #>isoMap7
+    sta     tilePtr1
+    jsr     inline_print
+    StringCR    "isoMap7:"
+    jsr     printMapSection
+
     rts
 .endproc
 
@@ -880,7 +964,7 @@ dump_count: .byte   0
 
 ;-----------------------------------------------------------------------------
 ; optimized map
-;   find first (3) levels that are non zero and remove the rest
+;   find first (4) levels that are non zero and remove the rest
 ;-----------------------------------------------------------------------------
 
 
@@ -895,6 +979,15 @@ loop:
     sta     stack
     sta     stack+1
     sta     stack+2
+    sta     stack+3
+
+    lda     isoMap7,y
+    jsr     push
+    bcs     next
+
+    lda     isoMap6,y
+    jsr     push
+    bcs     next
 
     lda     isoMap5,y
     jsr     push
@@ -923,14 +1016,17 @@ loop:
 next:
     ; write results
     lda     #0
+    sta     isoMap7,y
+    sta     isoMap6,y
     sta     isoMap5,y
     sta     isoMap4,y
-    sta     isoMap3,y
     lda     stack
-    sta     isoMap2,y
+    sta     isoMap3,y
     lda     stack+1
-    sta     isoMap1,y
+    sta     isoMap2,y
     lda     stack+2
+    sta     isoMap1,y
+    lda     stack+3
     sta     isoMap0,y
 
     iny
@@ -949,7 +1045,7 @@ push:
     clc
     rts
 
-stack: .byte   0,0,0
+stack: .byte   0,0,0,0
 
 .endproc
 
@@ -961,6 +1057,8 @@ stack: .byte   0,0,0
     ldy     #0
 loop:
     lda     #0
+    sta     isoMap7,y
+    sta     isoMap6,y
     sta     isoMap5,y
     sta     isoMap4,y
     sta     isoMap3,y
@@ -990,15 +1088,27 @@ macroIndex: .byte   1
 ; Data
 ;-----------------------------------------------------------------------------
 
-; map background (2,4,6)
-MBG = $02
+macroOverlay:
+    .byte   1       ;   0 Cube   
+    .byte   1       ;   1 Grass  
+    .byte   1       ;   2 Water  
+    .byte   1       ;   3 Tile   
+    .byte   1       ;   4 Brick  
+    .byte   1       ;   5 Tree   
+    .byte   1       ;   6 Reed   
+    .byte   0       ;   7 Chair_L
+    .res    8
 
 .align 256
+; map background (2,4,6)
+MBG = $02
 
 macroList:
 
 ;  Upper
 ;  Upper
+;  Overlay
+;  Overlay
 ;  Floor
 ;  Floor
 ;  Below
@@ -1007,83 +1117,92 @@ macroList:
 ; 0 - cube
 .byte   $00,$00
 .byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
 .byte   $08,$0a
 .byte   $0c,$0e
 .byte   $10,$12
 .byte   MBG,MBG
-.res    4
 
 ; 1 - grass
+.byte   $00,$00
+.byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
 .byte   $18,$1a
 .byte   $1c,$1e
 .byte   $20,$22
 .byte   MBG,MBG
-.res    4
 
 ; 2 - water
+.byte   $00,$00
+.byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
 .byte   $28,$2a
 .byte   $2c,$2e
 .byte   $30,$32
 .byte   $34,$36
-.res    4
 
 ; 3 - tile
+.byte   $00,$00
+.byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
 .byte   $38,$3a
 .byte   $3c,$3e
 .byte   $00,$00
 .byte   MBG,MBG
-.res    4
 
 ; 4 - brick wall
 .byte   $00,$00
 .byte   $40,$42
+.byte   $00,$00
+.byte   $00,$00
 .byte   $44,$46
 .byte   $48,$4a
 .byte   $4c,$4e
 .byte   MBG,MBG
-.res    4
 
 ; 5 - tree
 .byte   $58,$5a
 .byte   $5c,$5e
+.byte   $00,$00
+.byte   $00,$00
 .byte   $60,$62
 .byte   $64,$66
 .byte   $20,$22
 .byte   MBG,MBG
-.res    4
 
 ; 6 - reed
+.byte   $00,$00
+.byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
 .byte   $68,$6a
 .byte   $6c,$6e
 .byte   $30,$32
 .byte   $34,$36
-.res    4
 
 ; 7 - Chair Left
+.byte   $00,$00
 .byte   $70,$72
 .byte   $74,$76
-.byte   $78,$7a
-.byte   $7c,$7e
-.byte   $10,$12
-.byte   $14,$16
-.res    4
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
 
 ; 8 - Chair Right
 .byte   $80,$82
 .byte   $84,$86
+.byte   $00,$00
+.byte   $00,$00
 .byte   $88,$8a
 .byte   $8c,$8e
 .byte   $10,$12
 .byte   $14,$16
-.res    4
 
 ; 9
 .res    16
@@ -1094,8 +1213,9 @@ macroList:
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
 .byte   MBG,MBG
-.res    4
 
 
 
@@ -1192,6 +1312,42 @@ isoMap4:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
 isoMap5:
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+
+isoMap6:
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+
+isoMap7:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
