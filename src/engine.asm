@@ -27,6 +27,7 @@
     jmp     dumpInit
     jmp     dumpByte
     jmp     setByte
+    jmp     clearScreen
 
 ; Variables (in fixed locations)
 .align 64
@@ -57,7 +58,17 @@ tileSheet_28x8:         .word   $B000
     ; init variables
     lda     #0
     sta     drawPage
-    sta     invMask
+
+    ; background pattern
+    lda     #$2a
+    sta     bgPattern00
+    lda         #$55    
+    sta     bgPattern01
+    lda     #$55
+    sta     bgPattern10
+    lda         #$2a
+    sta     bgPattern11
+
     rts
 
 .endproc
@@ -246,6 +257,122 @@ screenPtr1Copy: .byte   0
 ;   
 ;-----------------------------------------------------------------------------
 .proc drawTileMask_28x8
+
+    bne     :+
+    rts                     ; tile 0 is skip
+:
+
+    sta     tileIdx
+    ; calculate tile pointer
+    asl                     ; *16
+    asl
+    asl
+    asl
+    sta     tilePtr0
+    sta     tilePtr0Copy
+    clc
+    adc     #16
+    sta     maskPtr0
+    lda     tileIdx
+    lsr                     ; /16
+    lsr
+    lsr
+    lsr
+    clc
+    adc     tileSheet_28x8+1
+    sta     tilePtr1
+    sta     maskPtr1
+
+    ; calculate screen pointer
+    ldx     tileY
+    lda     tileX
+    clc
+    adc     lineOffset,x    ; + lineOffset
+    sta     screenPtr0    
+    sta     screenPtr0Copy
+    lda     linePage,x
+    adc     drawPage
+    sta     screenPtr1
+    sta     screenPtr1Copy
+
+    jsr     drawTile
+
+
+    ; restore tile pointers (page byte doesn't change)
+    lda     tilePtr0Copy
+    sta     tilePtr0
+    clc
+    adc     #16
+    sta     maskPtr0
+
+    ; restore screen pointer
+    lda     screenPtr0Copy
+    sta     screenPtr0
+    lda     screenPtr1Copy
+    sta     screenPtr1
+
+    ; transfer to aux memory
+    sta     RAMWRTON  
+    sta     RAMRDON  
+
+    ; draw half of tile in aux mem
+    jsr     drawTile    ; AUX
+
+    sta     RAMWRTOFF   ; AUX
+    sta     RAMRDOFF    ; AUX
+
+    rts
+
+drawTile:
+
+    clc     ; no carry generated inside of loop
+    ldx     #8  ; 8 lines
+
+drawLoop:
+    ldy     #0
+    lda     (screenPtr0),y
+    and     (maskPtr0),y
+    ora     (tilePtr0),y
+    sta     (screenPtr0),y
+    ldy     #1
+    lda     (screenPtr0),y
+    and     (maskPtr0),y
+    ora     (tilePtr0),y
+    sta     (screenPtr0),y
+
+    ; assumes aligned such that there are no page crossing
+    lda     tilePtr0
+    adc     #2
+    sta     tilePtr0
+
+    lda     maskPtr0
+    adc     #2
+    sta     maskPtr0
+
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dex
+    bne     drawLoop
+
+    rts    
+
+; locals
+tilePtr0Copy:     .byte   0
+maskPtr0Copy:     .byte   0
+screenPtr0Copy: .byte   0
+screenPtr1Copy: .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; Draw Tile w/Mask 28x8 using background
+;
+; 4*8*2 = 32 bytes (16 main / 16 aux) + 32 bytes mask (16 main / 16 aux)
+;   
+;-----------------------------------------------------------------------------
+.proc drawTileMaskBG_28x8
 
     bne     :+
     rts                     ; tile 0 is skip
@@ -826,6 +953,90 @@ loop8:
 
 auxMemEnd:
 
+;-----------------------------------------------------------------------------
+; clearScreen
+;
+;-----------------------------------------------------------------------------
+; 00 00 -- black
+; 00 00 
+;
+; 2a 55  - 25%
+; 00 00
+;
+; 7f 7f -- horizontal
+; 00 00 
+;
+; 2a 55 -- vertical
+; 2a 55
+;
+; 2a 55 -- checkered
+; 55 2a                  
+;
+; 7f 7f -- 75%      
+; 2a 55                  
+;
+; 7f 7f -- white    
+; 7f 7f                  
+;
+
+.proc clearScreen
+    lda     #$00
+    sta     screenPtr0
+    lda     #$20
+    clc
+    adc     drawPage
+    sta     screenPtr1
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem
+
+loop:
+    ldy     #0
+
+    lda     bgPattern00
+    ; aux mem
+    sta     RAMWRTON
+:
+    sta     (screenPtr0),y
+    iny
+    bne     :-
+
+    sta     RAMWRTOFF
+
+    lda     bgPattern01
+    ; main mem
+:
+    sta     (screenPtr0),y
+    iny
+    bne     :-
+
+    inc     screenPtr1
+
+    lda     screenPtr1
+    and     #$3
+    bne     :+
+
+    ; swap colors on odd rows
+
+    ldx     bgPattern10
+    lda     bgPattern00
+    sta     bgPattern10
+    stx     bgPattern00
+
+    ldx     bgPattern11
+    lda     bgPattern01
+    sta     bgPattern11
+    stx     bgPattern01
+:
+
+    lda     screenPtr1
+    and     #$1f
+    bne     loop
+
+    rts
+
+.endproc
+
+
 ; Lookup tables
 ;-----------------------------------------------------------------------------
 
@@ -1007,58 +1218,6 @@ testMap1:   ; 5x5
     .byte       $00,  $2c,  $2e,  $00,  $00,  $00,  $00,  $00
     .byte       $24,  $00,  $00,  $26,  $24,  $26,  $24,  $26
 
-
-clearScreen:
-    lda     #$00
-    sta     screenPtr0
-    lda     #$20
-    sta     screenPtr1
-
-    sta     CLR80COL        ; Use RAMWRT for aux mem
-
-    lda     #$ff
-    sta     pattern
-
-loop:
-    ldy     #0
-
-    ; aux mem
-    sta     RAMWRTON
-
-    lda     #0
-:
-    lda     #$2a
-    eor     pattern
-    sta     (screenPtr0),y
-    iny
-    bne     :-
-
-    sta     RAMWRTOFF
-
-    ; main mem
-:
-    lda     #$55
-    eor     pattern
-    sta     (screenPtr0),y
-    iny
-    bne     :-
-
-    inc     screenPtr1
-
-    lda     screenPtr1
-    and     #$3
-    bne     :+
-    lda     pattern
-    eor     #$ff
-    sta     pattern
-:
-
-    lda     #$40
-    cmp     screenPtr1
-    bne     loop
-    rts
-
-pattern:    .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -1078,6 +1237,5 @@ quit_params:
     .word   0               ; Reserved pointer for future use (what future?)
     .byte   0               ; Reserved byte for future use (what future?)
     .word   0               ; Reserved pointer for future use (what future?)
-
 
 .endproc

@@ -72,24 +72,19 @@ MACRO_ERASE     = 20
     jsr     DHGR_INIT
     jsr     initMonochrome  ; Turn on monochrome dhgr
 
-    ; set background to gray
-    ;lda     #$55
-    ;sta     clearColor+0
-    ;lda     #$2a
-    ;sta     clearColor+1
-
-    ; white background
+    ; background pattern
     lda     #$2a
-    sta     clearColor+0
+    sta     bgPattern00
     lda         #$57    
-    sta     clearColor+1
+    sta     bgPattern01
     lda     #$57
-    sta     clearColor+2
+    sta     bgPattern10
     lda         #$2a
-    sta     clearColor+3
+    sta     bgPattern11
 
 reset_loop:
-    jsr     clearScreen
+    jsr     DHGR_CLEAR_SCREEN
+
     lda     #CURSOR_INIT
     sta     mapCursor
 
@@ -1021,7 +1016,7 @@ dump_count: .byte   0
 
 ;-----------------------------------------------------------------------------
 ; optimized map
-;   find first (4) levels that are non zero and remove the rest
+;   find first (3) levels that are non zero and remove the rest
 ;-----------------------------------------------------------------------------
 
 
@@ -1066,24 +1061,24 @@ loop:
     jsr     push
     bcs     next
 
-    ; if we still have room, always push 0
     lda     isoMap0,y
-    sta     stack,x    
-    inx
+    jsr     push
+
 next:
     ; write results
+    txa
+    sta     isoMapInfo,y
     lda     #0
     sta     isoMap7,y
     sta     isoMap6,y
     sta     isoMap5,y
     sta     isoMap4,y
-    lda     stack
     sta     isoMap3,y
-    lda     stack+1
+    lda     stack
     sta     isoMap2,y
-    lda     stack+2
+    lda     stack+1
     sta     isoMap1,y
-    lda     stack+3
+    lda     stack+2
     sta     isoMap0,y
 
     iny
@@ -1092,6 +1087,8 @@ next:
 
 push:
     beq     :+
+    cmp     #MBG
+    beq     :+          ; treat background as no hit
     sta     stack,x    
     inx
     cpx     #3
@@ -1468,3 +1465,5 @@ isoMap7:    ; up2
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+
+isoMapInfo:     .res    256

@@ -43,8 +43,6 @@ screen2Ptr0     :=  $1d
 screen2Ptr1     :=  $1e
 stringPtr0      :=  $fe
 stringPtr1      :=  $ff
-mapPtr0         :=  $ec
-mapPtr1         :=  $ed
 
 ; Indexes
 tileIdx         :=  $1d
@@ -52,21 +50,25 @@ tileX           :=  $e3
 tileY           :=  $e8
 tileX2 			:=  $fc
 tileY2 			:=  $fd
-mapWindowX      :=  $fa
-mapWindowY      :=  $fb
 
 ; Controls
 drawPage        :=  $d7
-invMask         :=  $ee
 pixelResult 	:=  tileX2
+bgPattern00     :=  $ce
+bgPattern01     :=  $cf
+bgPattern10     :=  $ec
+bgPattern11     :=  $ed
 
 ; following are available to use
 ;               :=  $08
 ;               :=  $09
-;               :=  $19
-;               :=  $1a
 ;               :=  $ce
 ;               :=  $cf
+;               :=  $ec
+;               :=  $ed
+;               :=  $ee
+;      			:=  $fa
+;      			:=  $fb
 
 
 
@@ -186,6 +188,7 @@ DHGR_SET_MASK_28X8          := $C1B
 DHGR_DUMP_INIT              := $C1E
 DHGR_DUMP_BYTE              := $C21
 DHGR_SET_BYTE               := $C24
+DHGR_CLEAR_SCREEN 			:= $C27
 
 DHGR_TILE_7X8           	:= $C40
 DHGR_TILE_28X8          	:= $C42

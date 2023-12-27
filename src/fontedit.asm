@@ -49,12 +49,14 @@ SIZE_7x8        = 0
 
     jsr     initMonochrome  ; Turn on monochrome dhgr
 
-    lda     #0
-    sta     clearColor+0
-    sta     clearColor+1
+    lda     #$00
+    sta     bgPattern00
+    sta     bgPattern01
+    sta     bgPattern10
+    sta     bgPattern11
 
 reset_loop:
-    jsr     clearScreen
+    jsr     DHGR_CLEAR_SCREEN
 
 refresh_loop:
     jsr     drawCanvas

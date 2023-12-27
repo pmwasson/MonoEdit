@@ -60,13 +60,13 @@ MODE_MASK       = 1
     ;jsr     initColorMode
 
     lda     #0
-    sta     clearColor+0
-    sta     clearColor+1
-    sta     clearColor+2
-    sta     clearColor+3
+    sta     bgPattern00
+    sta     bgPattern01
+    sta     bgPattern10
+    sta     bgPattern11
 
 reset_loop:
-    jsr     clearScreen
+    jsr     DHGR_CLEAR_SCREEN
 
 refresh_loop:
     jsr     drawCanvas
