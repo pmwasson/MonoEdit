@@ -59,8 +59,8 @@ MAPEND              :=  READBUFFER + MAPLENGTH - 1
 ; BGEND             :=  READBUFFER + BGLENGTH - 1
 ; BGI4END           :=  BGSTART + BGLENGTH/2 - 1
 
-ISOSTART            :=  $A000
-ISOLENGTH           =   256*16
+ISOSTART            :=  $8000
+ISOLENGTH           =   256*32
 ISOEND              :=  READBUFFER + ISOLENGTH - 1
 ISOI2END            :=  ISOSTART + ISOLENGTH/2 - 1
 

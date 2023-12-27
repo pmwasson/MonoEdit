@@ -619,9 +619,13 @@ finishChangeTile:
 
 .proc decCurrentTile
     lda     currentTile
-    bne     :+
-    lda     tileMax
-:
+
+;   Skip range check if sized maxed out
+;
+;    bne     :+
+;    lda     tileMax
+;:
+
     sec
     sbc     tileInc
     sta     currentTile
@@ -632,10 +636,14 @@ finishChangeTile:
     lda     currentTile
     clc
     adc     tileInc
-    cmp     tileMax
-    bcc     :+
-    lda     #0
-:
+
+;   Skip range check if sized maxed out
+;
+;    cmp     tileMax
+;    bcc     :+
+;    lda     #0
+;:
+
     sta     currentTile
     rts
 .endproc
@@ -703,9 +711,9 @@ sizePixelOffsetX:   .byte   2,  2
 sizePixelOffsetY:   .byte   6,  6   
 
 ; 6k / 4*8 = 192
-sizeMax:        .byte   192, 192
-sizeInc:        .byte   1,   4 
-sizeInc8:       .byte   8,   16
+sizeMax:        .byte   0,  0
+sizeInc:        .byte   1,  4 
+sizeInc8:       .byte   8,  16
 
 .endproc
 
@@ -1212,33 +1220,6 @@ index:  .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
-; setTilePointer
-;
-;   Index passed in A
-;-----------------------------------------------------------------------------
-.proc setTilePointer
-    ; 32 bytes
-    tay     ; copy A
-    ; calculate tile pointer
-    asl                     ; *32
-    asl
-    asl
-    asl
-    asl
-    sta     tilePtr0
-    tya     ; restore A
-    lsr                     ; /8
-    lsr
-    lsr
-    clc
-    adc     currentSheet_28x8+1
-    sta     tilePtr1
-
-    rts
-
-.endproc
-
-;-----------------------------------------------------------------------------
 ; getPixel
 ;
 ;  Read single pixel from tile returned in A using curX and curY
@@ -1613,17 +1594,19 @@ dump_count: .byte   0
     sta     create_params+2
     sta     stringPtr1
 
+    brk                 ; FIXME: load/save broken -- need to read/write interleaved
+
     ; set address
-    lda     #<tileSheet
-    sta     rw_params+2
-    lda     #>tileSheet
-    sta     rw_params+3
+;    lda     #<tileSheet
+;    sta     rw_params+2
+;    lda     #>tileSheet
+;    sta     rw_params+3
 
     ; set size
-    lda     #<tileSheet_size
-    sta     rw_params+4
-    lda     #>tileSheet_size
-    sta     rw_params+5
+;    lda     #<tileSheet_size
+;    sta     rw_params+4
+;    lda     #>tileSheet_size
+;    sta     rw_params+5
 
     lda     #':' + $80
     jsr     COUT
@@ -1668,10 +1651,6 @@ pixelOffsetY:       .byte   0
 
 modeMasked:         .byte   1
 lastColor:          .byte   PIXEL_WHITE
-
-; General
-
-currentSheet_28x8:  .word   tileSheet
 
 ; ProDos pathname
 
@@ -1734,19 +1713,5 @@ linePage:
     .byte   >$22D0
     .byte   >$2350
     .byte   >$23D0
-
-; Tiles
-;-----------------------------------------------------------------------------
-
-.align 256
-
-tileSheet_size = tileSheet_end - tileSheet
-
-tileSheet:
-
-;.include "tilesheet_iso.asm"
-.res    4096
-
-tileSheet_end:
 
     .dword  .time   ; Time of compilation

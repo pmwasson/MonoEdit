@@ -42,7 +42,13 @@ CURSOR_NW       = 256 - MAP_WIDTH*2   - 1
 CURSOR_SE       =       MAP_WIDTH*2   + 1
 CURSOR_SW       =       MAP_WIDTH*2   - 1
 
-MACRO_ERASE     = 10
+CURSOR_U2       = 256 - MAP_WIDTH*2*2
+CURSOR_U1       = 256 - MAP_WIDTH*2
+CURSOR_D1       =       MAP_WIDTH*2
+CURSOR_D2       =       MAP_WIDTH*2*2
+CURSOR_D3       =       MAP_WIDTH*2*3
+
+MACRO_ERASE     = 20
 
 ;------------------------------------------------
 .segment "CODE"
@@ -73,13 +79,13 @@ MACRO_ERASE     = 10
     ;sta     clearColor+1
 
     ; white background
-    lda     #$7f
-    sta     clearColor+0
-    lda     #$7f    
-    sta     clearColor+1
-    lda     #$55
-    sta     clearColor+2
     lda     #$2a
+    sta     clearColor+0
+    lda         #$57    
+    sta     clearColor+1
+    lda     #$57
+    sta     clearColor+2
+    lda         #$2a
     sta     clearColor+3
 
 reset_loop:
@@ -163,13 +169,14 @@ toggle_text_off:
 :
 
     ;------------------
-    ; 0-9 = choose macro
+    ; 0-9 = choose macro (plus shift)
     ;------------------
     cmp     #KEY_0
     bmi     :+
     cmp     #KEY_9+1
     bpl     :+
     and     #$f
+chooseMacro:
     sta     macroIndex
     jsr     inline_print
     .byte   "Set macro to ",0
@@ -178,6 +185,61 @@ toggle_text_off:
     lda     #13
     jsr     COUT
     jmp     command_loop
+:
+
+    ; Also check for shift number for the next set of macros:
+    ; !  @  #  $  %  ^  &  *  (  )
+    ; 11 12 13 14 15 16 17 18 19 10
+
+    cmp     #$80 | ')'
+    bne     :+
+    lda     #10
+    jmp     chooseMacro
+:
+    cmp     #$80 | '!'
+    bne     :+
+    lda     #11
+    jmp     chooseMacro
+:
+    cmp     #$80 | '@'
+    bne     :+
+    lda     #12
+    jmp     chooseMacro
+:
+    cmp     #$80 | '#'
+    bne     :+
+    lda     #13
+    jmp     chooseMacro
+:
+    cmp     #$80 | '$'
+    bne     :+
+    lda     #14
+    jmp     chooseMacro
+:
+    cmp     #$80 | '%'
+    bne     :+
+    lda     #15
+    jmp     chooseMacro
+:
+    cmp     #$80 | '^'
+    bne     :+
+    lda     #16
+    jmp     chooseMacro
+:
+    cmp     #$80 | '&'
+    bne     :+
+    lda     #17
+    jmp     chooseMacro
+:
+    cmp     #$80 | '*'
+    bne     :+
+    lda     #18
+    jmp     chooseMacro
+:
+    cmp     #$80 | '('
+    bne     :+
+    lda     #19
+    jmp     chooseMacro
 :
     ;------------------
     ; SP = Set Tile
@@ -708,18 +770,13 @@ temp:   .byte   0
     jsr     setMacroPointer
 
     ;---------------------------------
-    ; above (2 rows above cursor)
-    ; -> map7/6
-    ldy     #0                  ; above
+    ; up2 -> map7 (macro 0,1)
+    ldy     #0
     lda     mapCursor
     clc
-    adc     #CURSOR_N
+    adc     #CURSOR_U2
     tax
-    clc
-    adc     #MAP_WIDTH*2
-    sta     nextLineIndex
 
-    ; above - row 0
     lda     (tilePtr0),y
     ora     overwrite
     beq     :+
@@ -729,11 +786,15 @@ temp:   .byte   0
     iny
     lda     (tilePtr0),y
     sta     isoMap7,x
-
 :
-    ldx     nextLineIndex
+    ;---------------------------------
+    ; up1 -> map6 (macro 2,3)
     ldy     #2
-    ; above - row 1
+    lda     mapCursor
+    clc
+    adc     #CURSOR_U1
+    tax
+
     lda     (tilePtr0),y
     ora     overwrite
     beq     :+
@@ -745,16 +806,10 @@ temp:   .byte   0
     sta     isoMap6,x
 :
     ;---------------------------------
-    ; overlay (at cursor)
-    ; -> map5/4
-    ldy     #4                  ; above
-    lda     mapCursor
-    tax
-    clc
-    adc     #MAP_WIDTH*2
-    sta     nextLineIndex
+    ; zero -> map5 (macro 4,5) -- OVERLAY
+    ldy     #4
+    ldx     mapCursor
 
-    ; overlay - row 0
     lda     (tilePtr0),y
     ora     overwrite
     beq     :+
@@ -764,11 +819,12 @@ temp:   .byte   0
     iny
     lda     (tilePtr0),y
     sta     isoMap5,x
-    
 :
-    ldx     nextLineIndex
+    ;---------------------------------
+    ; zero -> map4 (macro 6,7)
     ldy     #6
-    ; overlay - row 1
+    ldx     mapCursor
+
     lda     (tilePtr0),y
     ora     overwrite
     beq     :+
@@ -780,16 +836,13 @@ temp:   .byte   0
     sta     isoMap4,x
 :
     ;---------------------------------
-    ; floor (at cursor)
-    ; -> map3/2
-    ldy     #8                  ; floor
+    ; down1 -> map6 (macro 8,9) -- OVERLAY
+    ldy     #8
     lda     mapCursor
-    tax
     clc
-    adc     #MAP_WIDTH*2
-    sta     nextLineIndex
+    adc     #CURSOR_D1
+    tax
 
-    ; floor - row 0
     lda     (tilePtr0),y
     ora     overwrite
     beq     :+
@@ -800,9 +853,14 @@ temp:   .byte   0
     lda     (tilePtr0),y
     sta     isoMap3,x
 :
-    ldx     nextLineIndex
+    ;---------------------------------
+    ; down1 -> map6 (macro 10,11)
     ldy     #10
-    ; floor - row 1
+    lda     mapCursor
+    clc
+    adc     #CURSOR_D1
+    tax
+
     lda     (tilePtr0),y
     ora     overwrite
     beq     :+
@@ -814,18 +872,13 @@ temp:   .byte   0
     sta     isoMap2,x
 :
     ;---------------------------------
-    ; below (2 rows below cursor)
-    ; -> map1/0
-    ldy     #12                 ; below
+    ; down2 -> map7 (macro 12,13)
+    ldy     #12
     lda     mapCursor
     clc
-    adc     #CURSOR_S
+    adc     #CURSOR_D2
     tax
-    clc
-    adc     #MAP_WIDTH*2
-    sta     nextLineIndex
 
-    ; below - row 0
     lda     (tilePtr0),y
     ora     overwrite
     beq     :+
@@ -836,9 +889,14 @@ temp:   .byte   0
     lda     (tilePtr0),y
     sta     isoMap1,x
 :
-    ldx     nextLineIndex
+    ;---------------------------------
+    ; down3 -> map7 (macro 14,15)
     ldy     #14
-    ; below - row 1
+    lda     mapCursor
+    clc
+    adc     #CURSOR_D3
+    tax
+
     lda     (tilePtr0),y
     ora     overwrite
     beq     :+
@@ -852,7 +910,6 @@ temp:   .byte   0
     rts
 
 overwrite:      .byte   0
-nextLineIndex:  .byte   0
 
 .endproc
 
@@ -1097,7 +1154,10 @@ macroOverlay:
     .byte   1       ;   5 Tree   
     .byte   1       ;   6 Reed   
     .byte   0       ;   7 Chair_L
-    .res    8
+    .byte   0       ;   8 Chair_R
+    .byte   0       ;   9 Goofy
+    .byte   0       ;   A Wizard
+    .res    9
 
 .align 256
 ; map background (2,4,6)
@@ -1118,8 +1178,8 @@ macroList:
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $00,$00
 .byte   $08,$0a
+.byte   $00,$00
 .byte   $0c,$0e
 .byte   $10,$12
 .byte   MBG,MBG
@@ -1128,8 +1188,8 @@ macroList:
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $00,$00
 .byte   $18,$1a
+.byte   $00,$00
 .byte   $1c,$1e
 .byte   $20,$22
 .byte   MBG,MBG
@@ -1138,8 +1198,8 @@ macroList:
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $00,$00
 .byte   $28,$2a
+.byte   $00,$00
 .byte   $2c,$2e
 .byte   $30,$32
 .byte   $34,$36
@@ -1148,8 +1208,8 @@ macroList:
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $00,$00
 .byte   $38,$3a
+.byte   $00,$00
 .byte   $3c,$3e
 .byte   $00,$00
 .byte   MBG,MBG
@@ -1158,8 +1218,8 @@ macroList:
 .byte   $00,$00
 .byte   $40,$42
 .byte   $00,$00
-.byte   $00,$00
 .byte   $44,$46
+.byte   $00,$00
 .byte   $48,$4a
 .byte   $4c,$4e
 .byte   MBG,MBG
@@ -1168,8 +1228,8 @@ macroList:
 .byte   $58,$5a
 .byte   $5c,$5e
 .byte   $00,$00
-.byte   $00,$00
 .byte   $60,$62
+.byte   $00,$00
 .byte   $64,$66
 .byte   $20,$22
 .byte   MBG,MBG
@@ -1178,36 +1238,80 @@ macroList:
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $00,$00
 .byte   $68,$6a
+.byte   $00,$00
 .byte   $6c,$6e
 .byte   $30,$32
 .byte   $34,$36
 
 ; 7 - Chair Left
 .byte   $00,$00
+.byte   $00,$00
 .byte   $70,$72
+.byte   $00,$00
 .byte   $74,$76
-.byte   $00,$00
-.byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
 
 ; 8 - Chair Right
-.byte   $80,$82
-.byte   $84,$86
 .byte   $00,$00
 .byte   $00,$00
-.byte   $88,$8a
-.byte   $8c,$8e
-.byte   $10,$12
-.byte   $14,$16
+.byte   $78,$7a
+.byte   $00,$00
+.byte   $7c,$7e
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
 
-; 9
+; 9 - Goofy
+.byte   $90,$92
+.byte   $94,$96
+.byte   $98,$9a
+.byte   $00,$00
+.byte   $9c,$9e
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
+
+; A - Wizard
+.byte   $a0,$a2
+.byte   $a4,$a6
+.byte   $a8,$aa
+.byte   $00,$00
+.byte   $ac,$ae
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
+
+; 11
 .res    16
 
-; 10 - DEL
+; 12
+.res    16
+
+; 13
+.res    16
+
+; 14
+.res    16
+
+; 15
+.res    16
+
+; 16
+.res    16
+
+; 17
+.res    16
+
+; 18
+.res    16
+
+; 19
+.res    16
+
+; 20 - DEL
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
@@ -1221,7 +1325,7 @@ macroList:
 
 .align 256
 
-isoMap0:
+isoMap0:    ; down 3
 .byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
 .byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
 .byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
@@ -1239,7 +1343,7 @@ isoMap0:
 .byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
 .byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
 
-isoMap1:
+isoMap1:    ; down 2
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
@@ -1257,7 +1361,7 @@ isoMap1:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
-isoMap2:
+isoMap2:    ; down 1
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
@@ -1275,7 +1379,7 @@ isoMap2:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
-isoMap3:
+isoMap3:    ; down 1'
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
@@ -1293,7 +1397,7 @@ isoMap3:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
-isoMap4:
+isoMap4:    ; zero
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
@@ -1311,7 +1415,7 @@ isoMap4:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
-isoMap5:
+isoMap5:    ; zero'
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
@@ -1329,7 +1433,7 @@ isoMap5:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
-isoMap6:
+isoMap6:    ; up1
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
@@ -1347,7 +1451,7 @@ isoMap6:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
-isoMap7:
+isoMap7:    ; up2
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
