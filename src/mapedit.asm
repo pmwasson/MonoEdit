@@ -1143,18 +1143,26 @@ macroIndex: .byte   1
 ;-----------------------------------------------------------------------------
 
 macroOverlay:
-    .byte   1       ;   0 Cube   
-    .byte   1       ;   1 Grass  
-    .byte   1       ;   2 Water  
-    .byte   1       ;   3 Tile   
-    .byte   1       ;   4 Brick  
-    .byte   1       ;   5 Tree   
-    .byte   1       ;   6 Reed   
-    .byte   0       ;   7 Chair_L
-    .byte   0       ;   8 Chair_R
-    .byte   0       ;   9 Goofy
-    .byte   0       ;   A Wizard
-    .res    9
+    .byte   1       ;   0  Cube   
+    .byte   1       ;   1  Grass  
+    .byte   1       ;   2  Water  
+    .byte   1       ;   3  Reed   
+    .byte   1       ;   4  Tile
+    .byte   1       ;   5  Brick Wall 
+    .byte   0       ;   6  Wizard   
+    .byte   0       ;   7  Robot
+    .byte   0       ;   8  Goofy
+    .byte   0       ;   9  Chair-left
+    .byte   0       ;   10 Pattern Cube
+    .byte   1       ;   11 Tree
+    .byte   1       ;   12 Pond rock
+    .byte   0       ;   13
+    .byte   0       ;   14
+    .byte   0       ;   15
+    .byte   0       ;   16
+    .byte   0       ;   17
+    .byte   0       ;   18
+    .byte   0       ;   19 Chair-right
 
 .align 256
 ; map background (2,4,6)
@@ -1201,37 +1209,7 @@ macroList:
 .byte   $30,$32
 .byte   $34,$36
 
-; 3 - tile
-.byte   $00,$00
-.byte   $00,$00
-.byte   $00,$00
-.byte   $38,$3a
-.byte   $00,$00
-.byte   $3c,$3e
-.byte   $00,$00
-.byte   MBG,MBG
-
-; 4 - brick wall
-.byte   $00,$00
-.byte   $40,$42
-.byte   $00,$00
-.byte   $44,$46
-.byte   $00,$00
-.byte   $48,$4a
-.byte   $4c,$4e
-.byte   MBG,MBG
-
-; 5 - tree
-.byte   $58,$5a
-.byte   $5c,$5e
-.byte   $00,$00
-.byte   $60,$62
-.byte   $00,$00
-.byte   $64,$66
-.byte   $20,$22
-.byte   MBG,MBG
-
-; 6 - reed
+; 3 - reed
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
@@ -1241,37 +1219,27 @@ macroList:
 .byte   $30,$32
 .byte   $34,$36
 
-; 7 - Chair Left
-.byte   $00,$00
-.byte   $00,$00
-.byte   $70,$72
-.byte   $00,$00
-.byte   $74,$76
+; 4 - tile
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
+.byte   $38,$3a
+.byte   $00,$00
+.byte   $3c,$3e
+.byte   $00,$00
+.byte   MBG,MBG
 
-; 8 - Chair Right
+; 5 - brick wall
 .byte   $00,$00
+.byte   $40,$42
 .byte   $00,$00
-.byte   $78,$7a
+.byte   $44,$46
 .byte   $00,$00
-.byte   $7c,$7e
-.byte   $00,$00
-.byte   $00,$00
-.byte   $00,$00
+.byte   $48,$4a
+.byte   $4c,$4e
+.byte   MBG,MBG
 
-; 9 - Goofy
-.byte   $90,$92
-.byte   $94,$96
-.byte   $98,$9a
-.byte   $00,$00
-.byte   $9c,$9e
-.byte   $00,$00
-.byte   $00,$00
-.byte   $00,$00
-
-; A - Wizard
+; 6 - Wizard
 .byte   $a0,$a2
 .byte   $a4,$a6
 .byte   $a8,$aa
@@ -1281,11 +1249,65 @@ macroList:
 .byte   $00,$00
 .byte   $00,$00
 
-; 11
-.res    16
+; 7 - Robot
+.byte   $b0,$b2
+.byte   $b4,$b6
+.byte   $b8,$ba
+.byte   $00,$00
+.byte   $bc,$be
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
 
-; 12
-.res    16
+; 8 - Goofy
+.byte   $90,$92
+.byte   $94,$96
+.byte   $98,$9a
+.byte   $00,$00
+.byte   $9c,$9e
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
+
+; 9 - Chair Left
+.byte   $00,$00
+.byte   $00,$00
+.byte   $70,$72
+.byte   $00,$00
+.byte   $74,$76
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
+
+; 10 - Pattern cube
+.byte   $80,$82
+.byte   $84,$86
+.byte   $00,$00
+.byte   $88,$8a
+.byte   $00,$00
+.byte   $8c,$8e
+.byte   $00,$00
+.byte   $00,$00
+
+; 11 - tree
+.byte   $58,$5a
+.byte   $5c,$5e
+.byte   $00,$00
+.byte   $60,$62
+.byte   $00,$00
+.byte   $64,$66
+.byte   $20,$22
+.byte   MBG,MBG
+
+; 12 - pond rock
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
+.byte   $c0,$c2
+.byte   $00,$00
+.byte   $c4,$c6
+.byte   $30,$32
+.byte   $34,$36
 
 ; 13
 .res    16
@@ -1305,8 +1327,15 @@ macroList:
 ; 18
 .res    16
 
-; 19
-.res    16
+; 19 - Chair Right
+.byte   $00,$00
+.byte   $00,$00
+.byte   $78,$7a
+.byte   $00,$00
+.byte   $7c,$7e
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
 
 ; 20 - DEL
 .byte   $00,$00
