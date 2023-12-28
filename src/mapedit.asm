@@ -72,18 +72,15 @@ MACRO_ERASE     = 20
     jsr     DHGR_INIT
     jsr     initMonochrome  ; Turn on monochrome dhgr
 
-    ; background pattern
-    lda     #$2a
-    sta     bgPattern00
-    lda         #$57    
-    sta     bgPattern01
-    lda     #$57
-    sta     bgPattern10
-    lda         #$2a
-    sta     bgPattern11
-
 reset_loop:
+
+    ldx     #7*4
+    jsr     setBackground
+
     jsr     DHGR_CLEAR_SCREEN
+
+    ldx     bgColor
+    jsr     setBackground
 
     lda     #CURSOR_INIT
     sta     mapCursor
@@ -357,21 +354,46 @@ chooseMacro:
     cmp     #KEY_CTRL_C
     bne     :+
     jsr     inline_print
-    StringCR   "Color Mode"
+    StringCR   "Toggle Color Mode"
+    lda     colorMode
+    beq     doBW 
+    lda     #0
+    sta     colorMode
     jsr     initColorMode
     jmp     command_loop
-:
-
-    ;------------------
-    ; ^B = B&W
-    ;------------------
-    cmp     #KEY_CTRL_B
-    bne     :+
-    jsr     inline_print
-    StringCR   "Monochrome Mode"
+doBW:
+    lda     #1
+    sta     colorMode
     jsr     initMonochrome
     jmp     command_loop
+
+colorMode:  .byte $1
+
 :
+    ;------------------
+    ; ^B = Background
+    ;------------------
+    cmp     #KEY_CTRL_B
+    beq     :+
+    jmp     notBackground
+:
+    jsr     inline_print
+    String  "Choose background: (0=black, 1=white, 2=gray1, 3=gray2, 4=horizonal, 5=vertical, 6=stripes, 7=border): "
+    lda     #8
+    jsr     getInputNumber
+    bmi     backgroundCancel
+    asl
+    asl     ; *4
+    sta     bgColor
+    lda     #13
+    jsr     COUT
+    jmp     reset_loop
+
+backgroundCancel:
+    jsr     inline_print
+    StringCR  "Cancel"
+    jmp     command_loop
+notBackground:
 
     ;------------------
     ; Unknown
@@ -449,6 +471,36 @@ newCursor:  .byte   0
     rts
 .endproc
 
+
+;-----------------------------------------------------------------------------
+; set background
+;   Pattern index passed in X
+;-----------------------------------------------------------------------------
+
+.proc setBackground
+    lda     pattern,x
+    sta     bgPattern00
+    lda     pattern+1,x
+    sta     bgPattern01
+    lda     pattern+2,x
+    sta     bgPattern10
+    lda     pattern+3,x
+    sta     bgPattern11
+    rts
+
+pattern:
+    .byte   $00,$00,$00,$00     ; black
+    .byte   $ff,$ff,$ff,$ff     ; white
+    .byte   $55,$2a,$2a,$55     ; gray1
+    .byte   $2a,$55,$55,$2a     ; gray2
+    .byte   $7f,$7f,$00,$00     ; horizontal
+    .byte   $63,$63,$63,$63     ; vertical
+    .byte   $54,$15,$6a,$2b     ; pattern
+    .byte   $2a,$57,$57,$2a     ; border
+
+.endproc
+
+
 ;-----------------------------------------------------------------------------
 ; isoDrawMap
 ;
@@ -472,7 +524,7 @@ loopY:
 loopX1:
     ldx     isoIdx
     lda     isoMap0,x
-    jsr     DHGR_DRAW_28X8
+    jsr     DHGR_DRAW_BG_28X8
     ldx     isoIdx
     lda     isoMap1,x
     jsr     DHGR_DRAW_MASK_28X8
@@ -648,7 +700,7 @@ waitExit:
 drawQuarter:
     ldx     index
     lda     isoMap0,x
-    jsr     DHGR_DRAW_28X8
+    jsr     DHGR_DRAW_BG_28X8
     ldx     index
     lda     isoMap1,x
     jsr     DHGR_DRAW_MASK_28X8
@@ -1087,8 +1139,6 @@ next:
 
 push:
     beq     :+
-    cmp     #MBG
-    beq     :+          ; treat background as no hit
     sta     stack,x    
     inx
     cpx     #3
@@ -1118,7 +1168,6 @@ loop:
     sta     isoMap3,y
     sta     isoMap2,y
     sta     isoMap1,y
-    lda     #MBG
     sta     isoMap0,y
     iny
     bne     loop
@@ -1137,6 +1186,7 @@ loop:
 
 mapCursor:  .byte   0   ; Offset into map table
 macroIndex: .byte   1
+bgColor:    .byte   2*4
 
 ;-----------------------------------------------------------------------------
 ; Data
@@ -1165,8 +1215,6 @@ macroOverlay:
     .byte   0       ;   19 Chair-right
 
 .align 256
-; map background (2,4,6)
-MBG = $02
 
 macroList:
 
@@ -1187,7 +1235,7 @@ macroList:
 .byte   $00,$00
 .byte   $0c,$0e
 .byte   $10,$12
-.byte   MBG,MBG
+.byte   $00,$00
 
 ; 1 - grass
 .byte   $00,$00
@@ -1197,7 +1245,7 @@ macroList:
 .byte   $00,$00
 .byte   $1c,$1e
 .byte   $20,$22
-.byte   MBG,MBG
+.byte   $00,$00
 
 ; 2 - water
 .byte   $00,$00
@@ -1227,7 +1275,7 @@ macroList:
 .byte   $00,$00
 .byte   $3c,$3e
 .byte   $00,$00
-.byte   MBG,MBG
+.byte   $00,$00
 
 ; 5 - brick wall
 .byte   $00,$00
@@ -1237,7 +1285,7 @@ macroList:
 .byte   $00,$00
 .byte   $48,$4a
 .byte   $4c,$4e
-.byte   MBG,MBG
+.byte   $00,$00
 
 ; 6 - Wizard
 .byte   $a0,$a2
@@ -1297,7 +1345,7 @@ macroList:
 .byte   $00,$00
 .byte   $64,$66
 .byte   $20,$22
-.byte   MBG,MBG
+.byte   $00,$00
 
 ; 12 - pond rock
 .byte   $00,$00
@@ -1345,29 +1393,29 @@ macroList:
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   MBG,MBG
+.byte   $00,$00
 
 
 
 .align 256
 
 isoMap0:    ; down 3
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
-.byte MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG,MBG
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
 isoMap1:    ; down 2
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00

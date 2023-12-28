@@ -48,12 +48,12 @@ stringPtr1      :=  $ff
 tileIdx         :=  $1d
 tileX           :=  $e3
 tileY           :=  $e8
-tileX2 			:=  $fc
-tileY2 			:=  $fd
+tileX2          :=  $fc
+tileY2          :=  $fd
 
 ; Controls
 drawPage        :=  $d7
-pixelResult 	:=  tileX2
+pixelResult     :=  tileX2
 bgPattern00     :=  $ce
 bgPattern01     :=  $cf
 bgPattern10     :=  $ec
@@ -67,8 +67,8 @@ bgPattern11     :=  $ed
 ;               :=  $ec
 ;               :=  $ed
 ;               :=  $ee
-;      			:=  $fa
-;      			:=  $fb
+;               :=  $fa
+;               :=  $fb
 
 
 
@@ -175,21 +175,22 @@ DIR_DOWN        =   3
 ; DHGR Engine
 ;---------------------------------------------------------
 
-DHGR_TEST               	:= $C00
-DHGR_INIT               	:= $C03
-DHGR_DRAW_7X8           	:= $C06
-DHGR_DRAW_28X8          	:= $C09
-DHGR_DRAW_MASK_28X8     	:= $C0C
-DHGR_DRAW_PIXEL_4X4     	:= $C0F
-DHGR_SCROLL_LINE        	:= $C12
-DHGR_GET_PIXEL_MASK_28X8    := $C15
-DHGR_SET_PIXEL_28X8         := $C18
-DHGR_SET_MASK_28X8          := $C1B
-DHGR_DUMP_INIT              := $C1E
-DHGR_DUMP_BYTE              := $C21
-DHGR_SET_BYTE               := $C24
-DHGR_CLEAR_SCREEN 			:= $C27
+DHGR_TEST                   := $C00
+DHGR_INIT                   := $C03
+DHGR_DRAW_7X8               := $C06
+DHGR_DRAW_28X8              := $C09
+DHGR_DRAW_MASK_28X8         := $C0C
+DHGR_DRAW_BG_28X8           := $C0F
+DHGR_DRAW_PIXEL_4X4         := $C12
+DHGR_SCROLL_LINE            := $C15
+DHGR_GET_PIXEL_MASK_28X8    := $C18
+DHGR_SET_PIXEL_28X8         := $C1B
+DHGR_SET_MASK_28X8          := $C1E
+DHGR_DUMP_INIT              := $C21
+DHGR_DUMP_BYTE              := $C24
+DHGR_SET_BYTE               := $C27
+DHGR_CLEAR_SCREEN           := $C2A
 
-DHGR_TILE_7X8           	:= $C40
-DHGR_TILE_28X8          	:= $C42
+DHGR_TILE_7X8               := $C40
+DHGR_TILE_28X8              := $C42
 

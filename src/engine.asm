@@ -19,6 +19,7 @@
     jmp     drawTile_7x8
     jmp     drawTile_28x8
     jmp     drawTileMask_28x8
+    jmp     drawTileBG_28x8
     jmp     drawPixel4x4
     jmp     scrollLine
     jmp     getPixelMask_28x8
@@ -372,11 +373,7 @@ screenPtr1Copy: .byte   0
 ; 4*8*2 = 32 bytes (16 main / 16 aux) + 32 bytes mask (16 main / 16 aux)
 ;   
 ;-----------------------------------------------------------------------------
-.proc drawTileMaskBG_28x8
-
-    bne     :+
-    rts                     ; tile 0 is skip
-:
+.proc drawTileBG_28x8
 
     sta     tileIdx
     ; calculate tile pointer
@@ -421,6 +418,16 @@ screenPtr1Copy: .byte   0
     adc     #16
     sta     maskPtr0
 
+    ; swap background
+    ldy     bgPattern00
+    lda     bgPattern01
+    sta     bgPattern00
+    sty     bgPattern01
+    ldy     bgPattern10
+    lda     bgPattern11
+    sta     bgPattern10
+    sty     bgPattern11
+
     ; restore screen pointer
     lda     screenPtr0Copy
     sta     screenPtr0
@@ -437,6 +444,16 @@ screenPtr1Copy: .byte   0
     sta     RAMWRTOFF   ; AUX
     sta     RAMRDOFF    ; AUX
 
+    ; swap background
+    ldy     bgPattern00
+    lda     bgPattern01
+    sta     bgPattern00
+    sty     bgPattern01
+    ldy     bgPattern10
+    lda     bgPattern11
+    sta     bgPattern10
+    sty     bgPattern11
+
     rts
 
 drawTile:
@@ -446,15 +463,22 @@ drawTile:
 
 drawLoop:
     ldy     #0
-    lda     (screenPtr0),y
+    lda     bgPattern01
     and     (maskPtr0),y
     ora     (tilePtr0),y
     sta     (screenPtr0),y
     ldy     #1
-    lda     (screenPtr0),y
+    lda     bgPattern01
     and     (maskPtr0),y
     ora     (tilePtr0),y
     sta     (screenPtr0),y
+
+
+    ; swap background
+    ldy     bgPattern01
+    lda     bgPattern11
+    sta     bgPattern01
+    sty     bgPattern11
 
     ; assumes aligned such that there are no page crossing
     lda     tilePtr0

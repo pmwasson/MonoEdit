@@ -61,3 +61,32 @@ quit_params:
     .byte   0               ; Reserved byte for future use (what future?)
     .word   0               ; Reserved pointer for future use (what future?)
 .endproc
+
+;-----------------------------------------------------------------------------
+; getInputNumber
+;   Get input for a number 0..max+1, where A == max+1
+;   Display number or cancel and return result in A (-1 for cancel)
+;-----------------------------------------------------------------------------
+.proc getInputNumber
+    clc
+    adc     #$80 + '0'  ; convert A to ascii number
+    sta     max_digit     
+    jsr     getInput
+    cmp     #$80 + '0'
+    bmi     cancel
+    cmp     max_digit
+    bpl     cancel
+    jsr     COUT
+    sec
+    sbc     #$80 + '0'
+    rts
+cancel:
+    jsr     inline_print
+    .byte   "Cancel",13,0
+    lda     #$ff
+    rts
+
+; local variable
+max_digit:  .byte   0
+
+.endproc
