@@ -90,3 +90,45 @@ cancel:
 max_digit:  .byte   0
 
 .endproc
+
+;-----------------------------------------------------------------------------
+; Get input direction
+;   Pick and diplay 1 of 4 directions or cancel
+;-----------------------------------------------------------------------------
+.proc getInputDirection
+    jsr     getInput
+    cmp     #KEY_LEFT
+    bne     :+
+    jsr     inline_print
+    .byte   "Left ",13,0
+    lda     #KEY_LEFT
+    rts
+:
+    cmp     #KEY_RIGHT
+    bne     :+
+    jsr     inline_print
+    .byte   "Right",13,0
+    lda     #KEY_RIGHT
+    rts
+:
+    cmp     #KEY_UP
+    bne     :+
+    jsr     inline_print
+    .byte   "Up   ",13,0
+    lda     #KEY_UP
+    rts
+:
+    cmp     #KEY_DOWN
+    bne     :+
+    jsr     inline_print
+    .byte   "Down ",13,0
+    lda     #KEY_DOWN
+    rts
+:
+    jsr     inline_print
+    .byte   "Cancel",13,0
+    LDA     #0
+    rts
+.endproc
+
+

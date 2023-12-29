@@ -72,6 +72,14 @@ MACRO_ERASE     = 20
     jsr     DHGR_INIT
     jsr     initMonochrome  ; Turn on monochrome dhgr
 
+    ; Set ctrl-y vector
+    lda     #$4c        ; JMP
+    sta     $3f8
+    lda     #<main
+    sta     $3f9
+    lda     #>main
+    sta     $3fa
+
 reset_loop:
 
     ldx     #7*4
@@ -261,7 +269,42 @@ chooseMacro:
     jmp     refresh_loop
 :
 
+    ;------------------
+    ; ^R = Rotate
+    ;------------------
+    cmp     #KEY_CTRL_R
+    bne     rotate_after
+    jsr     inline_print
+    .byte   "Rotate Direction (or cancel):",0
+    jsr     getInputDirection
+    beq     rotate_cancel
 
+    cmp     #KEY_UP
+    bne     :+
+    jsr     rotateUp
+    jmp     rotate_done
+:
+
+    cmp     #KEY_DOWN
+    bne     :+
+    jsr     rotateDown
+    jmp     rotate_done
+:
+    cmp     #KEY_LEFT
+    bne     :+
+    jsr     rotateLeft
+    jmp     rotate_done
+:
+    ; must be right
+    jsr     rotateRight
+
+rotate_done:
+    jmp     refresh_loop
+
+rotate_cancel:
+    jmp     command_loop
+
+rotate_after:
     ;------------------
     ; ^E = erase map 
     ;------------------
@@ -325,14 +368,6 @@ chooseMacro:
     jsr     inline_print
     .byte   "Monitor",13,"(enter CTRL-Y to return)",13,0
 
-    ; Set ctrl-y vector
-    lda     #$4c        ; JMP
-    sta     $3f8
-    lda     #<main
-    sta     $3f9
-    lda     #>main
-    sta     $3fa
-
     bit     TXTSET
     jmp     MONZ        ; enter monitor
 :
@@ -378,8 +413,8 @@ colorMode:  .byte $1
     jmp     notBackground
 :
     jsr     inline_print
-    String  "Choose background: (0=black, 1=white, 2=gray1, 3=gray2, 4=horizonal, 5=vertical, 6=stripes, 7=border): "
-    lda     #8
+    String  "Choose background: (0=black, 1=white, 2=gray1, 3=gray2, 4=horizonal, 5=vertical, 6=stripes, 7=border, 8=checker): "
+    lda     #9
     jsr     getInputNumber
     bmi     backgroundCancel
     asl
@@ -497,6 +532,7 @@ pattern:
     .byte   $63,$63,$63,$63     ; vertical
     .byte   $54,$15,$6a,$2b     ; pattern
     .byte   $2a,$57,$57,$2a     ; border
+    .byte   $7f,$00,$00,$7f     ; checker
 
 .endproc
 
@@ -1075,8 +1111,10 @@ dump_count: .byte   0
 .proc optimizeMap
 
     ldy     #0
+
 loop:
     ldx     #0
+    stx     result
 
     ; clear stack
     lda     #0
@@ -1087,38 +1125,59 @@ loop:
 
     lda     isoMap7,y
     jsr     push
-    bcs     next
+    bcs     next7
 
     lda     isoMap6,y
     jsr     push
-    bcs     next
+    bcs     next6
 
     lda     isoMap5,y
     jsr     push
-    bcs     next
+    bcs     next5
 
     lda     isoMap4,y
     jsr     push
-    bcs     next
+    bcs     next4
 
     lda     isoMap3,y
     jsr     push
-    bcs     next
+    bcs     next3
 
     lda     isoMap2,y
     jsr     push
-    bcs     next
+    bcs     next2
 
     lda     isoMap1,y
     jsr     push
-    bcs     next
+    bcs     next1
 
     lda     isoMap0,y
     jsr     push
+    jmp     next0
 
-next:
+next7:
+next6:
+    brk                 ; should not be possible
+next5:
+    clc
+    rol
+next4:
+    clc
+    rol
+next3:
+    clc
+    rol
+next2:
+    clc
+    rol
+next1:
+    clc
+    rol
+next0:
     ; write results
     txa
+    sta     isoMapLevels,y
+    lda     result
     sta     isoMapInfo,y
     lda     #0
     sta     isoMap7,y
@@ -1134,12 +1193,16 @@ next:
     sta     isoMap0,y
 
     iny
-    bne     loop
+    beq     done
+    jmp     loop
+done:
     rts
 
 push:
     beq     :+
     sta     stack,x    
+    sec
+    rol     result      ; set result bit to 1
     inx
     cpx     #3
     bne     :+
@@ -1147,9 +1210,12 @@ push:
     rts
 :
     clc
+    rol     result      ; set result bit to zero
+    clc
     rts
 
-stack: .byte   0,0,0,0
+result:     .byte   0
+stack:      .byte   0,0,0,0
 
 .endproc
 
@@ -1172,6 +1238,61 @@ loop:
     iny
     bne     loop
     rts
+.endproc
+
+;-----------------------------------------------------------------------------
+; rotate up
+;-----------------------------------------------------------------------------
+
+rotateRight:
+rotateLeft:
+    rts             ; FIXME
+
+.proc rotateDown
+    ldy     #255
+
+loop:
+
+.repeat 8,I
+    ; swap rows
+    lda     .ident(.concat("isoMap",.string(I))),y
+    tax
+    lda     .ident(.concat("isoMap",.string(I)))+CURSOR_S,y
+    sta     .ident(.concat("isoMap",.string(I))),y
+    txa
+    sta     .ident(.concat("isoMap",.string(I)))+CURSOR_S,y
+.endrepeat
+
+    dey
+
+    cpy     #CURSOR_S
+    bne     loop
+    rts
+
+.endproc
+
+
+.proc rotateUp
+    ldy     #0
+
+loop:
+
+.repeat 8,I
+    ; swap rows
+    lda     .ident(.concat("isoMap",.string(I))),y
+    tax
+    lda     .ident(.concat("isoMap",.string(I)))+CURSOR_S,y
+    sta     .ident(.concat("isoMap",.string(I))),y
+    txa
+    sta     .ident(.concat("isoMap",.string(I)))+CURSOR_S,y
+.endrepeat
+
+    iny
+
+    cpy     #256-CURSOR_S
+    bne     loop
+    rts
+
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -1544,3 +1665,4 @@ isoMap7:    ; up2
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
 isoMapInfo:     .res    256
+isoMapLevels:     .res    256
