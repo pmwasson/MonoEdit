@@ -328,6 +328,17 @@ rotate_after:
 :
 
     ;------------------
+    ; ^T = Test map
+    ;------------------
+    cmp     #KEY_CTRL_T
+    bne     :+
+    jsr     inline_print
+    StringCR   "Testing Map"
+    jsr     testMap
+    jmp     reset_loop
+:
+
+    ;------------------
     ; ^P = Print
     ;------------------
     cmp     #KEY_CTRL_P
@@ -1294,6 +1305,198 @@ loop:
     rts
 
 .endproc
+
+
+;-----------------------------------------------------------------------------
+; Test Map
+;-----------------------------------------------------------------------------
+.proc testMap
+
+    sta     MIXCLR  ; full screen
+
+    ; set up background
+    ldx     bgColor
+    jsr     setBackground
+
+    ; Clear screen 0 and draw map
+    lda     #$00
+    sta     drawPage
+    jsr     DHGR_CLEAR_SCREEN
+    jsr     isoDrawMap
+
+    ; Clear screen 1 and draw map
+    lda     #$20
+    sta     drawPage
+    jsr     DHGR_CLEAR_SCREEN
+    jsr     isoDrawMap
+
+    ; Cycle through map for animation
+    lda     #255
+    sta     mapCursor
+
+    lda     #0
+    sta     update
+
+displayLoop:
+    lda     drawPage
+    beq     display1
+
+    ; we just finished drawing on page 2, so display it and now drawing on page 1
+    sta     HISCR
+    lda     #$00
+    beq     :+
+
+    ; we just finished drawing on page 1, so display it and now drawing on page 2
+display1:
+    sta     LOWSCR 
+    lda     #$20
+
+:
+    sta     drawPage
+
+
+    ; if updated last time, need to draw again on this page
+    lda     update
+    beq     :+
+    jsr     setCoordinate
+    jsr     drawQuarter
+:   
+
+    lda     #0
+    sta     update
+
+    ; check next tile
+    inc     mapCursor
+
+; Update Tiles
+
+    ldx     mapCursor
+
+    ; check current row for water animation
+    ; map4: $28,$2a <-> $c8,$c2
+    ; map2: $2c,$2e <-> $cc,$ce
+
+; checkMap4:
+    lda     isoMap4,x
+
+    cmp     #$28
+    bne     :+
+    lda     #$c8
+    sta     isoMap4,x
+    inc     update
+    bne     checkMap2
+:
+    cmp     #$2a
+    bne     :+
+    lda     #$ca
+    sta     isoMap4,x
+    inc     update
+    bne     checkMap2
+:
+    cmp     #$c8
+    bne     :+
+    lda     #$28
+    sta     isoMap4,x
+    inc     update
+    bne     checkMap2
+:
+    cmp     #$ca
+    bne     :+
+    lda     #$2a
+    sta     isoMap4,x
+    inc     update
+:
+
+checkMap2:
+    lda     isoMap2,x
+
+    cmp     #$2c
+    bne     :+
+    lda     #$cc
+    sta     isoMap2,x
+    inc     update
+    bne     doneCheckMap
+:
+    cmp     #$2e
+    bne     :+
+    lda     #$ce
+    sta     isoMap2,x
+    inc     update
+    bne     doneCheckMap
+:
+    cmp     #$cc
+    bne     :+
+    lda     #$2c
+    sta     isoMap2,x
+    inc     update
+    bne     doneCheckMap
+:
+    cmp     #$ce
+    bne     :+
+    lda     #$2e
+    sta     isoMap2,x
+    inc     update
+:
+
+doneCheckMap:
+
+    lda     update
+    beq     :+
+    jsr     setCoordinate
+    jsr     drawQuarter
+:
+
+
+    ;   check for keypress
+    lda     mapCursor
+    bne     continue
+    lda     KBD
+    bpl     continue
+
+exit:
+    bit     KBDSTRB     ; clean up
+
+    ; Make sure to display and draw on page 1 on exit
+    lda     #$00
+    sta     drawPage
+    sta     LOWSCR
+    sta     MIXSET  ; mixed screen
+    rts
+
+continue:
+    jmp     displayLoop
+
+drawQuarter:
+    ldx     mapCursor
+    lda     isoMap0,x
+    jsr     DHGR_DRAW_BG_28X8
+    ldx     mapCursor
+    lda     isoMap1,x
+    jsr     DHGR_DRAW_MASK_28X8
+    ldx     mapCursor
+    lda     isoMap2,x
+    jsr     DHGR_DRAW_MASK_28X8
+    ldx     mapCursor
+    lda     isoMap3,x
+    jsr     DHGR_DRAW_MASK_28X8
+    ldx     mapCursor
+    lda     isoMap4,x
+    jsr     DHGR_DRAW_MASK_28X8
+    ldx     mapCursor
+    lda     isoMap5,x
+    jsr     DHGR_DRAW_MASK_28X8
+    ldx     mapCursor
+    lda     isoMap6,x
+    jsr     DHGR_DRAW_MASK_28X8
+    ldx     mapCursor
+    lda     isoMap7,x
+    jsr     DHGR_DRAW_MASK_28X8
+    rts
+
+update: .byte   0
+
+.endproc
+
 
 ;-----------------------------------------------------------------------------
 ; Utilies
