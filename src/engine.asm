@@ -187,11 +187,11 @@ drawLoop:
     clc
     adc     lineOffset,x    ; + lineOffset
     sta     screenPtr0    
-    sta     screenPtr0Copy
+    sta     screen2Ptr0
     lda     linePage,x
     adc     drawPage
     sta     screenPtr1
-    sta     screenPtr1Copy
+    sta     screen2Ptr1
 
     jsr     drawTile
 
@@ -200,9 +200,9 @@ drawLoop:
     sta     tilePtr0
 
     ; restore screen pointer
-    lda     screenPtr0Copy
+    lda     screen2Ptr0
     sta     screenPtr0
-    lda     screenPtr1Copy
+    lda     screen2Ptr1
     sta     screenPtr1
 
     ; transfer to aux memory
@@ -246,8 +246,6 @@ drawLoop:
 
 ; locals
 tilePtr0Copy:     .byte   0
-screenPtr0Copy: .byte   0
-screenPtr1Copy: .byte   0
 
 .endproc
 
@@ -255,6 +253,9 @@ screenPtr1Copy: .byte   0
 ; Draw Tile w/Mask 28x8
 ;
 ; 4*8*2 = 32 bytes (16 main / 16 aux) + 32 bytes mask (16 main / 16 aux)
+;
+;
+; Assumes BG called previous to calculate screen pointer.
 ;   
 ;-----------------------------------------------------------------------------
 .proc drawTileMask_28x8
@@ -284,17 +285,11 @@ screenPtr1Copy: .byte   0
     sta     tilePtr1
     sta     maskPtr1
 
-    ; calculate screen pointer
-    ldx     tileY
-    lda     tileX
-    clc
-    adc     lineOffset,x    ; + lineOffset
-    sta     screenPtr0    
-    sta     screenPtr0Copy
-    lda     linePage,x
-    adc     drawPage
+;    ; Reusing screen pointer from BG, so no need to recompute
+    lda     screen2Ptr0
+    sta     screenPtr0
+    lda     screen2Ptr1
     sta     screenPtr1
-    sta     screenPtr1Copy
 
     jsr     drawTile
 
@@ -307,9 +302,9 @@ screenPtr1Copy: .byte   0
     sta     maskPtr0
 
     ; restore screen pointer
-    lda     screenPtr0Copy
-    sta     screenPtr0
-    lda     screenPtr1Copy
+
+    ; Ptr0 not changed, so no need to restore
+    lda     screen2Ptr1
     sta     screenPtr1
 
     ; transfer to aux memory
@@ -402,11 +397,11 @@ screenPtr1Copy: .byte   0
     clc
     adc     lineOffset,x    ; + lineOffset
     sta     screenPtr0    
-    sta     screenPtr0Copy
+    sta     screen2Ptr0
     lda     linePage,x
     adc     drawPage
     sta     screenPtr1
-    sta     screenPtr1Copy
+    sta     screen2Ptr1
 
     jsr     drawTile
 
@@ -429,9 +424,9 @@ screenPtr1Copy: .byte   0
     sty     bgPattern11
 
     ; restore screen pointer
-    lda     screenPtr0Copy
-    sta     screenPtr0
-    lda     screenPtr1Copy
+
+    ; Ptr0 not changed, so no need to restore
+    lda     screen2Ptr1
     sta     screenPtr1
 
     ; transfer to aux memory
@@ -501,8 +496,6 @@ drawLoop:
 ; locals
 tilePtr0Copy:     .byte   0
 maskPtr0Copy:     .byte   0
-screenPtr0Copy: .byte   0
-screenPtr1Copy: .byte   0
 
 .endproc
 

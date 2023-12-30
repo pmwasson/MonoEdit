@@ -52,7 +52,7 @@ MACRO_ERASE     = 20
 
 ;------------------------------------------------
 .segment "CODE"
-.org    $4000
+.org    $6000
 
 ;=============================================================================
 ; Main
@@ -346,7 +346,7 @@ rotate_after:
     bne     :+
     jsr     inline_print
     StringCR    "Switching tools..."
-    jmp     $6000       ; Maybe should look into the linker
+    jmp     $4000       ; Maybe should look into the linker
 :
 
     ;------------------
@@ -675,23 +675,23 @@ waitExit:
 
     jsr     setCoordinate
     lda     #CURSOR_TILE
-    jsr     DHGR_DRAW_MASK_28X8
+    jsr     DHGR_DRAW_BG_28X8
 
     inc     tileX
     inc     tileX
     lda     #CURSOR_TILE+2
-    jsr     DHGR_DRAW_MASK_28X8
+    jsr     DHGR_DRAW_BG_28X8
 
     dec     tileX
     dec     tileX
     inc     tileY
     lda     #CURSOR_TILE+4
-    jsr     DHGR_DRAW_MASK_28X8
+    jsr     DHGR_DRAW_BG_28X8
 
     inc     tileX
     inc     tileX
     lda     #CURSOR_TILE+6
-    jsr     DHGR_DRAW_MASK_28X8
+    jsr     DHGR_DRAW_BG_28X8
 
     rts
 

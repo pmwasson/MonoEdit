@@ -33,7 +33,7 @@ MODE_MASK       = 1
 ;------------------------------------------------
 
 .segment "CODE"
-.org    $6000
+.org    $4000
 
 ;=============================================================================
 ; Main
@@ -321,7 +321,7 @@ fill_cancel:
     bne     :+
     jsr     inline_print
     StringCR    "Switching tools..."
-    jmp     $4000       ; Maybe should look into the linker
+    jmp     $6000       ; Maybe should look into the linker
 :
 
     ;------------------

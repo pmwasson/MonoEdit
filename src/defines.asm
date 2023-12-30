@@ -45,7 +45,7 @@ stringPtr0      :=  $fe
 stringPtr1      :=  $ff
 
 ; Indexes
-tileIdx         :=  $1d
+tileIdx         :=  $08
 tileX           :=  $e3
 tileY           :=  $e8
 tileX2          :=  $fc
@@ -60,7 +60,6 @@ bgPattern10     :=  $ec
 bgPattern11     :=  $ed
 
 ; following are available to use
-;               :=  $08
 ;               :=  $09
 ;               :=  $ce
 ;               :=  $cf
