@@ -28,10 +28,9 @@
 ;               [ Read data     ]
 ;               [ Tool(s)       ]
 ;
-;   6000-7FFF   [ Game          ][ Map 64x64x2  ]
-;   8000-8FFF   [               ][ Dialog       ]
+;   6000-7FFF   [ Game          ][ Dialog/Map   ]
 ;
-;   9000-AFFF   [ Isometric Tiles (64)          ]
+;   8000-AFFF   [ Isometric Tiles (192)         ]
 ;
 ;   B000-B7FF   [ Unused        ][ Font x2      ]
 ;
@@ -60,7 +59,7 @@ MAPEND              :=  READBUFFER + MAPLENGTH - 1
 ; BGI4END           :=  BGSTART + BGLENGTH/2 - 1
 
 ISOSTART            :=  $8000
-ISOLENGTH           =   256*32
+ISOLENGTH           =   256*32                          ; 8K
 ISOEND              :=  READBUFFER + ISOLENGTH - 1
 ISOI2END            :=  ISOSTART + ISOLENGTH/2 - 1
 

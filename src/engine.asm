@@ -266,7 +266,8 @@ tilePtr0Copy:     .byte   0
 
     sta     tileIdx
     ; calculate tile pointer
-    asl                     ; *16
+    asl                     ; *32
+    asl
     asl
     asl
     asl
@@ -276,8 +277,7 @@ tilePtr0Copy:     .byte   0
     adc     #16
     sta     maskPtr0
     lda     tileIdx
-    lsr                     ; /16
-    lsr
+    lsr                     ; /8
     lsr
     lsr
     clc
@@ -372,7 +372,8 @@ screenPtr1Copy: .byte   0
 
     sta     tileIdx
     ; calculate tile pointer
-    asl                     ; *16
+    asl                     ; *32
+    asl
     asl
     asl
     asl
@@ -382,8 +383,7 @@ screenPtr1Copy: .byte   0
     adc     #16
     sta     maskPtr0
     lda     tileIdx
-    lsr                     ; /16
-    lsr
+    lsr                     ; /8
     lsr
     lsr
     clc
@@ -541,7 +541,8 @@ maskPtr0Copy:     .byte   0
 .proc pixelTilePtr_28x8
     lda     tileIdx
     ; calculate tile pointer
-    asl                     ; *16
+    asl                     ; *32
+    asl
     asl
     asl
     asl
@@ -552,8 +553,7 @@ maskPtr0Copy:     .byte   0
     adc     #16
     sta     maskPtr0
     lda     tileIdx
-    lsr                     ; /16
-    lsr
+    lsr                     ; /8
     lsr
     lsr
     clc

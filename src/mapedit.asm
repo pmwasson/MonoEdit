@@ -30,7 +30,7 @@ MAP_WIDTH       = 8     ;  MAP_WIDTH    *2
 MAP_HEIGHT      = 6     ; (MAP_HEIGHT+2)*2
 MAP_LENGTH      = (MAP_WIDTH*2)*(MAP_HEIGHT+2)*2
 
-CURSOR_TILE     = $38
+CURSOR_TILE     = $1c
 CURSOR_INIT     = 2*MAP_WIDTH*2
 
 CURSOR_W        = 256 - 2
@@ -690,18 +690,18 @@ waitExit:
 
     inc     tileX
     inc     tileX
-    lda     #CURSOR_TILE+2
+    lda     #CURSOR_TILE+1
     jsr     DHGR_DRAW_BG_28X8
 
     dec     tileX
     dec     tileX
     inc     tileY
-    lda     #CURSOR_TILE+4
+    lda     #CURSOR_TILE+2
     jsr     DHGR_DRAW_BG_28X8
 
     inc     tileX
     inc     tileX
-    lda     #CURSOR_TILE+6
+    lda     #CURSOR_TILE+3
     jsr     DHGR_DRAW_BG_28X8
 
     rts
@@ -1376,76 +1376,30 @@ display1:
     ; map4: $28,$2a <-> $c8,$c2
     ; map2: $2c,$2e <-> $cc,$ce
 
-; checkMap4:
+
+    ; Map 4
     lda     isoMap4,x
-
-    cmp     #$28
-    bne     :+
-    lda     #$c8
+    tay
+    lda     animateMap,y
+    beq     :+
     sta     isoMap4,x
-    inc     update
-    bne     checkMap2
-:
-    cmp     #$2a
-    bne     :+
-    lda     #$ca
-    sta     isoMap4,x
-    inc     update
-    bne     checkMap2
-:
-    cmp     #$c8
-    bne     :+
-    lda     #$28
-    sta     isoMap4,x
-    inc     update
-    bne     checkMap2
-:
-    cmp     #$ca
-    bne     :+
-    lda     #$2a
-    sta     isoMap4,x
-    inc     update
+    inc     update   
 :
 
-checkMap2:
+    ; Map 2
     lda     isoMap2,x
-
-    cmp     #$2c
-    bne     :+
-    lda     #$cc
+    tay
+    lda     animateMap,y
+    beq     :+
     sta     isoMap2,x
-    inc     update
-    bne     doneCheckMap
+    inc     update   
 :
-    cmp     #$2e
-    bne     :+
-    lda     #$ce
-    sta     isoMap2,x
-    inc     update
-    bne     doneCheckMap
-:
-    cmp     #$cc
-    bne     :+
-    lda     #$2c
-    sta     isoMap2,x
-    inc     update
-    bne     doneCheckMap
-:
-    cmp     #$ce
-    bne     :+
-    lda     #$2e
-    sta     isoMap2,x
-    inc     update
-:
-
-doneCheckMap:
 
     lda     update
     beq     :+
     jsr     setCoordinate
     jsr     drawQuarter
 :
-
 
     ;   check for keypress
     lda     mapCursor
@@ -1540,6 +1494,33 @@ macroOverlay:
 
 .align 256
 
+
+; Lookup table for animation sequence
+; Water:    $14 <-> $64
+;           $15 <-> $65
+;           $16 <-> $66
+;           $17 <-> $67
+
+animateMap:
+    ;        x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; 0x
+    .byte   $00,$00,$00,$00,$64,$65,$66,$67,$00,$00,$00,$00,$00,$00,$00,$00     ; 1x
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; 2x
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; 3x
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; 4x
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; 5x
+    .byte   $00,$00,$00,$00,$14,$15,$16,$17,$00,$00,$00,$00,$00,$00,$00,$00     ; 6x
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; 7x
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; 8x
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; 9x
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; Ax
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; Bx
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; Cx
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; Dx
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; Ex
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; Fx
+
+
 macroList:
 
 ;  Upper
@@ -1555,88 +1536,88 @@ macroList:
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $08,$0a
+.byte   $04,$05
 .byte   $00,$00
-.byte   $0c,$0e
-.byte   $10,$12
+.byte   $06,$07
+.byte   $08,$09
 .byte   $00,$00
 
 ; 1 - grass
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $18,$1a
+.byte   $0c,$0d
 .byte   $00,$00
-.byte   $1c,$1e
-.byte   $20,$22
+.byte   $0e,$0f
+.byte   $10,$11
 .byte   $00,$00
 
 ; 2 - water
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $28,$2a
+.byte   $14,$15
 .byte   $00,$00
-.byte   $2c,$2e
-.byte   $30,$32
-.byte   $34,$36
+.byte   $16,$17
+.byte   $18,$19
+.byte   $1a,$1b
 
 ; 3 - reed
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $68,$6a
+.byte   $34,$35
 .byte   $00,$00
-.byte   $6c,$6e
-.byte   $30,$32
-.byte   $34,$36
+.byte   $36,$37
+.byte   $18,$19
+.byte   $1a,$1b
 
 ; 4 - tile
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $38,$3a
+.byte   $1c,$1d
 .byte   $00,$00
-.byte   $3c,$3e
+.byte   $1e,$1f
 .byte   $00,$00
 .byte   $00,$00
 
 ; 5 - brick wall
 .byte   $00,$00
-.byte   $40,$42
+.byte   $20,$21
 .byte   $00,$00
-.byte   $44,$46
+.byte   $22,$23
 .byte   $00,$00
-.byte   $48,$4a
-.byte   $4c,$4e
+.byte   $24,$25
+.byte   $26,$27
 .byte   $00,$00
 
 ; 6 - Wizard
-.byte   $a0,$a2
-.byte   $a4,$a6
-.byte   $a8,$aa
+.byte   $50,$51
+.byte   $52,$53
+.byte   $54,$55
 .byte   $00,$00
-.byte   $ac,$ae
+.byte   $56,$57
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
 
 ; 7 - Robot
-.byte   $b0,$b2
-.byte   $b4,$b6
-.byte   $b8,$ba
+.byte   $58,$59
+.byte   $5a,$5b
+.byte   $5c,$5d
 .byte   $00,$00
-.byte   $bc,$be
+.byte   $5e,$5f
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
 
 ; 8 - Goofy
-.byte   $90,$92
-.byte   $94,$96
-.byte   $98,$9a
+.byte   $48,$49
+.byte   $4a,$4b
+.byte   $4c,$4d
 .byte   $00,$00
-.byte   $9c,$9e
+.byte   $4e,$4f
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
@@ -1644,42 +1625,42 @@ macroList:
 ; 9 - Chair Left
 .byte   $00,$00
 .byte   $00,$00
-.byte   $70,$72
+.byte   $38,$39
 .byte   $00,$00
-.byte   $74,$76
+.byte   $3a,$3b
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
 
 ; 10 - Pattern cube
-.byte   $80,$82
-.byte   $84,$86
+.byte   $40,$41
+.byte   $42,$43
 .byte   $00,$00
-.byte   $88,$8a
+.byte   $44,$45
 .byte   $00,$00
-.byte   $8c,$8e
+.byte   $46,$47
 .byte   $00,$00
 .byte   $00,$00
 
 ; 11 - tree
-.byte   $58,$5a
-.byte   $5c,$5e
+.byte   $2c,$2d
+.byte   $2e,$2f
 .byte   $00,$00
-.byte   $60,$62
+.byte   $30,$31
 .byte   $00,$00
-.byte   $64,$66
-.byte   $20,$22
+.byte   $32,$33
+.byte   $10,$11
 .byte   $00,$00
 
 ; 12 - pond rock
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00
-.byte   $c0,$c2
+.byte   $60,$61
 .byte   $00,$00
-.byte   $c4,$c6
-.byte   $30,$32
-.byte   $34,$36
+.byte   $62,$63
+.byte   $18,$19
+.byte   $1a,$1b
 
 ; 13
 .res    16
@@ -1702,9 +1683,9 @@ macroList:
 ; 19 - Chair Right
 .byte   $00,$00
 .byte   $00,$00
-.byte   $78,$7a
+.byte   $3c,$3d
 .byte   $00,$00
-.byte   $7c,$7e
+.byte   $3e,$3f
 .byte   $00,$00
 .byte   $00,$00
 .byte   $00,$00

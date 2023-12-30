@@ -24,8 +24,8 @@ BOX_LOWER_LEFT  = $1e
 BOX_LOWER_RIGHT = $1f
 BOX_BLANK       = $20
 
-SIZE_28x8           = 0
-SIZE_56x16          = 1
+SIZE_28x8       = 0
+SIZE_56x16      = 1
 
 MODE_NO_MASK    = 0
 MODE_MASK       = 1
@@ -687,8 +687,9 @@ finishChangeTile:
     lda     modeMasked
     beq     :+
     asl     tileLength
-    asl     tileInc
-    asl     tileInc8
+;    asl     tileInc
+;    asl     tileInc8
+
 :
     ; reset cursor and index
     lda     #0
@@ -710,7 +711,6 @@ sizeCanvasBottom:   .byte   7,  11
 sizePixelOffsetX:   .byte   2,  2   
 sizePixelOffsetY:   .byte   6,  6   
 
-; 6k / 4*8 = 192
 sizeMax:        .byte   0,  0
 sizeInc:        .byte   1,  4 
 sizeInc8:       .byte   8,  16
@@ -1180,7 +1180,7 @@ waitExit:
     inc     tileX
     lda     index
     clc
-    adc     #2
+    adc     #1
     jsr     drawTile_28x8
 
     dec     tileX
@@ -1188,14 +1188,14 @@ waitExit:
     inc     tileY
     lda     index
     clc
-    adc     #4
+    adc     #2
     jsr     drawTile_28x8
 
     inc     tileX
     inc     tileX
     lda     index
     clc
-    adc     #6
+    adc     #3
     jsr     drawTile_28x8
 
     dec     tileX
@@ -1215,7 +1215,7 @@ index:  .byte   0
 ;-----------------------------------------------------------------------------
 .proc drawTile_28x8
 
-    jmp     DHGR_DRAW_28X8
+    jmp     DHGR_DRAW_BG_28X8
 
 .endproc
 
@@ -1274,7 +1274,6 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
     bmi     :+
     sta     tileX
     inc     tileIdx
-    inc     tileIdx
 :
     lda     curY
     sta     tileY
@@ -1284,7 +1283,7 @@ colorChar:  .byte PIXEL_BLACK,PIXEL_WHITE,PIXEL_BG_EVEN,PIXEL_BG_ODD
     sta     tileY
     lda     tileIdx
     clc
-    adc     #4
+    adc     #2
     sta     tileIdx
 :
     rts
