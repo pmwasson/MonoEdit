@@ -265,7 +265,7 @@ chooseMacro:
     StringCR "Delete tile"
     lda     #MACRO_ERASE
     ldx     #1
-    jsr     setMapTile
+    jsr     eraseMapTile
     jmp     refresh_loop
 :
 
@@ -852,6 +852,64 @@ temp:   .byte   0
     rts
 
 temp:   .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; erase tile
+;
+;-----------------------------------------------------------------------------
+.proc eraseMapTile
+
+    lda     mapCursor
+    clc
+    adc     #CURSOR_U2
+    tax
+    lda     #0
+    sta     isoMap7,x
+    sta     isoMap7+1,x
+
+    lda     mapCursor
+    clc
+    adc     #CURSOR_U1
+    tax
+    lda     #0
+    sta     isoMap6,x
+    sta     isoMap6+1,x
+
+    ldx     mapCursor
+    sta     isoMap5,x
+    sta     isoMap5+1,x
+    sta     isoMap4,x
+    sta     isoMap4+1,x
+
+    lda     mapCursor
+    clc
+    adc     #CURSOR_D1
+    tax
+    lda     #0
+    sta     isoMap3,x
+    sta     isoMap3+1,x
+    sta     isoMap2,x
+    sta     isoMap2+1,x
+
+    lda     mapCursor
+    clc
+    adc     #CURSOR_D2
+    tax
+    lda     #0
+    sta     isoMap1,x
+    sta     isoMap1+1,x
+
+    lda     mapCursor
+    clc
+    adc     #CURSOR_D3
+    tax
+    lda     #0
+    sta     isoMap0,x
+    sta     isoMap0+1,x
+
+    rts
 
 .endproc
 
