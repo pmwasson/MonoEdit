@@ -47,6 +47,15 @@ CURSOR_D3       =       MAP_WIDTH*3
 
 MACRO_ERASE     = 20
 
+BOX_HORZ        = $13
+BOX_VERT        = $7c
+BOX_UPPER_LEFT  = $1c
+BOX_UPPER_RIGHT = $1d
+BOX_LOWER_LEFT  = $1e
+BOX_LOWER_RIGHT = $1f
+BOX_LEFT_T      = $0f
+BOX_RIGHT_T     = $11
+
 ;------------------------------------------------
 .segment "CODE"
 .org    $6000
@@ -457,8 +466,10 @@ cursorMove:
     lda     tileX
     lsr     ; /2
     eor     tileY
+    eor     displayOffsetX
+    eor     displayOffsetY
     and     #1
-    beq     badCursorMove
+    bne     badCursorMove
 
     ; check bottom (assume top wraps)
     lda     tileY
@@ -1386,38 +1397,130 @@ loop:
 
 
 ;-----------------------------------------------------------------------------
+; Draw box
+;
+;-----------------------------------------------------------------------------
+
+.proc drawBox
+
+    bcc     topCorners
+
+    ;   draw Ts for tops
+
+    ; Draw corners
+    lda     boxLeft
+    sta     tileX
+    lda     boxTop
+    sta     tileY
+    lda     #BOX_LEFT_T
+    jsr     DHGR_DRAW_7X8
+
+    lda     boxRight
+    sta     tileX
+    lda     #BOX_RIGHT_T
+    jsr     DHGR_DRAW_7X8
+    jmp     cont
+
+topCorners:
+    ; Draw corners
+    lda     boxLeft
+    sta     tileX
+    lda     boxTop
+    sta     tileY
+    lda     #BOX_UPPER_LEFT
+    jsr     DHGR_DRAW_7X8
+
+    lda     boxRight
+    sta     tileX
+    lda     #BOX_UPPER_RIGHT
+    jsr     DHGR_DRAW_7X8
+
+cont:
+    lda     boxBottom
+    sta     tileY
+    lda     #BOX_LOWER_RIGHT
+    jsr     DHGR_DRAW_7X8
+
+    lda     boxLeft
+    sta     tileX
+    lda     #BOX_LOWER_LEFT
+    jsr     DHGR_DRAW_7X8
+
+    ; Draw horizontal
+
+    inc     tileX
+:
+    lda     boxTop
+    sta     tileY
+    lda     #BOX_HORZ
+    jsr     DHGR_DRAW_7X8
+
+    lda     boxBottom
+    sta     tileY
+    lda     #BOX_HORZ
+    jsr     DHGR_DRAW_7X8
+
+    inc     tileX
+    lda     boxRight
+    cmp     tileX
+    bne     :-
+
+    ; Draw vertical
+
+    lda     boxTop
+    sta     tileY
+    inc     tileY
+
+:
+    lda     boxLeft
+    sta     tileX
+    lda     #BOX_VERT
+    jsr     DHGR_DRAW_7X8
+
+    lda     boxRight
+    sta     tileX
+    lda     #BOX_VERT
+    jsr     DHGR_DRAW_7X8
+
+    inc     tileY
+    lda     boxBottom
+    cmp     tileY
+    bne     :-
+
+    rts
+
+.endproc
+
+;-----------------------------------------------------------------------------
 ; Test Map
 ;-----------------------------------------------------------------------------
 .proc testMap
 
-    ; save display settings
-    lda     displayOffsetX
-    sta     storeOffsetX
-    lda     displayWidth
-    sta     storeWidth
-
-    ; change display settings
-    lda     #12
-    sta     displayOffsetX
-    lda     #32-6
-    sta     displayWidth
-
     sta     MIXCLR  ; full screen
-
-    ; set up background
-    ldx     bgColor
-    jsr     setBackground
 
     ; Clear screen 0 and draw map
     lda     #$00
     sta     drawPage
+
+    ldx     #0
+    jsr     setBackground
     jsr     DHGR_CLEAR_SCREEN
+    jsr     drawFrame
+
+    ldx     #2*4
+    jsr     setBackground
     jsr     isoDrawMap
 
     ; Clear screen 1 and draw map
     lda     #$20
     sta     drawPage
+
+    ldx     #0
+    jsr     setBackground
     jsr     DHGR_CLEAR_SCREEN
+    jsr     drawFrame
+    ldx     #2*4
+    jsr     setBackground
     jsr     isoDrawMap
 
     ; Cycle through map for animation
@@ -1511,12 +1614,6 @@ display1:
 exit:
     bit     KBDSTRB     ; clean up
 
-    ; restore display settings
-    lda     storeOffsetX
-    sta     displayOffsetX
-    lda     storeWidth
-    sta     displayWidth
-
     ; Make sure to display and draw on page 1 on exit
     lda     #$00
     sta     drawPage
@@ -1526,6 +1623,11 @@ exit:
 
 continue:
     jmp     displayLoop
+
+update:         .byte   0
+storeWidth:     .byte   0
+storeOffsetX:   .byte   0
+
 
 drawQuarter:
     ldx     mapCursor
@@ -1554,10 +1656,138 @@ drawQuarter:
     jsr     DHGR_DRAW_MASK_28X8
     rts
 
-update:         .byte   0
-storeWidth:     .byte   0
-storeOffsetX:   .byte   0
+drawFrame:
 
+    lda     #1
+    sta     boxLeft
+    lda     #1
+    sta     boxTop
+    lda     #22
+    sta     boxRight
+    lda     #12
+    sta     boxBottom
+    clc
+    jsr     drawBox
+
+    lda     #1
+    sta     boxLeft
+    lda     #12
+    sta     boxTop
+    lda     #22
+    sta     boxRight
+    lda     #21
+    sta     boxBottom
+    sec
+    jsr     drawBox
+
+    lda     #23
+    sta     boxLeft
+    lda     #1
+    sta     boxTop
+    lda     #76
+    sta     boxRight
+    lda     #21
+    sta     boxBottom
+    clc
+    jsr     drawBox
+    rts
+.endproc
+
+;-----------------------------------------------------------------------------
+; Draw Image
+;
+;   Data is split between even and odd using tilePtr and maskPtr
+;-----------------------------------------------------------------------------
+.proc drawImage
+    sta     CLR80COL        ; Use RAMWRT for aux mem
+
+    asl
+    asl     ; *4
+    tax
+    lda     imageTable,x
+    sta     tilePtr0
+    lda     imageTable+1,x
+    sta     tilePtr1
+    lda     imageTable+2,x
+    sta     maskPtr0
+    lda     imageTable+3,x
+    sta     maskPtr1
+
+    lda     imageY
+    tax
+    clc
+    adc     imageHeight
+    sta     imageEnd
+
+loopY:
+    lda     DHGR_LINE_OFFSET,x
+    clc
+    adc     imageX
+    sta     screenPtr0
+    lda     DHGR_LINE_PAGE,x
+    sta     screenPtr1
+
+    lda     #8
+    sta     lineCount
+loop8:
+
+    ldy     #0
+loopX:
+    sta     RAMWRTON            ; aux
+    lda     (tilePtr0),y
+    sta     (screenPtr0),y
+    sta     RAMWRTOFF           ; main
+    lda     (maskPtr0),y
+    sta     (screenPtr0),y
+    iny
+    cpy     imageWidth
+    bne     loopX
+
+    ; increment pointers
+
+    clc
+    lda     imageWidth
+    adc     tilePtr0
+    sta     tilePtr0
+    lda     #0
+    adc     tilePtr1
+    sta     tilePtr1
+
+    clc
+    lda     imageWidth
+    adc     maskPtr0
+    sta     maskPtr0
+    lda     #0
+    adc     maskPtr1
+    sta     maskPtr1
+
+    clc
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dec     lineCount
+    bne     loop8
+
+    inx
+    cpx     imageEnd
+    bne     loopY
+
+    rts
+
+lineCount:  .byte   0
+imageEnd:   .byte   0
+
+; The follow use 2-byte increments for X / Width
+;            and 8-byte increments for Y / Height
+imageWidth:     .byte   10
+imageHeight:    .byte   8
+imageX:         .byte   1       ; [0..39-width]
+imageY:         .byte   1       ; [0..23-height]
+
+imageTable:
+    .word   0
+    .word   0
 .endproc
 
 
@@ -1572,13 +1802,18 @@ storeOffsetX:   .byte   0
 ;-----------------------------------------------------------------------------
 
 displayOffsetX: .byte   12
-displayOffsetY: .byte   1
+displayOffsetY: .byte   2
 displayWidth:   .byte   MAP_WIDTH*2
 displayHeight:  .byte   MAP_HEIGHT
 
 mapCursor:  .byte   0   ; Offset into map table
 macroIndex: .byte   1
 bgColor:    .byte   2*4
+
+boxLeft:        .byte   0
+boxRight:       .byte   0
+boxTop:         .byte   0
+boxBottom:      .byte   0
 
 ;-----------------------------------------------------------------------------
 ; Data
@@ -1968,3 +2203,4 @@ isoMap7:    ; up2
 
 isoMapInfo:     .res    256
 isoMapLevels:     .res    256
+

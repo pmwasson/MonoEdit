@@ -31,9 +31,64 @@
     jmp     clearScreen
 
 ; Variables (in fixed locations)
+; xx40
 .align 64
 tileSheet_7x8:          .word   $B000
 tileSheet_28x8:         .word   $B000
+                        .res    4
+; xx48
+lineOffset:
+    .byte   <$2000
+    .byte   <$2080
+    .byte   <$2100
+    .byte   <$2180
+    .byte   <$2200
+    .byte   <$2280
+    .byte   <$2300
+    .byte   <$2380
+    .byte   <$2028
+    .byte   <$20A8
+    .byte   <$2128
+    .byte   <$21A8
+    .byte   <$2228
+    .byte   <$22A8
+    .byte   <$2328
+    .byte   <$23A8
+    .byte   <$2050
+    .byte   <$20D0
+    .byte   <$2150
+    .byte   <$21D0
+    .byte   <$2250
+    .byte   <$22D0
+    .byte   <$2350
+    .byte   <$23D0
+
+; x60
+linePage:
+    .byte   >$2000
+    .byte   >$2080
+    .byte   >$2100
+    .byte   >$2180
+    .byte   >$2200
+    .byte   >$2280
+    .byte   >$2300
+    .byte   >$2380
+    .byte   >$2028
+    .byte   >$20A8
+    .byte   >$2128
+    .byte   >$21A8
+    .byte   >$2228
+    .byte   >$22A8
+    .byte   >$2328
+    .byte   >$23A8
+    .byte   >$2050
+    .byte   >$20D0
+    .byte   >$2150
+    .byte   >$21D0
+    .byte   >$2250
+    .byte   >$22D0
+    .byte   >$2350
+    .byte   >$23D0
 
 ;-----------------------------------------------------------------------------
 ; engineInit
@@ -120,6 +175,7 @@ auxMemStart:
     adc     lineOffset,x    ; + lineOffset
     sta     screenPtr0    
     lda     linePage,x
+    adc     drawPage
     sta     screenPtr1
 
     sta     RAMRDON         ; Transfer to AUX memory to read data  
@@ -1056,59 +1112,6 @@ loop:
 
 ; Lookup tables
 ;-----------------------------------------------------------------------------
-
-.align      64
-lineOffset:
-    .byte   <$2000
-    .byte   <$2080
-    .byte   <$2100
-    .byte   <$2180
-    .byte   <$2200
-    .byte   <$2280
-    .byte   <$2300
-    .byte   <$2380
-    .byte   <$2028
-    .byte   <$20A8
-    .byte   <$2128
-    .byte   <$21A8
-    .byte   <$2228
-    .byte   <$22A8
-    .byte   <$2328
-    .byte   <$23A8
-    .byte   <$2050
-    .byte   <$20D0
-    .byte   <$2150
-    .byte   <$21D0
-    .byte   <$2250
-    .byte   <$22D0
-    .byte   <$2350
-    .byte   <$23D0
-
-linePage:
-    .byte   >$2000
-    .byte   >$2080
-    .byte   >$2100
-    .byte   >$2180
-    .byte   >$2200
-    .byte   >$2280
-    .byte   >$2300
-    .byte   >$2380
-    .byte   >$2028
-    .byte   >$20A8
-    .byte   >$2128
-    .byte   >$21A8
-    .byte   >$2228
-    .byte   >$22A8
-    .byte   >$2328
-    .byte   >$23A8
-    .byte   >$2050
-    .byte   >$20D0
-    .byte   >$2150
-    .byte   >$21D0
-    .byte   >$2250
-    .byte   >$22D0
-    .byte   >$2350
-    .byte   >$23D0
 
 ; Lookup table to divide by 14 then *4 for screen x-offset
 pixelDiv14:

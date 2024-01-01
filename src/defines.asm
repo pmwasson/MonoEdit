@@ -193,3 +193,6 @@ DHGR_CLEAR_SCREEN           := $C2A
 DHGR_TILE_7X8               := $C40
 DHGR_TILE_28X8              := $C42
 
+DHGR_LINE_OFFSET 			:= $C48
+DHGR_LINE_PAGE 				:= $C60
+
