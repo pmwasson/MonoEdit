@@ -23,8 +23,8 @@
 ; 20            12          240
 ; * = power of 2
 
-MAP_WIDTH       = 16
-MAP_HEIGHT      = 16
+MAP_WIDTH       = 13
+MAP_HEIGHT      = 19
 MAP_LENGTH      = MAP_WIDTH*MAP_HEIGHT
 
 CURSOR_TILE     = $1c
@@ -448,35 +448,40 @@ notBackground:
 cursorMove:
     clc
     adc     mapCursor
-    sta     newCursor
+    ldx     mapCursor
+    sta     mapCursor
+    stx     prevCursor
+    jsr     setCoordinate
 
-    ; check if new cursor is good
-
-    ; both nibble have to be even or both odd
-    lsr
-    lsr
-    lsr
-    lsr
-    eor     newCursor
+    ; stay on-grid
+    lda     tileX
+    lsr     ; /2
+    eor     tileY
     and     #1
-    bne     doneCursorMove  ; odd result -> bad offset
+    beq     badCursorMove
 
-    ; past top
-    lda     newCursor
-    cmp     #$20
-    bcc     doneCursorMove
+    ; check bottom (assume top wraps)
+    lda     tileY
+    clc
+    adc     #1              ; half tile
+    sec
+    sbc     displayOffsetY
+    cmp     displayHeight
+    bcs     badCursorMove
 
-    ; past bottom
-    lda     newCursor
-    cmp     #$d0    ;c+1
-    bcs     doneCursorMove
+    ; check right (assume left wraps)
+    lda     tileX
+    clc
+    adc     #2              ; half tile
+    sec
+    sbc     displayOffsetX
+    cmp     displayWidth
+    bcs     badCursorMove
 
-    ; past right
-    and     #$f
-    cmp     #$0f    ;e+1
-    bcs     doneCursorMove
+    jmp     doneCursorMove
 
-    lda     newCursor
+badCursorMove:
+    lda     prevCursor
     sta     mapCursor
 doneCursorMove:
     jsr     inline_print
@@ -487,7 +492,7 @@ doneCursorMove:
     jsr     COUT
     jmp     command_loop
 
-newCursor:  .byte   0
+prevCursor:  .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -822,22 +827,22 @@ temp:   .byte   0
 .proc setCoordinate
     ; cursor = yyyyxxxx
 
-    lda     mapCursor
-    and     #$0f        ; x 0..15
-    asl                 ; *2 (subtile 2 wide)
-    clc
-    adc     displayOffsetX
-    sta     tileX
+    lda     displayOffsetY
+    sta     tileY
 
     lda     mapCursor
-    and     #$f0        ; y 0..15
-    lsr
-    lsr
-    lsr
-    lsr                 ; /16
+divideLoop:
+    sec
+    sbc     #MAP_WIDTH
+    bcc     :+
+    inc     tileY
+    bne     divideLoop
+:
     clc
-    adc     displayOffsetY
-    sta     tileY
+    adc     #MAP_WIDTH
+    asl     ;remainder*2
+    adc     displayOffsetX
+    sta     tileX
 
     rts
 
@@ -1566,8 +1571,8 @@ storeOffsetX:   .byte   0
 ; Global
 ;-----------------------------------------------------------------------------
 
-displayOffsetX: .byte   4
-displayOffsetY: .byte   2
+displayOffsetX: .byte   12
+displayOffsetY: .byte   1
 displayWidth:   .byte   MAP_WIDTH*2
 displayHeight:  .byte   MAP_HEIGHT
 
