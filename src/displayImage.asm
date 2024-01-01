@@ -201,10 +201,10 @@ loop8:
 
     ldy 	#0
 loopX:
-    sta     RAMWRTON  			; aux  
+    sta     RAMWRTON  			; aux
     lda		(tilePtr0),y
     sta 	(screenPtr0),y
-    sta     RAMWRTOFF  			; main  
+    sta     RAMWRTOFF  			; main
     lda		(maskPtr0),y
     sta 	(screenPtr0),y
     iny
@@ -287,7 +287,7 @@ imageEnd:   .byte   0
 :
     clc
     adc     lineOffset,x    ; + lineOffset
-    sta     screenPtr0    
+    sta     screenPtr0
     lda     linePage,x
     sta     screenPtr1
 
@@ -310,7 +310,7 @@ drawLoop:
 
     sta     RAMWRTOFF       ; Restore writing to main mem
 
-    rts    
+    rts
 
 .endproc
 
@@ -330,7 +330,7 @@ drawLoop:
     jsr     drawTile_7x8
 
     lda     boxRight
-    sta     tileX    
+    sta     tileX
     lda     #BOX_UPPER_RIGHT
     jsr     drawTile_7x8
 
@@ -352,12 +352,12 @@ drawLoop:
     sta     tileY
     lda     #BOX_HORZ
     jsr     drawTile_7x8
-    
+
     lda     boxBottom
     sta     tileY
     lda     #BOX_HORZ
     jsr     drawTile_7x8
-    
+
     inc     tileX
     lda     boxRight
     cmp     tileX
@@ -374,12 +374,12 @@ drawLoop:
     sta     tileX
     lda     #BOX_VERT
     jsr     drawTile_7x8
-    
+
     lda     boxRight
     sta     tileX
     lda     #BOX_VERT
     jsr     drawTile_7x8
-    
+
     inc     tileY
     lda     boxBottom
     cmp     tileY
@@ -418,11 +418,11 @@ drawLoop:
     ldx     #2
 :
     sta     SET80COL
-    sta     SET80VID 
+    sta     SET80VID
     sta     CLR80VID
     sta     DHIRESON
     sta     DHIRESOFF
-    sta     SET80VID 
+    sta     SET80VID
     sta     DHIRESON
     dex
     bne     :-
@@ -479,17 +479,17 @@ quit_params:
 loop:
     ldy     #0
     lda     #0
-    sta     RAMWRTON	; aux mem  
+    sta     RAMWRTON	; aux mem
 :
 	sta     (screenPtr0),y
 	iny
-	bne     :-    
+	bne     :-
 	sta     RAMWRTOFF	; main mem
 :
     sta     (screenPtr0),y
     iny
-    bne     :-    
- 
+    bne     :-
+
  	inc     screenPtr1
     lda     #$40
     cmp     screenPtr1
@@ -504,7 +504,7 @@ loop:
 ; The follow use 2-byte increments for X / Width
 ;            and 8-byte increments for Y / Height
 imageWidth: 	.byte 	10
-imageHeight: 	.byte 	8 	
+imageHeight: 	.byte 	8
 imageX: 		.byte 	1 		; [0..39-width]
 imageY: 		.byte 	1 		; [0..23-height]
 

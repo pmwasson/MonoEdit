@@ -379,7 +379,7 @@ loopY:
 :
     cmp     #PIXEL_BLACK
     bne     cont
-    lda     #PIXEL_WHITE    
+    lda     #PIXEL_WHITE
     jsr     copyPixel   ; black -> white
 cont:
 

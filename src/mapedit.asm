@@ -12,41 +12,38 @@
 ; Constants
 ;-----------------------------------------------------------------------------
 
-MAP_XOFFSET := 4
-MAP_YOFFSET := 2
-
 ; map-width     map-height  map-length <= 256
 ; ---------     ----------  ----------
-; 4*            14          256
-; 5             10          240
-; 6             8           240
-; 7             7           252
-; 8*            6           256
-; 9             5           252
-; 10            4           240
+; 8*            32          256
+; 10            24          240
+; 12            20          240
+; 14            18          252
+; 16*           16          256
+; 18            14          252
+; 20            12          240
 ; * = power of 2
 
-MAP_WIDTH       = 8     ;  MAP_WIDTH    *2
-MAP_HEIGHT      = 6     ; (MAP_HEIGHT+2)*2
-MAP_LENGTH      = (MAP_WIDTH*2)*(MAP_HEIGHT+2)*2
+MAP_WIDTH       = 16
+MAP_HEIGHT      = 16
+MAP_LENGTH      = MAP_WIDTH*MAP_HEIGHT
 
 CURSOR_TILE     = $1c
-CURSOR_INIT     = 2*MAP_WIDTH*2
+CURSOR_INIT     = 2*MAP_WIDTH
 
 CURSOR_W        = 256 - 2
 CURSOR_E        =       2
-CURSOR_N        = 256 - MAP_WIDTH*2*2
-CURSOR_S        =       MAP_WIDTH*2*2
-CURSOR_NE       = 256 - MAP_WIDTH*2   + 1
-CURSOR_NW       = 256 - MAP_WIDTH*2   - 1
-CURSOR_SE       =       MAP_WIDTH*2   + 1
-CURSOR_SW       =       MAP_WIDTH*2   - 1
+CURSOR_N        = 256 - MAP_WIDTH*2
+CURSOR_S        =       MAP_WIDTH*2
+CURSOR_NE       = 256 - MAP_WIDTH   + 1
+CURSOR_NW       = 256 - MAP_WIDTH   - 1
+CURSOR_SE       =       MAP_WIDTH   + 1
+CURSOR_SW       =       MAP_WIDTH   - 1
 
-CURSOR_U2       = 256 - MAP_WIDTH*2*2
-CURSOR_U1       = 256 - MAP_WIDTH*2
-CURSOR_D1       =       MAP_WIDTH*2
-CURSOR_D2       =       MAP_WIDTH*2*2
-CURSOR_D3       =       MAP_WIDTH*2*3
+CURSOR_U2       = 256 - MAP_WIDTH*2
+CURSOR_U1       = 256 - MAP_WIDTH
+CURSOR_D1       =       MAP_WIDTH
+CURSOR_D2       =       MAP_WIDTH*2
+CURSOR_D3       =       MAP_WIDTH*3
 
 MACRO_ERASE     = 20
 
@@ -558,61 +555,79 @@ pattern:
 
     sta     CLR80COL        ; Use RAMWRT for aux mem
 
-    ldx     #0
-    stx     isoIdx
+    clc
+    lda     displayOffsetX
+    adc     displayWidth
+    sta     rightEdge
 
-    lda     #MAP_YOFFSET
+    lda     displayOffsetY
+    adc     displayHeight
+    sta     bottomEdge
+
+    ldx     #0
+    stx     isoIdxY
+
+    lda     displayOffsetY
     sta     tileY
 
 loopY:
-    lda     #MAP_XOFFSET
+    lda     displayOffsetX
     sta     tileX
 
+    lda     isoIdxY
+    sta     isoIdxX
+
 loopX1:
-    ldx     isoIdx
+    ldx     isoIdxX
     lda     isoMap0,x
     jsr     DHGR_DRAW_BG_28X8
-    ldx     isoIdx
+    ldx     isoIdxX
     lda     isoMap1,x
     jsr     DHGR_DRAW_MASK_28X8
-    ldx     isoIdx
+    ldx     isoIdxX
     lda     isoMap2,x
     jsr     DHGR_DRAW_MASK_28X8
-    ldx     isoIdx
+    ldx     isoIdxX
     lda     isoMap3,x
     jsr     DHGR_DRAW_MASK_28X8
-    ldx     isoIdx
+    ldx     isoIdxX
     lda     isoMap4,x
     jsr     DHGR_DRAW_MASK_28X8
-    ldx     isoIdx
+    ldx     isoIdxX
     lda     isoMap5,x
     jsr     DHGR_DRAW_MASK_28X8
-    ldx     isoIdx
+    ldx     isoIdxX
     lda     isoMap6,x
     jsr     DHGR_DRAW_MASK_28X8
-    ldx     isoIdx
+    ldx     isoIdxX
     lda     isoMap7,x
     jsr     DHGR_DRAW_MASK_28X8
 
-    inc     isoIdx
+    inc     isoIdxX
 
     clc
     lda     tileX
     adc     #2
     sta     tileX
-    cmp     #MAP_XOFFSET+MAP_WIDTH*4
+    cmp     rightEdge
     bmi     loopX1
+
+    clc
+    lda     isoIdxY
+    adc     #CURSOR_D1
+    sta     isoIdxY
 
     inc     tileY
     lda     tileY
-    cmp     #MAP_YOFFSET+(MAP_HEIGHT+2)*2
+    cmp     bottomEdge
     bmi     loopY
 
     rts
 
-isoIdx:    .byte   0
-isoX:      .byte   0
-isoY:      .byte   0
+isoIdxX:    .byte    0
+isoIdxY:    .byte    0
+rightEdge:  .byte    0
+bottomEdge: .byte    0
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -729,7 +744,7 @@ waitExit:
 
     lda     index
     clc
-    adc     #MAP_WIDTH*2-1
+    adc     #MAP_WIDTH-1
     sta     index
 
     dec     tileX
@@ -811,7 +826,7 @@ temp:   .byte   0
     and     #$0f        ; x 0..15
     asl                 ; *2 (subtile 2 wide)
     clc
-    adc     #MAP_XOFFSET
+    adc     displayOffsetX
     sta     tileX
 
     lda     mapCursor
@@ -821,7 +836,7 @@ temp:   .byte   0
     lsr
     lsr                 ; /16
     clc
-    adc     #MAP_YOFFSET
+    adc     displayOffsetY
     sta     tileY
 
     rts
@@ -1370,6 +1385,18 @@ loop:
 ;-----------------------------------------------------------------------------
 .proc testMap
 
+    ; save display settings
+    lda     displayOffsetX
+    sta     storeOffsetX
+    lda     displayWidth
+    sta     storeWidth
+
+    ; change display settings
+    lda     #12
+    sta     displayOffsetX
+    lda     #32-6
+    sta     displayWidth
+
     sta     MIXCLR  ; full screen
 
     ; set up background
@@ -1406,7 +1433,7 @@ displayLoop:
 
     ; we just finished drawing on page 1, so display it and now drawing on page 2
 display1:
-    sta     LOWSCR 
+    sta     LOWSCR
     lda     #$20
 
 :
@@ -1418,7 +1445,7 @@ display1:
     beq     :+
     jsr     setCoordinate
     jsr     drawQuarter
-:   
+:
 
     lda     #0
     sta     update
@@ -1436,7 +1463,7 @@ display1:
     lda     animateMap,y
     beq     :+
     sta     isoMap4,x
-    inc     update   
+    inc     update
 :
 
     ; Map 2
@@ -1445,7 +1472,7 @@ display1:
     lda     animateMap,y
     beq     :+
     sta     isoMap2,x
-    inc     update   
+    inc     update
 :
     ; Map 1
     lda     isoMap1,x
@@ -1453,7 +1480,7 @@ display1:
     lda     animateMap,y
     beq     :+
     sta     isoMap1,x
-    inc     update   
+    inc     update
 :
     ; Map 0
     lda     isoMap0,x
@@ -1461,7 +1488,7 @@ display1:
     lda     animateMap,y
     beq     :+
     sta     isoMap0,x
-    inc     update   
+    inc     update
 :
 
     lda     update
@@ -1478,6 +1505,12 @@ display1:
 
 exit:
     bit     KBDSTRB     ; clean up
+
+    ; restore display settings
+    lda     storeOffsetX
+    sta     displayOffsetX
+    lda     storeWidth
+    sta     displayWidth
 
     ; Make sure to display and draw on page 1 on exit
     lda     #$00
@@ -1516,7 +1549,9 @@ drawQuarter:
     jsr     DHGR_DRAW_MASK_28X8
     rts
 
-update: .byte   0
+update:         .byte   0
+storeWidth:     .byte   0
+storeOffsetX:   .byte   0
 
 .endproc
 
@@ -1531,6 +1566,11 @@ update: .byte   0
 ; Global
 ;-----------------------------------------------------------------------------
 
+displayOffsetX: .byte   4
+displayOffsetY: .byte   2
+displayWidth:   .byte   MAP_WIDTH*2
+displayHeight:  .byte   MAP_HEIGHT
+
 mapCursor:  .byte   0   ; Offset into map table
 macroIndex: .byte   1
 bgColor:    .byte   2*4
@@ -1540,13 +1580,13 @@ bgColor:    .byte   2*4
 ;-----------------------------------------------------------------------------
 
 macroOverlay:
-    .byte   1       ;   0  Cube   
-    .byte   1       ;   1  Grass  
-    .byte   1       ;   2  Water  
-    .byte   1       ;   3  Reed   
+    .byte   1       ;   0  Cube
+    .byte   1       ;   1  Grass
+    .byte   1       ;   2  Wate
+    .byte   1       ;   3  Reed
     .byte   1       ;   4  Tile
-    .byte   1       ;   5  Brick Wall 
-    .byte   0       ;   6  Wizard   
+    .byte   1       ;   5  Brick Wall
+    .byte   0       ;   6  Wizard
     .byte   0       ;   7  Robot
     .byte   0       ;   8  Goofy
     .byte   0       ;   9  Chair-left
