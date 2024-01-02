@@ -29,14 +29,29 @@
     jmp     dumpByte
     jmp     setByte
     jmp     clearScreen
+    jmp     drawImage
+    jmp     drawString
 
 ; Variables (in fixed locations)
 ; xx40
 .align 64
 tileSheet_7x8:          .word   $B000
-tileSheet_28x8:         .word   $B000
-                        .res    4
-; xx48
+tileSheet_28x8:         .word   $8000
+
+imageWidth:             .byte   10
+imageHeight:            .byte   8
+imageX:                 .byte   1       ; [0..39-width]
+imageY:                 .byte   2       ; [0..23-height]
+
+imageTable:             .word   $B000+640*0
+                        .word   $B000+640*1
+                        .word   $B000+640*2
+                        .word   $B000+640*3
+                        .word   $B000+640*4
+                        .word   $B000+640*5
+.align 64
+
+; xx80
 lineOffset:
     .byte   <$2000
     .byte   <$2080
@@ -63,7 +78,7 @@ lineOffset:
     .byte   <$2350
     .byte   <$23D0
 
-; x60
+; x84
 linePage:
     .byte   >$2000
     .byte   >$2080
@@ -1023,8 +1038,187 @@ loop8:
 
 .endproc
 
-
 auxMemEnd:
+
+;-----------------------------------------------------------------------------
+; Draw Image
+;
+;   Data is split between even and odd using tilePtr and maskPtr
+;-----------------------------------------------------------------------------
+.proc drawImage
+    sta     CLR80COL        ; Use RAMWRT for aux mem
+
+    asl
+    asl     ; *4
+    tax
+    lda     imageTable,x
+    sta     tilePtr0
+    lda     imageTable+1,x
+    sta     tilePtr1
+    lda     imageTable+2,x
+    sta     maskPtr0
+    lda     imageTable+3,x
+    sta     maskPtr1
+
+    lda     imageY
+    tax
+    clc
+    adc     imageHeight
+    sta     imageEnd
+
+loopY:
+    lda     lineOffset,x
+    clc
+    adc     imageX
+    sta     screenPtr0
+    lda     linePage,x
+    adc     drawPage
+    sta     screenPtr1
+
+    lda     #8
+    sta     lineCount
+loop8:
+
+    ldy     #0
+loopX:
+    sta     RAMWRTON            ; aux
+    lda     (tilePtr0),y
+    sta     (screenPtr0),y
+    sta     RAMWRTOFF           ; main
+    lda     (maskPtr0),y
+    sta     (screenPtr0),y
+    iny
+    cpy     imageWidth
+    bne     loopX
+
+    ; increment pointers
+
+    clc
+    lda     imageWidth
+    adc     tilePtr0
+    sta     tilePtr0
+    lda     #0
+    adc     tilePtr1
+    sta     tilePtr1
+
+    clc
+    lda     imageWidth
+    adc     maskPtr0
+    sta     maskPtr0
+    lda     #0
+    adc     maskPtr1
+    sta     maskPtr1
+
+    clc
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dec     lineCount
+    bne     loop8
+
+    inx
+    cpx     imageEnd
+    bne     loopY
+
+    rts
+
+lineCount:  .byte   0
+imageEnd:   .byte   0
+
+.endproc
+
+
+;-----------------------------------------------------------------------------
+; Draw String
+;
+;   Use tileX and tileY for start and string inlined
+;-----------------------------------------------------------------------------
+
+.proc drawString
+
+    ; Pop return address to find string
+    pla
+    sta     stringPtr0
+    pla
+    sta     stringPtr1
+    ldy     #0
+
+    lda     tileX
+    sta     offset
+
+    ; Print characters until 0 (end-of-string)
+printLoop:
+    iny
+    bne     :+              ; Allow strings > 255
+    inc     stringPtr1
+:
+    tya
+    pha
+    lda     (stringPtr0),y
+    beq     printExit
+    cmp     #13
+    bne     :+
+    inc     tileY
+    lda     offset
+    sta     tileX
+    jmp     continue
+:
+    and     #$7f
+    jsr     drawTile_7x8
+
+    inc     tileX
+continue:
+    pla
+    tay
+    jmp     printLoop
+
+printExit:
+    pla                 ; clean up stack
+    ; calculate return address after print string
+    clc
+    tya
+    adc     stringPtr0  ; add low-byte first
+    tax                 ; save in X
+    lda     stringPtr1  ; carry to high-byte
+    adc     #0
+    pha                 ; push return high-byte
+    txa
+    pha                 ; push return low-byte
+    rts                 ; return
+
+char:   .byte   0
+offset: .byte   0
+.endproc
+
+;-----------------------------------------------------------------------------
+; Draw Number
+;
+;   Draw 2 digit hex number passed in A
+;-----------------------------------------------------------------------------
+.proc drawNumber
+    sta     temp
+    lsr
+    lsr
+    lsr
+    lsr     ; /16
+    tax
+    lda     numberLookup,x
+    jsr     DHGR_DRAW_7X8
+    inc     tileX
+    lda     temp
+    and     #$F
+    tax
+    lda     numberLookup,x
+    jsr     DHGR_DRAW_7X8
+    inc     tileX
+    rts
+
+temp:       .byte   0
+
+.align 16
+numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
+.endproc
 
 ;-----------------------------------------------------------------------------
 ; clearScreen

@@ -59,6 +59,7 @@ def main():
     im.save(outfile)
     print(";",outfile,im.format, im.size, im.mode)
 
+    allData = []
     evenData = []
     oddData = []
     for y in range(im.size[1]):
@@ -72,6 +73,7 @@ def main():
                 #outputBytes.append(value)
                 value = 0
 
+        allData.append(line)
         evenData.append(line[0::2])
         oddData.append(line[1::2])
 
@@ -85,6 +87,11 @@ def main():
     for line in oddData:
         print(".byte ",end="")
         print(*line,sep=", ")
+
+    #print("image_{}:".format(name))
+    #for line in allData:
+    #    print(".byte ",end="")
+    #    print(*line,sep=", ")
 
     # if screen size, then dump out binary file
     if (width == 560) and (height == 192):

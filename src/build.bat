@@ -24,9 +24,9 @@ cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\engine.asm apple2.lib  -o engine.a
 ca65 -I ..\src -t apple2 ..\src\loader.asm -l loader.dis || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\loader.asm apple2.lib  -o loader.apple2 -C ..\src\start2000.cfg || exit
 
-:: Image
-ca65 -I ..\src -t apple2 --cpu 65C02 ..\src\displayImage.asm -l image.dis || exit
-cl65 -I ..\src -t apple2 --cpu 65C02 -u __EXEHDR__ ..\src\displayImage.asm apple2.lib  -o image.apple2 -C ..\src\start4000.cfg || exit
+:: :: Image
+:: ca65 -I ..\src -t apple2 --cpu 65C02 ..\src\displayImage.asm -l image.dis || exit
+:: cl65 -I ..\src -t apple2 --cpu 65C02 -u __EXEHDR__ ..\src\displayImage.asm apple2.lib  -o image.apple2 -C ..\src\start4000.cfg || exit
 
 ::---------------------------------------------------------------------------
 :: Compile assets
@@ -35,6 +35,7 @@ cl65 -I ..\src -t apple2 --cpu 65C02 -u __EXEHDR__ ..\src\displayImage.asm apple
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tilesheet_0.asm apple2.lib  -o tilesheet_0.apple2 -C ..\src\start6000.cfg || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_0.asm apple2.lib  -o font7x8_0.apple2 -C ..\src\start6000.cfg || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_1.asm apple2.lib  -o font7x8_1.apple2 -C ..\src\start6000.cfg || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\imagesheet_0.asm apple2.lib  -o imagesheet_0.apple2 -C ..\src\start6000.cfg || exit
 
 ::---------------------------------------------------------------------------
 :: Build disk 
@@ -48,9 +49,9 @@ java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\c
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.apple2  || exit
 ::java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader.system sys < loader.apple2  || exit
 
-:: Image
-java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system || exit
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2  || exit
+:: :: Image
+:: java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system || exit
+:: java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2  || exit
 
 :: Font Editor
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/fontedit bin < fontedit.apple2  || exit
@@ -69,6 +70,7 @@ java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/engine bin < engine
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tilesheet.0 bin < tilesheet_0.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.0 bin < font7x8_0.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.1 bin < font7x8_1.apple2  || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/imagesheet.0 bin < imagesheet_0.apple2  || exit
 
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk data/title.0 bin < title.0  || exit
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk data/title.1 bin < title.1  || exit

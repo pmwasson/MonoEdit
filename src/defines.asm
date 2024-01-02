@@ -189,10 +189,18 @@ DHGR_DUMP_INIT              := $C21
 DHGR_DUMP_BYTE              := $C24
 DHGR_SET_BYTE               := $C27
 DHGR_CLEAR_SCREEN           := $C2A
+DHGR_DRAW_IMAGE             := $C2D
+DHGR_DRAW_STRING            := $C30
 
 DHGR_TILE_7X8               := $C40
 DHGR_TILE_28X8              := $C42
+DHGR_IMAGE_WIDTH            := $C44
+DHGR_IMAGE_HEIGHT           := $C45
+DHGR_IMAGE_X                := $C46
+DHGR_IMAGE_Y                := $C47
 
-DHGR_LINE_OFFSET 			:= $C48
-DHGR_LINE_PAGE 				:= $C60
+DHGR_IMAGE_TABLE            := $C48
+
+DHGR_LINE_OFFSET 			:= $C80
+DHGR_LINE_PAGE 				:= $C98
 

@@ -28,3 +28,9 @@
     .byte   13
 .endmacro
 
+.macro  StringBold s
+        .repeat .strlen(s), I
+        .byte   (.strat(s, I) & $1f) | $80
+        .endrep
+.endmacro
+

@@ -32,7 +32,8 @@
 ;
 ;   8000-AFFF   [ Isometric Tiles (192)         ]
 ;
-;   B000-B7FF   [ Unused        ][ Font x2      ]
+;   B000-B7FF   [ Images        ][ Font x2      ]
+;   B800-BEFF   [ "             ]
 ;
 ;   Is B800-BEFF available?  (BFxx is used by ProDos)
 ;
@@ -71,6 +72,10 @@ FONT1START          :=  $B400
 FONT1LENGTH         =   32*64
 FONT1END            :=  FONT1START + FONT1LENGTH - 1
 
+IMAGESTART          :=  $B000
+IMAGELENGTH         =   3*1280                          ; B000..BEFF : 20 bytes * 64 lines 1280(B) per image -> 2 images
+IMAGEEND            :=  IMAGESTART + IMAGELENGTH - 1
+
 ENGINESTART         :=  $C00
 ENGINELENGTH        =   $2000 - ENGINESTART
 
@@ -92,9 +97,10 @@ TILEEDITLENGTH      =   $6000 - TILEEDITSTART
 
 INSTALL_MAIN    = 0     ; Main memory
 INSTALL_AUX     = 1     ; Aux memory
-INSTALL_BOTH    = 3     ; Both main and aux
-INSTALL_AUX_I2  = 2     ; Aux memory, interleave of 2
-INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
+INSTALL_BOTH    = 2     ; Both main and aux
+INSTALL_AUX_I1  = 3     ; Aux memory, interleave of 1
+INSTALL_AUX_I2  = 4     ; Aux memory, interleave of 2
+INSTALL_AUX_I4  = 5     ; Aux memory, interleave of 4
 
 ;------------------------------------------------
 ; Constants
@@ -136,6 +142,8 @@ INSTALL_AUX_I4  = 4     ; Aux memory, interleave of 4
     ldx     #assetFont1
     jsr     loadAsset
     ldx     #assetISO
+    jsr     loadAsset
+    ldx     #assetImage
     jsr     loadAsset
     ldx     #assetEngine
     jsr     loadAsset
@@ -344,6 +352,26 @@ quit_params:
     rts
 :
 
+    cmp     #INSTALL_AUX_I1
+    bne     :+
+    jsr     inline_print
+    String "(main/aux interleave 1) $"
+    jsr     printDest
+
+    jsr     setCopyParam
+    jsr     interleaveCopy1A
+
+    jsr     setCopyParamInterleave
+    sec
+    jsr     AUXMOVE
+
+    jsr     setCopyParam
+    jsr     interleaveCopy1B
+
+
+    rts
+:
+
     cmp     #INSTALL_AUX_I2
     bne     :+
     jsr     inline_print
@@ -392,6 +420,64 @@ moveCopyBuffer:
 
     inc     A4+1
 
+    rts
+
+interleaveCopy1A:
+    ldy     #0
+    ldx     #0
+
+copyLoop1A:
+    ; copy 1 byte
+    lda     (A1),y
+    sta     copyBuffer,x
+    inx
+    iny
+    ; skip 1 bytes
+    iny
+    bne     copyLoop1A
+
+    ; inc source page
+    inc     A1+1
+
+    ; check if buffer full
+    cpx     #0
+    bne     copyLoop1A
+
+    jsr     moveCopyBuffer
+
+    ; check if done
+    dec     copyLength
+    bne     copyLoop1A
+
+    rts
+
+
+interleaveCopy1B:
+    ldy     #0
+    ldx     #0
+
+copyLoop1B:
+    ; skip 1 byte
+    iny
+    ; copy 1 bytes
+    lda     (A1),y
+    sta     copyBuffer,x
+    inx
+    iny
+    bne     copyLoop1B
+
+    ; inc source page
+    inc     A1+1
+
+    ; check if buffer full
+    cpx     #0
+    bne     copyLoop1B
+
+    jsr     moveCopyBuffer
+
+    ; check if done
+    dec     copyLength
+    bne     copyLoop1B
     rts
 
 interleaveCopy2A:
@@ -708,12 +794,14 @@ close_params:
 ; Asset type
 fileTypeFont:   String "Font Tilesheet"
 fileTypeISO:    String "Isometric Tilesheet"
+fileTypeImage:  String "Image Sheet"
 fileTypeExe:    String "Executable"
 
 ; File names
 fileNameFont0:      StringLen "/DHGR/DATA/FONT7X8.0"
 fileNameFont1:      StringLen "/DHGR/DATA/FONT7X8.1"
 fileNameISO:        StringLen "/DHGR/DATA/TILESHEET.0"
+fileNameImage:      StringLen "/DHGR/DATA/IMAGESHEET.0"
 fileNameEngine:     StringLen "/DHGR/DATA/ENGINE"
 fileNameGame:       StringLen "/DHGR/DATA/GAME"
 fileNameFontEdit:   StringLen "/DHGR/DATA/FONTEDIT"
@@ -728,20 +816,22 @@ fileDescription:    ; type, name, address, size, dest, interleave
     .word   fileTypeFont,   fileNameFont0,    FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_AUX,    0               ; 0
     .word   fileTypeFont,   fileNameFont1,    FONT1START,     FONT1LENGTH,    FONT1END,   FONT1START,     INSTALL_AUX,    0               ; 16
     .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I2, ISOI2END        ; 32
-    .word   fileTypeExe,    fileNameEngine,   ENGINESTART,    ENGINELENGTH,   0,          ENGINESTART,    INSTALL_MAIN,   0               ; 48
-    .word   fileTypeExe,    fileNameGame,     GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 64
-    .word   fileTypeExe,    fileNameFontEdit, FONTEDITSTART,  FONTEDITLENGTH, 0,          FONTEDITSTART,  INSTALL_MAIN,   0               ; 80
-    .word   fileTypeExe,    fileNameTileEdit, TILEEDITSTART,  TILEEDITLENGTH, 0,          TILEEDITSTART,  INSTALL_MAIN,   0               ; 96
-    .word   fileTypeExe,    fileNameMapEdit,  MAPEDITSTART,   MAPEDITLENGTH,  0,          MAPEDITSTART,   INSTALL_MAIN,   0               ; 112
+    .word   fileTypeImage,  fileNameImage,    IMAGESTART,     IMAGELENGTH,    IMAGEEND,   IMAGESTART,     INSTALL_MAIN,   0               ; 48
+    .word   fileTypeExe,    fileNameEngine,   ENGINESTART,    ENGINELENGTH,   0,          ENGINESTART,    INSTALL_MAIN,   0               ; 64
+    .word   fileTypeExe,    fileNameGame,     GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 80
+    .word   fileTypeExe,    fileNameFontEdit, FONTEDITSTART,  FONTEDITLENGTH, 0,          FONTEDITSTART,  INSTALL_MAIN,   0               ; 96
+    .word   fileTypeExe,    fileNameTileEdit, TILEEDITSTART,  TILEEDITLENGTH, 0,          TILEEDITSTART,  INSTALL_MAIN,   0               ; 112
+    .word   fileTypeExe,    fileNameMapEdit,  MAPEDITSTART,   MAPEDITLENGTH,  0,          MAPEDITSTART,   INSTALL_MAIN,   0               ; 128
 
 assetFont0    =   16*0
 assetFont1    =   16*1
 assetISO      =   16*2
-assetEngine   =   16*3
-assetGame     =   16*4
-assetFontEdit =   16*5
-assetTileEdit =   16*6
-assetMapEdit  =   16*7
+assetImage    =   16*3
+assetEngine   =   16*4
+assetGame     =   16*5
+assetFontEdit =   16*6
+assetTileEdit =   16*7
+assetMapEdit  =   16*8
 
 ;-----------------------------------------------------------------------------
 ; Utilies
