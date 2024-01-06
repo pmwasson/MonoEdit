@@ -48,8 +48,10 @@ PIXEL_BG_ODD    = $17
     sta     currentTile
 :
     jsr     printDump
-    inc     currentTile
     lda     currentTile
+    clc
+    adc     tileInc
+    sta     currentTile
     cmp     tileMax
     bne     :-
 

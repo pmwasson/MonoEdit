@@ -45,9 +45,9 @@ cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\imagesheet_0.asm apple2.lib  -o im
 copy ..\disk\template_prodos.dsk mono_prodos.dsk  || exit
 
 :: Loader
-java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\cc65\target\apple2\util\loader.system || exit
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.apple2  || exit
-::java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader.system sys < loader.apple2  || exit
+::java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\cc65\target\apple2\util\loader.system || exit
+::java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.apple2  || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader.system sys < loader.apple2  || exit
 
 :: :: Image
 :: java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system || exit

@@ -1620,6 +1620,8 @@ drawTestScreen:
     jsr     DHGR_CLEAR_SCREEN
     jsr     drawFrame
 
+    jsr     drawTitle
+
     lda     #1
     jsr     DHGR_DRAW_IMAGE
 
@@ -1699,6 +1701,25 @@ drawFrame:
     jsr     drawBox
     rts
 
+drawTitle:
+    lda     #2
+    sta     tileX
+    lda     #0
+    sta     tileY
+    jsr     DHGR_DRAW_STRING
+
+    .byte   $93,$93,$93,$93,$93," Merlin-8 ",$93,$93,$93,$93,$93,0
+
+    lda     #24
+    sta     tileX
+    lda     #0
+    sta     tileY
+    jsr     DHGR_DRAW_STRING
+    .byte   $93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93
+    .byte   " Somewhere in the forest "
+    .byte   $93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93
+    .byte   0
+    rts
 
 drawText:
 
@@ -1963,7 +1984,15 @@ macroList:
 .res    16
 
 ; 16
-.res    16
+; 16 - alt Wizard
+.byte   $6c,$6d
+.byte   $6e,$6f
+.byte   $70,$71
+.byte   $00,$00
+.byte   $72,$73
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
 
 ; 17
 .res    16

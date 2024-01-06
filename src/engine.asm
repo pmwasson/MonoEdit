@@ -737,29 +737,21 @@ pixelMask:
 ; dumpByte
 ;   Return the Yth byte of the tile
 ;
-; Note that this function maintains the 2-byte interleave, but since nothing
-; is taking advantage of that, it may be better to go to a more straight forward
-; 1 byte interleave.
+; Handles the interleave between aux/main
 ;-----------------------------------------------------------------------------
 .proc dumpByte
     tya
-    and     #2
-    bne     :+              ; If bit 1 set, main memory
+    and     #1
+    bne     :+              ; If bit 0 set, main memory
     sta     RAMRDON         ; aux
 :
     tya
-    and     #1
-    tax
-    tya
-    lsr
-    and     #$7e
-    ora     offset,x        ; don't have orx, so use lookup
+    lsr                     ; /2
     tay
     lda     (tilePtr0),y
     sta     RAMRDOFF
     rts
 
-offset:     .byte   0,1
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -774,17 +766,12 @@ offset:     .byte   0,1
     sta     temp
     sta     CLR80COL        ; Use RAMWRT for aux mem
     tya
-    and     #2
+    and     #1
     bne     :+              ; If bit 1 set, main memory
     sta     RAMWRTON        ; aux
 :
     tya
-    and     #1
-    tax
-    tya
     lsr
-    and     #$7e
-    ora     offset,x        ; don't have orx, so use lookup
     tay
     lda     temp
     sta     (tilePtr0),y
@@ -792,7 +779,6 @@ offset:     .byte   0,1
     rts
 
 temp:       .byte   0
-offset:     .byte   0,1
 .endproc
 
 ;-----------------------------------------------------------------------------

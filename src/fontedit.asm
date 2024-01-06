@@ -1226,6 +1226,7 @@ currentTile:          .byte   0
 tileSize:           .byte   0
 
 ; fixed parameters fo 7x8
+tileInc:            .byte   1
 tileMax:            .byte   128
 tileWidth:          .byte   7
 tileWidthBytes:     .byte   1

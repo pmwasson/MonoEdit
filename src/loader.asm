@@ -60,9 +60,9 @@ MAPEND              :=  READBUFFER + MAPLENGTH - 1
 ; BGI4END           :=  BGSTART + BGLENGTH/2 - 1
 
 ISOSTART            :=  $8000
-ISOLENGTH           =   256*32                          ; 8K
+ISOLENGTH           =   $4000                          ; 16k
 ISOEND              :=  READBUFFER + ISOLENGTH - 1
-ISOI2END            :=  ISOSTART + ISOLENGTH/2 - 1
+ISOI1END            :=  ISOSTART + ISOLENGTH/2 - 1
 
 FONT0START          :=  $B000
 FONT0LENGTH         =   8*128
@@ -815,7 +815,7 @@ fileDescription:    ; type, name, address, size, dest, interleave
     ;       --------------- ---------------   -----------     -----------     ----------- -----------     --------------- --------------- -------
     .word   fileTypeFont,   fileNameFont0,    FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_AUX,    0               ; 0
     .word   fileTypeFont,   fileNameFont1,    FONT1START,     FONT1LENGTH,    FONT1END,   FONT1START,     INSTALL_AUX,    0               ; 16
-    .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I2, ISOI2END        ; 32
+    .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I1, ISOI1END        ; 32
     .word   fileTypeImage,  fileNameImage,    IMAGESTART,     IMAGELENGTH,    IMAGEEND,   IMAGESTART,     INSTALL_MAIN,   0               ; 48
     .word   fileTypeExe,    fileNameEngine,   ENGINESTART,    ENGINELENGTH,   0,          ENGINESTART,    INSTALL_MAIN,   0               ; 64
     .word   fileTypeExe,    fileNameGame,     GAMESTART,      GAMELENGTH,     0,          GAMESTART,      INSTALL_MAIN,   0               ; 80
