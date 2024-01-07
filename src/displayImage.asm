@@ -28,12 +28,12 @@ BOX_LOWER_RIGHT = $1f
 
     ; set param
     lda     #10
-    sta     imageWidth
+    sta     DHGR_IMAGE_WIDTH
     lda     #8
-    sta     imageHeight
+    sta     DHGR_IMAGE_HEIGHT
     lda     #1
-    sta     imageX
-    sta     imageY
+    sta     DHGR_IMAGE_X
+    sta     DHGR_IMAGE_Y
     lda     #0
     sta     imageNumber
 
@@ -64,36 +64,36 @@ showTitle:
 slideShow:
 
     lda     #1
-    sta     imageX
+    sta     DHGR_IMAGE_X
     lda     #1
-    sta     imageY
+    sta     DHGR_IMAGE_Y
     lda     imageNumber
     jsr     drawImage
 
     lda     #1+14
-    sta     imageX
+    sta     DHGR_IMAGE_X
     jsr     incImage
     jsr     drawImage
 
     lda     #1+14*2
-    sta     imageX
+    sta     DHGR_IMAGE_X
     jsr     incImage
     jsr     drawImage
 
     lda     #1
-    sta     imageX
+    sta     DHGR_IMAGE_X
     lda     #12
-    sta     imageY
+    sta     DHGR_IMAGE_Y
     jsr     incImage
     jsr     drawImage
 
     lda     #1+14
-    sta     imageX
+    sta     DHGR_IMAGE_X
     jsr     incImage
     jsr     drawImage
 
     lda     #1+14*2
-    sta     imageX
+    sta     DHGR_IMAGE_X
     jsr     incImage
     jsr     drawImage
 
@@ -178,142 +178,15 @@ imageNumber:
     lda     imageTable+3,x
     sta     maskPtr1
 
-    lda     imageY
-    tax
-    clc
-    adc     imageHeight
-    sta     imageEnd
-
-loopY:
-    lda     lineOffset,x
-    clc
-    adc 	imageX
-    sta     screenPtr0
-    lda     linePage,x
-    sta     screenPtr1
-
-    lda 	#8
-    sta 	lineCount
-loop8:
-
-    ldy 	#0
-loopX:
-    sta     RAMWRTON  			; aux
-    lda		(tilePtr0),y
-    sta 	(screenPtr0),y
-    sta     RAMWRTOFF  			; main
-    lda		(maskPtr0),y
-    sta 	(screenPtr0),y
-    iny
-    cpy 	imageWidth
-    bne 	loopX
-
-    ; increment pointers
-
-    clc
-    lda 	imageWidth
-    adc 	tilePtr0
-   	sta 	tilePtr0
-   	lda 	#0
-   	adc 	tilePtr1
-   	sta 	tilePtr1
-
-    clc
-    lda 	imageWidth
-    adc 	maskPtr0
-   	sta 	maskPtr0
-   	lda 	#0
-   	adc 	maskPtr1
-   	sta 	maskPtr1
-
-    clc
-   	lda     screenPtr1
-    adc     #4
-    sta     screenPtr1
-
-    dec 	lineCount
-    bne 	loop8
-
-    inx
-    cpx 	imageEnd
-    bne 	loopY
-
-    rts
-
-lineCount: 	.byte 	0
-imageEnd:   .byte   0
-
-.endproc
-
-;-----------------------------------------------------------------------------
-; drawTile_7x8
-;  Draw a tile that is 7 pixels wide (1 byte) by 8 pixels high, for a total
-;    of 8 bytes.
-; Can be either in aux (even) or main (odd) memory depending on X.
-;  Assume 7x8, where 7 is 7*4 pixels = 28 -> 4 bytes
-;
-; Assumes tileSheet is page aligned
-;
-;-----------------------------------------------------------------------------
-.proc drawTile_7x8
-
-    ; tile index passes in A
-    tay     ; copy A
-    ; calculate tile pointer
-    asl                     ; *8
-    asl
-    asl
-    sta     tilePtr0
-    tya     ; restore A
-    lsr                     ; /32
-    lsr
-    lsr
-    lsr
-    lsr
-    clc
-    adc     #>tileSheet_7x8
-    sta     tilePtr1
-    sta     CLR80COL        ; Use RAMWRT for aux mem (needed after COUT)
-
-    ; calculate screen pointer
-    ldx     tileY
-    lda     tileX
-    lsr                     ; /2
-    bcs     :+              ; odd = main mem
-    sta     RAMWRTON        ; aux if even
-:
-    clc
-    adc     lineOffset,x    ; + lineOffset
-    sta     screenPtr0
-    lda     linePage,x
-    sta     screenPtr1
-
-    clc     ; no carry generated inside of loop
-    ldx     #8
-    ldy     #0
-drawLoop:
-    lda     (tilePtr0),y
-    sta     (screenPtr0),y
-
-    ; assumes aligned such that there are no page crossing
-    inc     tilePtr0
-
-    lda     screenPtr1
-    adc     #4
-    sta     screenPtr1
-
-    dex
-    bne     drawLoop
-
-    sta     RAMWRTOFF       ; Restore writing to main mem
+    jsr     DHGR_DRAW_IMAGE
 
     rts
 
 .endproc
+
 
 ;-----------------------------------------------------------------------------
 ; Draw box
-;
 ;-----------------------------------------------------------------------------
 
 .proc drawBox
@@ -324,22 +197,22 @@ drawLoop:
     lda     boxTop
     sta     tileY
     lda     #BOX_UPPER_LEFT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxRight
     sta     tileX
     lda     #BOX_UPPER_RIGHT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxBottom
     sta     tileY
     lda     #BOX_LOWER_RIGHT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxLeft
     sta     tileX
     lda     #BOX_LOWER_LEFT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     ; Draw horizontal
 
@@ -348,12 +221,12 @@ drawLoop:
     lda     boxTop
     sta     tileY
     lda     #BOX_HORZ
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxBottom
     sta     tileY
     lda     #BOX_HORZ
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     inc     tileX
     lda     boxRight
@@ -370,12 +243,12 @@ drawLoop:
     lda     boxLeft
     sta     tileX
     lda     #BOX_VERT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     lda     boxRight
     sta     tileX
     lda     #BOX_VERT
-    jsr     drawTile_7x8
+    jsr     DHGR_DRAW_7X8
 
     inc     tileY
     lda     boxBottom
@@ -385,6 +258,8 @@ drawLoop:
     rts
 
 .endproc
+
+
 
 ;-----------------------------------------------------------------------------
 ; Init
@@ -496,13 +371,6 @@ loop:
 ; Globals
 ;-----------------------------------------------------------------------------
 
-; The follow use 2-byte increments for X / Width
-;            and 8-byte increments for Y / Height
-imageWidth: 	.byte 	10
-imageHeight: 	.byte 	8
-imageX: 		.byte 	1 		; [0..39-width]
-imageY: 		.byte 	1 		; [0..23-height]
-
 boxLeft:        .byte   0
 boxRight:       .byte   0
 boxTop:         .byte   0
@@ -517,67 +385,6 @@ boxBottom:      .byte   0
 ;-----------------------------------------------------------------------------
 ; Data
 ;-----------------------------------------------------------------------------
-
-.align      64
-lineOffset:
-    .byte   <$2000
-    .byte   <$2080
-    .byte   <$2100
-    .byte   <$2180
-    .byte   <$2200
-    .byte   <$2280
-    .byte   <$2300
-    .byte   <$2380
-    .byte   <$2028
-    .byte   <$20A8
-    .byte   <$2128
-    .byte   <$21A8
-    .byte   <$2228
-    .byte   <$22A8
-    .byte   <$2328
-    .byte   <$23A8
-    .byte   <$2050
-    .byte   <$20D0
-    .byte   <$2150
-    .byte   <$21D0
-    .byte   <$2250
-    .byte   <$22D0
-    .byte   <$2350
-    .byte   <$23D0
-
-linePage:
-    .byte   >$2000
-    .byte   >$2080
-    .byte   >$2100
-    .byte   >$2180
-    .byte   >$2200
-    .byte   >$2280
-    .byte   >$2300
-    .byte   >$2380
-    .byte   >$2028
-    .byte   >$20A8
-    .byte   >$2128
-    .byte   >$21A8
-    .byte   >$2228
-    .byte   >$22A8
-    .byte   >$2328
-    .byte   >$23A8
-    .byte   >$2050
-    .byte   >$20D0
-    .byte   >$2150
-    .byte   >$21D0
-    .byte   >$2250
-    .byte   >$22D0
-    .byte   >$2350
-    .byte   >$23D0
-
-;-----------------------------------------------------------------------
-
-.align 256
-tileSheet_7x8:
-.include "font7x8_apple2.asm"
-
-;-----------------------------------------------------------------------
 
 ; DHGR (20 bytes x 64 bytes) -> (140 pixels x 64 pixels)
 

@@ -1837,13 +1837,13 @@ animateMap:
 macroList:
 
 ;  Upper
-;  Upper
 ;  Overlay
+;  Upper
 ;  Overlay
 ;  Floor
 ;  Floor
 ;  Below
-;  Below  (needed?)
+;  Below  (needed? only used by water)
 
 ; 0 - cube
 .byte   $00,$00
