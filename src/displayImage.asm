@@ -26,23 +26,6 @@ BOX_LOWER_RIGHT = $1f
 	jsr 	init
     jsr     clearScreen
 
-showTitle:
-
-    ; set param
-    lda     #40
-    sta     imageWidth
-    lda     #24
-    sta     imageHeight
-    lda     #0
-    sta     imageX
-    sta     imageY
-    lda     imageCount
-    jsr     drawImage
-
-    jsr     RDKEY
-
-    jsr     clearScreen
-
     ; set param
     lda     #10
     sta     imageWidth
@@ -69,6 +52,13 @@ showTitle:
     lda     #78
     sta     boxRight
     jsr     drawBox
+
+showTitle:
+    ; show title on page2
+    sta     HISCR
+    ; Wait for keypress
+    jsr     getKey
+    sta     LOWSCR
 
     ;1,1
 slideShow:
@@ -113,7 +103,7 @@ slideShow:
     jsr     decImage
     jsr     decImage
 
-    jsr     RDKEY
+    jsr     getKey
 
     cmp     #KEY_SPACE
     bne     :+
@@ -157,8 +147,15 @@ decImage:
 :
     rts
 
+getKey:
+    lda     KBD
+    bpl     getKey
+    sta     KBDSTRB     ; clean up
+    rts
+
 imageNumber:
     .byte   0
+
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -585,41 +582,41 @@ tileSheet_7x8:
 ; DHGR (20 bytes x 64 bytes) -> (140 pixels x 64 pixels)
 
 imageCount:
-    .byte   (imageTableEnd-imageTable)/4-1  ; skip title
+    .byte   (imageTableEnd-imageTable)/4
 
 imageTable:
+
     .word   goblinEven
     .word   goblinOdd
-;    .word   ogreEven
-;    .word   ogreOdd
-;    .word   warriorEven
-;    .word   warriorOdd
-;    .word   warrior2Even
-;    .word   warrior2Odd
-;    .word   warrior3Even
-;    .word   warrior3Odd
-;    .word   elf1Even
-;    .word   elf1Odd
-;    .word   girlEven
-;    .word   girlOdd
-;    .word   girl3Even
-;    .word   girl3Odd
-;    .word   heroEven
-;    .word   heroOdd
     .word   wizardEven
     .word   wizardOdd
     .word   robotEven
     .word   robotOdd
-;    .word   gypsy1Even
-;    .word   gypsy1Odd
-;    .word   computerEven
-;    .word   computerOdd
-;    .word   ffEven
-;    .word   ffOdd
-    .word   titleEven
-    .word   titleOdd
+
+    .word   gypsy1Even
+    .word   gypsy1Odd
+    .word   computerEven
+    .word   computerOdd
+    .word   ffEven
+    .word   ffOdd
+
+    .word   elf1Even
+    .word   elf1Odd
+    .word   girlEven
+    .word   girlOdd
+    .word   girl3Even
+    .word   girl3Odd
+
+    .word   heroEven
+    .word   heroOdd
+    .word   ogreEven
+    .word   ogreOdd
+    .word   warriorEven
+    .word   warriorOdd
+
 imageTableEnd:
 
-.include "images.asm"
-
-.include "title.asm"
+.include "images0.asm"
+.include "images1.asm"
+.include "images2.asm"
+.include "images3.asm"

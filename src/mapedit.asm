@@ -1620,8 +1620,8 @@ drawTestScreen:
 
     jsr     drawTitle
 
-    lda     #1
-    jsr     DHGR_DRAW_IMAGE
+    lda     #0
+    jsr     DHGR_DRAW_INDEX_IMAGE
 
     jsr     drawText
 

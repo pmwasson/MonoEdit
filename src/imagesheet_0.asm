@@ -6,4 +6,4 @@
 
 .org    $B000
 
-.include "images.asm"
+.include "images0.asm"

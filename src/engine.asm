@@ -60,6 +60,7 @@
     jmp     dumpByte
     jmp     setByte
     jmp     clearScreen
+    jmp     drawIndexImage
     jmp     drawImage
     jmp     drawString
     jmp     loaderMenu
@@ -1058,15 +1059,11 @@ loop8:
 
 auxMemEnd:
 
-;-----------------------------------------------------------------------------
-; Draw Image
-;
-;   Data is split between even and odd using tilePtr and maskPtr
-;   imageHeight and imageWith define the image size.
-;-----------------------------------------------------------------------------
-.proc drawImage
-    sta     CLR80COL        ; Use RAMWRT for aux mem
 
+;-----------------------------------------------------------------------------
+; Draw Index Image
+;-----------------------------------------------------------------------------
+.proc drawIndexImage
     asl
     asl     ; *4
     tax
@@ -1078,6 +1075,17 @@ auxMemEnd:
     sta     maskPtr0
     lda     imageTable+3,x
     sta     maskPtr1
+    jmp     drawImage
+.endproc
+
+;-----------------------------------------------------------------------------
+; Draw Image
+;
+;   Data is split between even and odd using tilePtr and maskPtr
+;   imageHeight and imageWith define the image size.
+;-----------------------------------------------------------------------------
+.proc drawImage
+    sta     CLR80COL        ; Use RAMWRT for aux mem
 
     lda     imageY
     tax
@@ -1392,6 +1400,10 @@ loadAssets:
     ldx     #assetISO
     jsr     loadAsset
     ldx     #assetImage
+    jsr     loadAsset
+    ldx     #assetTitle0
+    jsr     loadAsset
+    ldx     #assetTitle1
     jsr     loadAsset
 
     lda     fileError
@@ -1997,6 +2009,10 @@ FONT1START          :=  $B400                           ; AUX
 FONT1LENGTH         =   32*64
 FONT1END            :=  FONT1START + FONT1LENGTH - 1
 
+TITLESTART          :=  $4000                           ; MAIN & AUX
+TITLELENGTH         =   $2000
+TITLEEND            :=  TITLESTART + TITLELENGTH - 1
+
 ;------------------------------------------------
 ; Constants
 ;------------------------------------------------
@@ -2011,15 +2027,20 @@ fileTypeFont:   String "Font Tilesheet"
 fileTypeISO:    String "Isometric Tilesheet"
 fileTypeImage:  String "Image Sheet"
 fileTypeExe:    String "Executable"
+fileTypeTitle:  String "Title Image"
 
 ; File names
 fileNameFont0:      StringLen "/DHGR/DATA/FONT7X8.0"
 fileNameFont1:      StringLen "/DHGR/DATA/FONT7X8.1"
 fileNameISO:        StringLen "/DHGR/DATA/TILESHEET.0"
+fileNameISOEnd:
 fileNameImage:      StringLen "/DHGR/DATA/IMAGESHEET.0"
-fileNameGame:       StringLen "/DHGR/DATA/GAME"
+fileNameImageEnd:
 fileNameTool:       StringLen "/DHGR/DATA/TOOL.0"
 fileNameToolEnd:
+fileNameTitle0:     StringLen "/DHGR/DATA/TITLE.0"
+fileNameTitle1:     StringLen "/DHGR/DATA/TITLE.1"
+fileNameGame:       StringLen "/DHGR/DATA/GAME"
 
 ; Asset List
 fileDescription:    ; type, name, address, size, dest, interleave
@@ -2032,6 +2053,8 @@ fileDescription:    ; type, name, address, size, dest, interleave
     .word   fileTypeImage,  fileNameImage,    IMAGESTART,     IMAGELENGTH,    IMAGEEND,   IMAGESTART,     INSTALL_MAIN,   0               ; 48
     .word   fileTypeExe,    fileNameGame,     EXECSTART,      EXECLENGTH,     0,          EXECSTART,      INSTALL_MAIN,   0               ; 64
     .word   fileTypeExe,    fileNameTool,     EXECSTART,      EXECLENGTH,     0,          EXECSTART,      INSTALL_MAIN,   0               ; 80
+    .word   fileTypeTitle,  fileNameTitle0,   TITLESTART,     TITLELENGTH,    TITLEEND,   TITLESTART,     INSTALL_AUX,    TITLEEND        ; 96
+    .word   fileTypeTitle,  fileNameTitle1,   TITLESTART,     TITLELENGTH,    TITLEEND,   TITLESTART,     INSTALL_MAIN,   0               ; 112
 
 assetFont0    =   16*0
 assetFont1    =   16*1
@@ -2039,6 +2062,8 @@ assetISO      =   16*2
 assetImage    =   16*3
 assetGame     =   16*4
 assetTool     =   16*5
+assetTitle0   =   16*6
+assetTitle1   =   16*7
 
 ;-----------------------------------------------------------------------------
 ; Utilies
