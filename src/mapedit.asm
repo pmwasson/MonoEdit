@@ -1837,10 +1837,10 @@ animateMap:
 macroList:
 
 ;  Upper
-;  Overlay
 ;  Upper
 ;  Overlay
 ;  Floor
+;  Overlay
 ;  Floor
 ;  Below
 ;  Below  (needed? only used by water)

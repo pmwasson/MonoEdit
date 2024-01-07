@@ -193,6 +193,8 @@ DHGR_DRAW_INDEX_IMAGE       := $C2D
 DHGR_DRAW_IMAGE             := $C30
 DHGR_DRAW_STRING            := $C33
 DHGR_LOADER_MENU            := $C36
+DHGR_LOAD_ASSET             := $C39
+DHGR_STORE_ASSET            := $C3C
 
 DHGR_TILE_7X8               := $C40
 DHGR_TILE_28X8              := $C42

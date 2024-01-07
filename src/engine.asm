@@ -7,7 +7,7 @@
 ; - The idea is that this code will remain in memory and load in
 ;   other assets and execuable code as needed.
 ; - Some of the code is copied into AUX memory such that the read
-;   bank can be freely changed and the code will continue to execute allow
+;   bank can be freely changed and the code will continue to execute allowing
 ;   the code to read & write both main and AUX memory.
 
 ; Proposed memory map (may change)
@@ -64,6 +64,8 @@
     jmp     drawImage
     jmp     drawString
     jmp     loaderMenu
+    jmp     loadToolAsset
+    jmp     storeToolAsset
 
 ; Variables (in fixed locations)
 ; xx40
@@ -1725,6 +1727,62 @@ openGood:
 .endproc
 
 ;-----------------------------------------------------------------------------
+; Replace final character of filename with passed in value
+;   Pass asset # * 16 in X
+;   final character A
+;   (X preserved)
+;-----------------------------------------------------------------------------
+
+.proc modifyFilename
+    sta     finalCharacter
+
+    ; modify filename
+    lda     fileDescription+2,x
+    sta     stringPtr0
+    lda     fileDescription+3,x
+    sta     stringPtr1
+    ldy     #0
+    lda     (stringPtr0),y
+    tay
+    lda     finalCharacter
+    sta     (stringPtr0),y
+    rts
+
+finalCharacter:     .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; Load Tool Asset
+;
+;   Pass asset # * 16 in X
+;   Slot # in A
+;-----------------------------------------------------------------------------
+.proc loadToolAsset
+    stx     assetNum
+    clc
+    adc     #'0'
+    jsr     modifyFilename
+    jsr     loadAsset
+    rts
+.endproc
+
+;-----------------------------------------------------------------------------
+; Store Tool Asset
+;
+;   Pass asset # * 16 in X
+;   Slot # in A
+;-----------------------------------------------------------------------------
+.proc storeToolAsset
+    stx     assetNum
+    clc
+    adc     #'0'
+    jsr     modifyFilename
+    jsr     storeAsset
+    rts
+.endproc
+
+;-----------------------------------------------------------------------------
 ; Load Asset
 ;
 ;   Pass asset # * 16 in X
@@ -1736,6 +1794,11 @@ openGood:
     jsr     initAsset
     jsr     loadData
 
+    lda     fileError
+    beq     :+
+    ; Error -- abort load
+    rts
+:
     jsr     inline_print
     String "  Installing data to location "
 
@@ -1759,14 +1822,14 @@ openGood:
     String "(aux) $"
     jsr     printDest
 
-    jsr     setCopyParam
+    jsr     setLoadCopyParam
     sec                     ; copy from main to aux
     jsr     AUXMOVE
 
     rts
 :
 
-    ; Note that install both is same as install aux
+    ; Note that install both is same as install aux just not using the read buffer
     cmp     #INSTALL_BOTH
     bne     :+
 
@@ -1774,7 +1837,7 @@ openGood:
     String "(main/aux duplicated) $"
     jsr     printDest
 
-    jsr     setCopyParam
+    jsr     setLoadCopyParam
     sec                     ; copy from main to aux
     jsr     AUXMOVE
 
@@ -1787,14 +1850,14 @@ openGood:
     String "(main/aux interleave 1) $"
     jsr     printDest
 
-    jsr     setCopyParam
+    jsr     setLoadCopyParam
     jsr     interleaveCopy1A
 
-    jsr     setCopyParamInterleave
+    jsr     setLoadCopyParamInterleave
     sec
     jsr     AUXMOVE
 
-    jsr     setCopyParam
+    jsr     setLoadCopyParam
     jsr     interleaveCopy1B
 
 
@@ -1872,7 +1935,7 @@ copyLoop1B:
     bne     copyLoop1B
     rts
 
-setCopyParam:
+setLoadCopyParam:
     ldx     assetNum
 
     ; start
@@ -1900,7 +1963,7 @@ setCopyParam:
 
     rts
 
-setCopyParamInterleave:
+setLoadCopyParamInterleave:
     ldx     assetNum
 
     ; start
@@ -1923,7 +1986,11 @@ setCopyParamInterleave:
 
     rts
 
-printDest:
+copyLength:     .byte   0
+
+.endProc
+
+.proc printDest
     ldx     assetNum
     lda     fileDescription+10,x
     ldy     fileDescription+11,x
@@ -1933,10 +2000,102 @@ printDest:
     jsr     COUT
     rts
 
-copyLength:     .byte   0
+.endproc
 
-.align  256
-copyBuffer:     .res    256
+;-----------------------------------------------------------------------------
+; store Asset
+;
+;   Pass asset # * 16 in X
+;-----------------------------------------------------------------------------
+
+.proc storeAsset
+    stx     assetNum
+    jsr     initAsset
+
+    jsr     inline_print
+    String "  Retrieving data from location "
+
+    ldx     assetNum
+    lda     fileDescription+12,x
+    bne     :+
+
+
+    ;       #INSTALL_MAIN
+
+    jsr     inline_print
+    String "(main) $"
+    jsr     printDest
+    jsr     storeData
+    rts     ; For main memory, just save from correct location
+:
+
+    cmp     #INSTALL_AUX
+    bne     :+
+
+    jsr     inline_print
+    String "(aux) $"
+    jsr     printDest
+
+    jsr     setStoreCopyParam
+    clc                     ; copy from aux to main
+    jsr     AUXMOVE
+
+    rts
+:
+
+    ; Note that install both is same as install aux
+    cmp     #INSTALL_BOTH
+    bne     :+
+
+    jsr     inline_print
+    String "(main/aux duplicated) $"
+    jsr     printDest
+    jsr     storeData
+    rts     ; Assuming main data is sufficient
+:
+
+    cmp     #INSTALL_AUX_I1
+    bne     :+
+    jsr     inline_print
+    String "(main/aux interleave 1) $"
+    jsr     printDest
+
+    brk     ; Need to copy data to buffer
+
+    jsr     storeData
+    rts
+:
+    brk     ; Unknown type
+
+setStoreCopyParam:
+    ldx     assetNum
+
+    ; start (aux)
+    lda     fileDescription+10,x
+    sta     A1
+    lda     fileDescription+11,x
+    sta     A1+1
+
+    ; end
+    lda     fileDescription+14,x
+    sta     A2
+    lda     fileDescription+15,x
+    sta     A2+1
+
+    ; destination (main)
+    lda     fileDescription+4,x
+    sta     A4
+    lda     fileDescription+5,x
+    sta     A4+1
+
+    ; for interleave
+    lda     fileDescription+7,x     ; length page
+    lsr                             ; /2
+    sta     copyLength
+
+    rts
+
+copyLength:     .byte   0
 
 .endproc
 
@@ -2003,11 +2162,13 @@ IMAGEEND            :=  IMAGESTART + IMAGELENGTH - 1
 
 FONT0START          :=  $B000                           ; AUX
 FONT0LENGTH         =   8*128
-FONT0END            :=  FONT0START + FONT0LENGTH - 1
+FONT0END            :=  READBUFFER + FONT0LENGTH - 1
+FONT0ENDAUX         :=  FONT0START + FONT0LENGTH - 1
 
 FONT1START          :=  $B400                           ; AUX
-FONT1LENGTH         =   32*64
-FONT1END            :=  FONT1START + FONT1LENGTH - 1
+FONT1LENGTH         =   8*128
+FONT1END            :=  READBUFFER + FONT1LENGTH - 1
+FONT1ENDAUX         :=  FONT1START + FONT1LENGTH - 1
 
 TITLESTART          :=  $4000                           ; MAIN & AUX
 TITLELENGTH         =   $2000
@@ -2044,11 +2205,11 @@ fileNameGame:       StringLen "/DHGR/DATA/GAME"
 
 ; Asset List
 fileDescription:    ; type, name, address, size, dest, interleave
-    ;       TYPE            NAME              BUFFER          LENGTH          END         STARTDEST       MODE            DESTEND (INT)   OFFSET
+    ;       TYPE            NAME              BUFFER          LENGTH          END(BUF)    STARTDEST       MODE            DESTEND (INT)   OFFSET
     ;       0               2                 4               6               8           10              12              14
     ;       --------------- ---------------   -----------     -----------     ----------- -----------     --------------- --------------- -------
-    .word   fileTypeFont,   fileNameFont0,    FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_AUX,    0               ; 0
-    .word   fileTypeFont,   fileNameFont1,    FONT1START,     FONT1LENGTH,    FONT1END,   FONT1START,     INSTALL_AUX,    0               ; 16
+    .word   fileTypeFont,   fileNameFont0,    READBUFFER,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_AUX,    FONT0ENDAUX     ; 0
+    .word   fileTypeFont,   fileNameFont1,    READBUFFER,     FONT1LENGTH,    FONT1END,   FONT1START,     INSTALL_AUX,    FONT1ENDAUX     ; 16
     .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I1, ISOI1END        ; 32
     .word   fileTypeImage,  fileNameImage,    IMAGESTART,     IMAGELENGTH,    IMAGEEND,   IMAGESTART,     INSTALL_MAIN,   0               ; 48
     .word   fileTypeExe,    fileNameGame,     EXECSTART,      EXECLENGTH,     0,          EXECSTART,      INSTALL_MAIN,   0               ; 64
@@ -2064,6 +2225,15 @@ assetGame     =   16*4
 assetTool     =   16*5
 assetTitle0   =   16*6
 assetTitle1   =   16*7
+
+;-----------------------------------------------------------------------------
+; Buffer
+;-----------------------------------------------------------------------------
+
+; I wonder if I could use the string input buffer ($200) to save space?
+
+.align  256
+copyBuffer:     .res    256
 
 ;-----------------------------------------------------------------------------
 ; Utilies

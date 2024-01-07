@@ -516,7 +516,8 @@ flip_after:
     lda     #5
     jsr     getInputNumber
     bmi     load_exit
-    jsr     loadSheet
+    ldx     #2*16               ; Tile asset number = 2
+    jsr     DHGR_LOAD_ASSET
 
     ; redraw the screen
     jmp     reset_loop
@@ -535,12 +536,12 @@ load_exit:
     lda     #5
     jsr     getInputNumber
     bmi     save_exit
-    jsr     saveSheet
+    ldx     #2*16               ; Tile asset number = 2
+    jsr     DHGR_STORE_ASSET
 
 save_exit:
     jmp     command_loop
-: 
-
+:
     ;------------------
     ; Unknown
     ;------------------
@@ -1571,53 +1572,6 @@ dump_count: .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
-; Set file params
-;
-;   A = file number
-;-----------------------------------------------------------------------------
-.proc setFileParams
-
-    ; set filename
-    ;--------------------------
-    clc
-    adc     #'0'
-    sta     pathname_tilesheet_end-1
-
-    ; set pathname
-    lda     #<pathname_tilesheet
-    sta     open_params+1
-    sta     create_params+1
-    sta     stringPtr0
-    lda     #>pathname_tilesheet
-    sta     open_params+2
-    sta     create_params+2
-    sta     stringPtr1
-
-    brk                 ; FIXME: load/save broken -- need to read/write interleaved
-
-    ; set address
-;    lda     #<tileSheet
-;    sta     rw_params+2
-;    lda     #>tileSheet
-;    sta     rw_params+3
-
-    ; set size
-;    lda     #<tileSheet_size
-;    sta     rw_params+4
-;    lda     #>tileSheet_size
-;    sta     rw_params+5
-
-    lda     #':' + $80
-    jsr     COUT
-    jsr     print_length
-    lda     #13
-    jsr     COUT
-
-    rts
-
-.endproc
-
-;-----------------------------------------------------------------------------
 ; Utilies
 
 .include "edit_funct.asm"
@@ -1632,7 +1586,7 @@ color:              .byte   0
 curX:               .byte   0
 curY:               .byte   0
 
-currentTile:          .byte   0
+currentTile:        .byte   0
 tileMax:            .byte   0
 tileInc:            .byte   0
 tileInc8:           .byte   0
@@ -1651,66 +1605,4 @@ pixelOffsetY:       .byte   0
 modeMasked:         .byte   1
 lastColor:          .byte   PIXEL_WHITE
 
-; ProDos pathname
-
-pathname_tilesheet:
-    StringLen "/DHGR/DATA/TILESHEET.0"
-pathname_tilesheet_end:
-
-; Lookup tables
-;-----------------------------------------------------------------------------
-
-.align      64
-lineOffset:
-    .byte   <$2000
-    .byte   <$2080
-    .byte   <$2100
-    .byte   <$2180
-    .byte   <$2200
-    .byte   <$2280
-    .byte   <$2300
-    .byte   <$2380
-    .byte   <$2028
-    .byte   <$20A8
-    .byte   <$2128
-    .byte   <$21A8
-    .byte   <$2228
-    .byte   <$22A8
-    .byte   <$2328
-    .byte   <$23A8
-    .byte   <$2050
-    .byte   <$20D0
-    .byte   <$2150
-    .byte   <$21D0
-    .byte   <$2250
-    .byte   <$22D0
-    .byte   <$2350
-    .byte   <$23D0
-
-linePage:
-    .byte   >$2000
-    .byte   >$2080
-    .byte   >$2100
-    .byte   >$2180
-    .byte   >$2200
-    .byte   >$2280
-    .byte   >$2300
-    .byte   >$2380
-    .byte   >$2028
-    .byte   >$20A8
-    .byte   >$2128
-    .byte   >$21A8
-    .byte   >$2228
-    .byte   >$22A8
-    .byte   >$2328
-    .byte   >$23A8
-    .byte   >$2050
-    .byte   >$20D0
-    .byte   >$2150
-    .byte   >$21D0
-    .byte   >$2250
-    .byte   >$22D0
-    .byte   >$2350
-    .byte   >$23D0
-
-    .dword  .time   ; Time of compilation
+                    .dword  .time   ; Time of compilation
