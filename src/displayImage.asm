@@ -586,10 +586,10 @@ imageCount:
 
 imageTable:
 
-    .word   goblinEven
-    .word   goblinOdd
-    .word   wizardEven
-    .word   wizardOdd
+    .word   wizard1Even
+    .word   wizard1Odd
+    .word   wizard2Even
+    .word   wizard2Odd
     .word   robotEven
     .word   robotOdd
 
@@ -614,9 +614,18 @@ imageTable:
     .word   warriorEven
     .word   warriorOdd
 
+    .word   goblinEven
+    .word   goblinOdd
+    .word   warrior2Even
+    .word   warrior2Odd
+    .word   warrior3Even
+    .word   warrior3Odd
+
+
 imageTableEnd:
 
 .include "images0.asm"
 .include "images1.asm"
 .include "images2.asm"
 .include "images3.asm"
+.include "images4.asm"
