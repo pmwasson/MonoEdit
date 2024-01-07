@@ -4,29 +4,29 @@
 ::---------------------------------------------------------------------------
 cd ..\build
 
+:: Engine
+ca65 -I ..\src -t apple2 ..\src\engine.asm -l engine.dis || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\engine.asm apple2.lib  -o engine.apple2 -C ..\src\startC00.cfg || exit
+
+::---------------------------------------------------------------------------
+:: Compile tools
+::---------------------------------------------------------------------------
+
 :: Font Editor
 ca65 -I ..\src -t apple2 ..\src\fontedit.asm -l fontedit.dis || exit
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\fontedit.asm apple2.lib  -o fontedit.apple2 -C ..\src\start4000.cfg || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\fontedit.asm apple2.lib  -o fontedit.apple2 -C ..\src\start6000.cfg || exit
 
 :: Map Editor
 ca65 -I ..\src -t apple2 ..\src\mapedit.asm -l mapedit.dis || exit
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\mapedit.asm apple2.lib  -o mapedit.apple2 -C ..\src\start4000.cfg || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\mapedit.asm apple2.lib  -o mapedit.apple2 -C ..\src\start6000.cfg || exit
 
 :: Tile Editor
 ca65 -I ..\src -t apple2 ..\src\tileedit.asm -l tileedit.dis || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tileedit.asm apple2.lib  -o tileedit.apple2 -C ..\src\start6000.cfg || exit
 
-:: Engine
-ca65 -I ..\src -t apple2 ..\src\engine.asm -l engine.dis || exit
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\engine.asm apple2.lib  -o engine.apple2 -C ..\src\startC00.cfg || exit
-
-:: Loader
-ca65 -I ..\src -t apple2 ..\src\loader.asm -l loader.dis || exit
-cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\loader.asm apple2.lib  -o loader.apple2 -C ..\src\start2000.cfg || exit
-
-:: :: Image
-:: ca65 -I ..\src -t apple2 --cpu 65C02 ..\src\displayImage.asm -l image.dis || exit
-:: cl65 -I ..\src -t apple2 --cpu 65C02 -u __EXEHDR__ ..\src\displayImage.asm apple2.lib  -o image.apple2 -C ..\src\start4000.cfg || exit
+:: Display Image
+ca65 -I ..\src -t apple2 ..\src\displayImage.asm -l displayImage.dis || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\displayImage.asm apple2.lib  -o display.apple2 -C ..\src\start6000.cfg || exit
 
 ::---------------------------------------------------------------------------
 :: Compile assets
@@ -38,40 +38,36 @@ cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_1.asm apple2.lib  -o font7
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\imagesheet_0.asm apple2.lib  -o imagesheet_0.apple2 -C ..\src\start6000.cfg || exit
 
 ::---------------------------------------------------------------------------
-:: Build disk 
+:: Build disk
 ::---------------------------------------------------------------------------
 
 :: Start with a blank prodos disk
 copy ..\disk\template_prodos.dsk mono_prodos.dsk  || exit
 
-:: Loader
-::java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk loader.system sys < C:\cc65\target\apple2\util\loader.system || exit
-::java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader bin < loader.apple2  || exit
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk loader.system sys < loader.apple2  || exit
+:: Engine
+java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk engine.system sys < C:\cc65\target\apple2\util\loader.system || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk engine bin < engine.apple2  || exit
 
-:: :: Image
-:: java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk image.system sys < C:\cc65\target\apple2\util\loader.system || exit
-:: java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk image bin < image.apple2  || exit
+:: Font Editor (tool 0)
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tool.0 bin < fontedit.apple2  || exit
 
-:: Font Editor
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/fontedit bin < fontedit.apple2  || exit
+:: Tile Editor (tool 1)
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tool.1 bin < tileedit.apple2  || exit
 
-:: Map Editor
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/mapedit bin < mapedit.apple2  || exit
+:: Map Editor (tool 2)
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tool.2 bin < mapedit.apple2  || exit
 
-:: Tile Editor
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tileedit bin < tileedit.apple2  || exit
+:: Display Image (tool 3)
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tool.3 bin < display.apple2  || exit
 
 :: Throw on basic
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk basic.system sys < ..\disk\BASIC.SYSTEM  || exit
 
 :: Assets
-java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/engine bin < engine.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tilesheet.0 bin < tilesheet_0.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.0 bin < font7x8_0.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.1 bin < font7x8_1.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/imagesheet.0 bin < imagesheet_0.apple2  || exit
-
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk data/title.0 bin < title.0  || exit
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk data/title.1 bin < title.1  || exit
 

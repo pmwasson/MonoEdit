@@ -28,7 +28,7 @@ SIZE_7x8        = 0
 ;------------------------------------------------
 
 .segment "CODE"
-.org    $4000
+.org    $6000
 
 ;=============================================================================
 ; Main
@@ -302,7 +302,7 @@ fill_cancel:
     bne     :+
     jsr     inline_print
     StringCR    "Switching tools..."
-    jmp     $6000       ; Maybe should look into the linker
+    jmp     DHGR_LOADER_MENU
 :
 
     ;------------------

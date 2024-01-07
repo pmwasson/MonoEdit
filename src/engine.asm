@@ -1,11 +1,42 @@
 ;-----------------------------------------------------------------------------
 ; Paul Wasson - 2021
 ;-----------------------------------------------------------------------------
-;  Game engine
+;  Game engine / loader
+;-----------------------------------------------------------------------------
+; Low level routines that deal with main/aux memory
+; - The idea is that this code will remain in memory and load in
+;   other assets and execuable code as needed.
+; - Some of the code is copied into AUX memory such that the read
+;   bank can be freely changed and the code will continue to execute allow
+;   the code to read & write both main and AUX memory.
 
+; Proposed memory map (may change)
 ;------------------------------------------------
-; Constants
-;------------------------------------------------
+;
+;               Main                Aux
+;
+;   0000-07FF   [ System usage / text pages     ]
+;
+;   0800-09FF   [ ProDos buffer ][ Unused?      ]
+;   0A00-0BFF   [ ???                           ]
+;
+;   0C00-1FFF   [ Engine / Loader               ]
+;
+;   2000-3FFF   [ DGHR Page 1                   ]
+;               [ Read data     ]
+;
+;   4000-5FFF   [ DGHR Page 2                   ]
+;               [ Read data     ]
+;
+;   6000-7FFF   [ Game / Tools  ][ Dialog/Map   ]
+;
+;   8000-AFFF   [ Isometric Tiles (192)         ]
+;
+;   B000-B7FF   [ Images        ][ Font x2      ]
+;   B800-BEFF   [ "             ]
+;
+;   ProDos says addresses D000-FFFF in AUX memory
+;   are reserved, but probably could be used if needed.
 
 .include "defines.asm"
 .include "macros.asm"
@@ -14,7 +45,7 @@
 .org    $C00
 
 ; Jump table (in fixed locations)
-    jmp     drawTest            ; Remove once game calls engine
+    jmp     loader
     jmp     engineInit
     jmp     drawTile_7x8
     jmp     drawTile_28x8
@@ -31,6 +62,7 @@
     jmp     clearScreen
     jmp     drawImage
     jmp     drawString
+    jmp     loaderMenu
 
 ; Variables (in fixed locations)
 ; xx40
@@ -126,7 +158,7 @@ linePage:
     sec                     ; copy from main to aux
     jsr     AUXMOVE
 
-    ; init variables
+    ; init drawing variables
     lda     #0
     sta     drawPage
 
@@ -985,8 +1017,8 @@ loop8:
     beq     :-          ; one more!
 
     ; transfer to aux memory
-    sta     RAMWRTON  
-    sta     RAMRDON  
+    sta     RAMWRTON
+    sta     RAMRDON
 
     ldy     tileX
 :
@@ -1030,6 +1062,7 @@ auxMemEnd:
 ; Draw Image
 ;
 ;   Data is split between even and odd using tilePtr and maskPtr
+;   imageHeight and imageWith define the image size.
 ;-----------------------------------------------------------------------------
 .proc drawImage
     sta     CLR80COL        ; Use RAMWRT for aux mem
@@ -1211,25 +1244,25 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
 ;
 ;-----------------------------------------------------------------------------
 ; 00 00 -- black
-; 00 00 
+; 00 00
 ;
 ; 2a 55  - 25%
 ; 00 00
 ;
 ; 7f 7f -- horizontal
-; 00 00 
+; 00 00
 ;
 ; 2a 55 -- vertical
 ; 2a 55
 ;
 ; 2a 55 -- checkered
-; 55 2a                  
+; 55 2a
 ;
-; 7f 7f -- 75%      
-; 2a 55                  
+; 7f 7f -- 75%
+; 2a 55
 ;
-; 7f 7f -- white    
-; 7f 7f                  
+; 7f 7f -- white
+; 7f 7f
 ;
 
 .proc clearScreen
@@ -1315,12 +1348,156 @@ pixelRem14:
     .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
     .byte    0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
 
+;=============================================================================
+; Loader
+;=============================================================================
+
+.proc loader
+
+    ; Set up text screen
+    jsr     $c300       ; 80 column mode
+    jsr     HOME        ; clear screen
+    lda     #23         ; put cursor on last line
+    sta     CV
+    jsr     VTAB
+
+    ; Clear loader errors
+    lda     #0
+    sta     fileError
+
+    jsr    inline_print
+    StringCont "Welcome to 128k game loader. Press ESC for load options."
+    StringCR   "Checking memory..."
+
+    lda     $BF98
+    bmi     :+
+
+    jsr    inline_print
+    StringCR "128K memory not detected, exiting"
+    jmp     monitor
+:
+
+    jsr    inline_print
+    StringCR "Initializing..."
+    jsr     engineInit
+
+loadAssets:
+    jsr    inline_print
+    StringCR "Loading game assets..."
+
+    ldx     #assetFont0
+    jsr     loadAsset
+    ldx     #assetFont1
+    jsr     loadAsset
+    ldx     #assetISO
+    jsr     loadAsset
+    ldx     #assetImage
+    jsr     loadAsset
+
+    lda     fileError
+    beq     :+
+
+    jsr     inline_print
+    StringCR "Error detected"
+    jmp     monitor
+:
+    ; Link assets
+    lda     #<ISOSTART
+    sta     DHGR_TILE_28X8
+    lda     #>ISOSTART
+    sta     DHGR_TILE_28X8+1
+
+    lda     #<FONT0START
+    sta     DHGR_TILE_7X8
+    lda     #>FONT0START
+    sta     DHGR_TILE_7X8+1
+
+    jmp     loaderMenu
+
+    lda     KBD
+    bpl     :+
+    sta     KBDSTRB
+
+    cmp     #KEY_ESC
+    beq     loaderMenu
+:
+    jsr     inline_print
+    StringCR "Launching game..."
+
+    ; Jump to executables
+    jmp     EXECSTART
+
+.endproc
+
+.proc loaderMenu
+    sta     TXTSET
+    jsr     inline_print
+    StringCont "Options:"
+    StringCont " [0] Font Editor"
+    StringCont " [1] Tile Editor"
+    StringCont " [2] Map Editor"
+    StringCont " [3] Display Image"
+    StringCont " [7] Reload assets"
+    StringCont " [8] Monitor"
+    StringCont " [9] ProDos"
+    String "Select option:"
+
+menuLoop:
+    jsr     RDKEY
+    and     #$7f
+    cmp     #'0'
+    beq     loadTool
+    cmp     #'1'
+    beq     loadTool
+    cmp     #'2'
+    beq     loadTool
+    cmp     #'3'
+    beq     loadTool
+
+    cmp     #'7'
+    bne     :+
+    jmp     loader::loadAssets
+:
+
+    cmp     #'8'
+    bne     :+
+    jmp     monitor
+:
+
+    cmp     #'9'
+    bne     :+
+    jmp     quit
+:
+    jmp     menuLoop
+
+loadTool:
+    sta     fileNameToolEnd-1   ; Overwrite final digit
+
+    ldx     #assetTool
+    jsr     loadAsset
+
+    lda     fileError
+    beq     :+
+
+    jsr     inline_print
+    StringCR "Error detected"
+    jmp     monitor
+:
+
+    jsr     inline_print
+    StringCR "Launching tool..."
+
+    ; Jump to executables
+    jmp     EXECSTART
+
+.endproc
+
 ;-----------------------------------------------------------------------------
-; drawTest
+; Monitor
 ;
-; Set up aux memory
+;  Exit to monitor
 ;-----------------------------------------------------------------------------
-.proc drawTest
+.proc monitor
 
     ; Set ctrl-y vector
     lda     #$4c        ; JMP
@@ -1330,93 +1507,11 @@ pixelRem14:
     lda     #>quit
     sta     $3fa
 
-    jsr     engineInit    ; init code
+    jsr    inline_print
+    StringCR "Enter ctrl-y to quit to ProDos"
 
-    jsr     clearScreen
-
-    ; init DHGR (monochrome)
-
-
-    sta     MIXCLR
-    sta     HIRES
-    sta     TXTCLR
-    sta     LOWSCR
-    ldx     #2
-:
-    sta     SET80COL
-    sta     SET80VID
-    sta     CLR80VID
-    sta     DHIRESON
-    sta     DHIRESOFF
-    sta     SET80VID
-    sta     DHIRESON
-    dex
-    bne     :-
-    sta     MIXSET      ; Mixed
-
-    sta     CLR80COL        ; Use RAMWRT for aux mem
-
-    ; Testing 28x8 mask
-
-TEST_XOFFSET := 1
-TEST_YOFFSET := 1
-
-TEST_WIDTH := 4
-TEST_HEIGHT := 2
-
-    ldx     #0
-    stx     testIdx
-
-    lda     #TEST_YOFFSET
-    sta     tileY
-
-loopY:
-    lda     #TEST_XOFFSET
-    sta     tileX
-
-loopX1:
-    ldx     testIdx
-    lda     testMap0,x
-    jsr     drawTile_28x8
-    ldx     testIdx
-    lda     testMap1,x
-    jsr     drawTileMask_28x8
-    inc     testIdx
-
-    clc
-    lda     tileX
-    adc     #2
-    sta     tileX
-    cmp     #TEST_XOFFSET+TEST_WIDTH*4
-    bmi     loopX1
-
-    inc     tileY
-    lda     tileY
-    cmp     #TEST_YOFFSET+TEST_HEIGHT*2+2
-    bmi     loopY
-
-    ; Exit to monitor
+    bit     TXTSET
     jmp     MONZ        ; enter monitor
-
-testIdx:    .byte   0
-testX:      .byte   0
-testY:      .byte   0
-
-testMap0:   ; 5x5
-    .byte       $02,  $02,  $02,  $02,  $02,  $02,  $02,  $02
-    .byte       $02,  $02,  $1c,  $1e,  $1c,  $1e,  $1c,  $1e
-    .byte       $02,  $1c,  $1e,  $1c,  $1e,  $1c,  $1e,  $24
-    .byte       $1c,  $1e,  $1c,  $1e,  $1c,  $1e,  $1c,  $1e
-    .byte       $20,  $02,  $02,  $22,  $20,  $22,  $20,  $22
-    .byte       $02,  $02,  $02,  $02,  $02,  $02,  $02,  $02
-
-testMap1:   ; 5x5
-    .byte       $00,  $00,  $18,  $1a,  $18,  $1a,  $18,  $1a
-    .byte       $00,  $18,  $1a,  $18,  $1a,  $18,  $1a,  $00
-    .byte       $18,  $1a,  $18,  $1a,  $18,  $1a,  $18,  $1a
-    .byte       $00,  $28,  $2a,  $00,  $00,  $00,  $00,  $00
-    .byte       $00,  $2c,  $2e,  $00,  $00,  $00,  $00,  $00
-    .byte       $24,  $00,  $00,  $26,  $24,  $26,  $24,  $26
 
 .endproc
 
@@ -1426,10 +1521,449 @@ testMap1:   ; 5x5
 ;   Exit to ProDos
 ;-----------------------------------------------------------------------------
 .proc quit
-
     jsr     MLI
     .byte   CMD_QUIT
     .word   quit_params
+.endproc
+
+;-----------------------------------------------------------------------------
+; Load Data
+;   Load data using ProDOS
+;-----------------------------------------------------------------------------
+.proc loadData
+
+    jsr    inline_print
+    String "Reading "
+
+    lda     open_params+1
+    sta     stringPtr0
+    lda     open_params+2
+    sta     stringPtr1
+    jsr     print_length
+
+    lda     #13
+    jsr     COUT
+
+    ; open file
+    jsr     MLI
+    .byte   CMD_OPEN
+    .word   open_params
+    bcc     :+
+
+    jsr    inline_print
+    StringCR "File not found"
+    inc     fileError
+    rts
+:
+
+    ; set reference number
+    lda     open_params+5
+    sta     rw_params+1
+    sta     close_params+1
+
+    ; read data
+    jsr    MLI
+    .byte  CMD_READ
+    .word  rw_params
+    bcc    :+
+
+    jsr    inline_print
+    StringCR "Read Error"
+    inc     fileError
+    rts
+:
+
+    jsr    MLI
+    .byte  CMD_CLOSE
+    .word  close_params
+    bcc    :+
+
+    jsr    inline_print
+    StringCR "File close error"
+    inc     fileError
+:
+    rts
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; Store Data
+;   Load data using ProDOS
+;-----------------------------------------------------------------------------
+.proc storeData
+
+    jsr    inline_print
+    String "Writing "
+
+    lda     open_params+1
+    sta     stringPtr0
+    lda     open_params+2
+    sta     stringPtr1
+    jsr     print_length
+
+    lda     #13
+    jsr     COUT
+
+    ; open file
+    jsr     MLI
+    .byte   CMD_OPEN
+    .word   open_params
+    bcc     openGood
+
+    jsr    inline_print
+    StringCR "File not found, creating new"
+
+    ; create file
+    jsr     MLI
+    .byte   CMD_CREATE
+    .word   create_params
+    bcc     :+
+
+    jsr    inline_print
+    .byte  "Unable to create file"
+    inc     fileError
+    rts
+
+    ; open file again!
+    jsr     MLI
+    .byte   CMD_OPEN
+    .word   open_params
+    bcc     openGood
+
+    jsr    inline_print
+    StringCR "Unable to open new file"
+    inc     fileError
+    rts
+
+openGood:
+
+    ; set reference number
+    lda     open_params+5
+    sta     rw_params+1
+    sta     close_params+1
+
+    ; write data
+    jsr    MLI
+    .byte  CMD_WRITE
+    .word  rw_params
+    bcc    :+
+
+    jsr    inline_print
+    StringCR "Write Error"
+    inc     fileError
+    rts
+:
+
+    jsr    MLI
+    .byte  CMD_CLOSE
+    .word  close_params
+    bcc    :+
+
+    jsr    inline_print
+    StringCR "File close error"
+    inc     fileError
+:
+    rts
+
+.endproc
+
+
+;-----------------------------------------------------------------------------
+; Init Asset
+;
+;   Pass asset # * 16 in X
+;-----------------------------------------------------------------------------
+.proc initAsset
+
+    ldx     assetNum
+
+    lda     fileDescription+0,x
+    sta     stringPtr0
+    lda     fileDescription+1,x
+    sta     stringPtr1
+    jsr     print
+
+    jsr    inline_print
+    .byte  ":",13,"  ",0
+
+    ldx     assetNum
+
+    ; set pathname
+    lda     fileDescription+2,x
+    sta     open_params+1
+    sta     create_params+1
+    lda     fileDescription+3,x
+    sta     open_params+2
+    sta     create_params+1
+
+    ; set address
+    lda     fileDescription+4,x
+    sta     rw_params+2
+    lda     fileDescription+5,x
+    sta     rw_params+3
+
+    ; set size
+    lda     fileDescription+6,x
+    sta     rw_params+4
+    lda     fileDescription+7,x
+    sta     rw_params+5
+
+    rts
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; Load Asset
+;
+;   Pass asset # * 16 in X
+;-----------------------------------------------------------------------------
+
+.proc loadAsset
+
+    stx     assetNum
+    jsr     initAsset
+    jsr     loadData
+
+    jsr     inline_print
+    String "  Installing data to location "
+
+    ldx     assetNum
+    lda     fileDescription+12,x
+    bne     :+
+
+    ;       #INSTALL_MAIN
+
+    jsr     inline_print
+    String "(main) $"
+    jsr     printDest
+
+    rts     ; For main memory, just load to correct location
+:
+
+    cmp     #INSTALL_AUX
+    bne     :+
+
+    jsr     inline_print
+    String "(aux) $"
+    jsr     printDest
+
+    jsr     setCopyParam
+    sec                     ; copy from main to aux
+    jsr     AUXMOVE
+
+    rts
+:
+
+    ; Note that install both is same as install aux
+    cmp     #INSTALL_BOTH
+    bne     :+
+
+    jsr     inline_print
+    String "(main/aux duplicated) $"
+    jsr     printDest
+
+    jsr     setCopyParam
+    sec                     ; copy from main to aux
+    jsr     AUXMOVE
+
+    rts
+:
+
+    cmp     #INSTALL_AUX_I1
+    bne     :+
+    jsr     inline_print
+    String "(main/aux interleave 1) $"
+    jsr     printDest
+
+    jsr     setCopyParam
+    jsr     interleaveCopy1A
+
+    jsr     setCopyParamInterleave
+    sec
+    jsr     AUXMOVE
+
+    jsr     setCopyParam
+    jsr     interleaveCopy1B
+
+
+    rts
+:
+    brk     ; Unknown type
+
+moveCopyBuffer:
+
+    ldy     #0
+:
+    lda     copyBuffer,y
+    sta     (A4),y
+    dey
+    bne     :-
+
+    inc     A4+1
+
+    rts
+
+interleaveCopy1A:
+    ldy     #0
+    ldx     #0
+
+copyLoop1A:
+    ; copy 1 byte
+    lda     (A1),y
+    sta     copyBuffer,x
+    inx
+    iny
+    ; skip 1 bytes
+    iny
+    bne     copyLoop1A
+
+    ; inc source page
+    inc     A1+1
+
+    ; check if buffer full
+    cpx     #0
+    bne     copyLoop1A
+
+    jsr     moveCopyBuffer
+
+    ; check if done
+    dec     copyLength
+    bne     copyLoop1A
+
+    rts
+
+interleaveCopy1B:
+    ldy     #0
+    ldx     #0
+
+copyLoop1B:
+    ; skip 1 byte
+    iny
+    ; copy 1 bytes
+    lda     (A1),y
+    sta     copyBuffer,x
+    inx
+    iny
+    bne     copyLoop1B
+
+    ; inc source page
+    inc     A1+1
+
+    ; check if buffer full
+    cpx     #0
+    bne     copyLoop1B
+
+    jsr     moveCopyBuffer
+
+    ; check if done
+    dec     copyLength
+    bne     copyLoop1B
+    rts
+
+setCopyParam:
+    ldx     assetNum
+
+    ; start
+    lda     fileDescription+4,x
+    sta     A1
+    lda     fileDescription+5,x
+    sta     A1+1
+
+    ; end
+    lda     fileDescription+8,x
+    sta     A2
+    lda     fileDescription+9,x
+    sta     A2+1
+
+    ; destination (aux)
+    lda     fileDescription+10,x
+    sta     A4
+    lda     fileDescription+11,x
+    sta     A4+1
+
+    ; for interleave
+    lda     fileDescription+7,x     ; length page
+    lsr                             ; /2
+    sta     copyLength
+
+    rts
+
+setCopyParamInterleave:
+    ldx     assetNum
+
+    ; start
+    lda     fileDescription+10,x
+    sta     A1
+    lda     fileDescription+11,x
+    sta     A1+1
+
+    ; end
+    lda     fileDescription+14,x
+    sta     A2
+    lda     fileDescription+15,x
+    sta     A2+1
+
+    ; destination (aux)
+    lda     fileDescription+10,x
+    sta     A4
+    lda     fileDescription+11,x
+    sta     A4+1
+
+    rts
+
+printDest:
+    ldx     assetNum
+    lda     fileDescription+10,x
+    ldy     fileDescription+11,x
+    tax
+    jsr     PRINTXY
+    lda     #13
+    jsr     COUT
+    rts
+
+copyLength:     .byte   0
+
+.align  256
+copyBuffer:     .res    256
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; Global ProDos parameters
+;-----------------------------------------------------------------------------
+
+fileError:  .byte   0
+assetNum:   .byte   0
+
+open_params:
+    .byte   $3              ; 3 parameters
+    .word   $0              ; pathname*
+    .word   FILEBUFFER      ; ProDos buffer
+    .byte   $0              ; reference number
+
+; Note, not using the real address for the binary file load address as
+; the data buffer may move around with re-compiles, so we don't
+; want to rely on it.
+create_params:
+    .byte   $7              ; 7 parameters
+    .word   $0              ; pathname*
+    .byte   $C3             ; access bits (full access)
+    .byte   $6              ; file type (binary)
+    .word   READBUFFER      ; binary file load address, default to $2000 (READBUFFER)
+    .byte   $1              ; storage type (standard)
+    .word   $0              ; creation date
+    .word   $0              ; creation time
+
+rw_params:
+    .byte   $4
+    .byte   $0              ; reference number*
+    .word   $0              ; address of data buffer*
+    .word   $0              ; number of bytes to read/write*
+    .word   $0              ; number of bytes read/written
+
+close_params:
+    .byte   $1              ; 1 parameter
+    .byte   $0              ; reference number*
 
 quit_params:
     .byte   4               ; 4 parameters
@@ -1438,4 +1972,75 @@ quit_params:
     .byte   0               ; Reserved byte for future use (what future?)
     .word   0               ; Reserved pointer for future use (what future?)
 
-.endproc
+;-----------------------------------------------------------------------------
+; Assets
+
+READBUFFER          :=  $2000    ; Share read buffer with graphics memory
+
+EXECSTART           :=  $6000
+EXECLENGTH          =   $B800 - EXECSTART               ; FIXME: should end at $8000 to protect ISO tiles, but display image is bigger
+
+ISOSTART            :=  $8000                           ; MAIN/AUX
+ISOLENGTH           =   $4000                           ; 16k
+ISOEND              :=  READBUFFER + ISOLENGTH - 1
+ISOI1END            :=  ISOSTART + ISOLENGTH/2 - 1
+
+IMAGESTART          :=  $B000                           ; MAIN
+IMAGELENGTH         =   3*1280                          ; B000..BEFF : 20 bytes * 64 lines 1280(B) per image -> 3 images
+IMAGEEND            :=  IMAGESTART + IMAGELENGTH - 1
+
+FONT0START          :=  $B000                           ; AUX
+FONT0LENGTH         =   8*128
+FONT0END            :=  FONT0START + FONT0LENGTH - 1
+
+FONT1START          :=  $B400                           ; AUX
+FONT1LENGTH         =   32*64
+FONT1END            :=  FONT1START + FONT1LENGTH - 1
+
+;------------------------------------------------
+; Constants
+;------------------------------------------------
+
+INSTALL_MAIN    = 0     ; Main memory
+INSTALL_AUX     = 1     ; Aux memory
+INSTALL_BOTH    = 2     ; Both main and aux
+INSTALL_AUX_I1  = 3     ; Aux memory, interleave of 1
+
+; Asset type
+fileTypeFont:   String "Font Tilesheet"
+fileTypeISO:    String "Isometric Tilesheet"
+fileTypeImage:  String "Image Sheet"
+fileTypeExe:    String "Executable"
+
+; File names
+fileNameFont0:      StringLen "/DHGR/DATA/FONT7X8.0"
+fileNameFont1:      StringLen "/DHGR/DATA/FONT7X8.1"
+fileNameISO:        StringLen "/DHGR/DATA/TILESHEET.0"
+fileNameImage:      StringLen "/DHGR/DATA/IMAGESHEET.0"
+fileNameGame:       StringLen "/DHGR/DATA/GAME"
+fileNameTool:       StringLen "/DHGR/DATA/TOOL.0"
+fileNameToolEnd:
+
+; Asset List
+fileDescription:    ; type, name, address, size, dest, interleave
+    ;       TYPE            NAME              BUFFER          LENGTH          END         STARTDEST       MODE            DESTEND (INT)   OFFSET
+    ;       0               2                 4               6               8           10              12              14
+    ;       --------------- ---------------   -----------     -----------     ----------- -----------     --------------- --------------- -------
+    .word   fileTypeFont,   fileNameFont0,    FONT0START,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_AUX,    0               ; 0
+    .word   fileTypeFont,   fileNameFont1,    FONT1START,     FONT1LENGTH,    FONT1END,   FONT1START,     INSTALL_AUX,    0               ; 16
+    .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I1, ISOI1END        ; 32
+    .word   fileTypeImage,  fileNameImage,    IMAGESTART,     IMAGELENGTH,    IMAGEEND,   IMAGESTART,     INSTALL_MAIN,   0               ; 48
+    .word   fileTypeExe,    fileNameGame,     EXECSTART,      EXECLENGTH,     0,          EXECSTART,      INSTALL_MAIN,   0               ; 64
+    .word   fileTypeExe,    fileNameTool,     EXECSTART,      EXECLENGTH,     0,          EXECSTART,      INSTALL_MAIN,   0               ; 80
+
+assetFont0    =   16*0
+assetFont1    =   16*1
+assetISO      =   16*2
+assetImage    =   16*3
+assetGame     =   16*4
+assetTool     =   16*5
+
+;-----------------------------------------------------------------------------
+; Utilies
+
+.include "inline_print.asm"

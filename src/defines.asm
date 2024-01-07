@@ -174,7 +174,7 @@ DIR_DOWN        =   3
 ; DHGR Engine
 ;---------------------------------------------------------
 
-DHGR_TEST                   := $C00
+DHGR_LOADER                 := $C00
 DHGR_INIT                   := $C03
 DHGR_DRAW_7X8               := $C06
 DHGR_DRAW_28X8              := $C09
@@ -191,6 +191,7 @@ DHGR_SET_BYTE               := $C27
 DHGR_CLEAR_SCREEN           := $C2A
 DHGR_DRAW_IMAGE             := $C2D
 DHGR_DRAW_STRING            := $C30
+DHGR_LOADER_MENU            := $C33
 
 DHGR_TILE_7X8               := $C40
 DHGR_TILE_28X8              := $C42
@@ -198,7 +199,6 @@ DHGR_IMAGE_WIDTH            := $C44
 DHGR_IMAGE_HEIGHT           := $C45
 DHGR_IMAGE_X                := $C46
 DHGR_IMAGE_Y                := $C47
-
 DHGR_IMAGE_TABLE            := $C48
 
 DHGR_LINE_OFFSET 			:= $C80

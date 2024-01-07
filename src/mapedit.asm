@@ -74,8 +74,6 @@ BOX_RIGHT_T     = $11
     jsr     inline_print
     StringCR    "Isometric map editor - ? for help"
 
-    ; init
-    jsr     DHGR_INIT
     jsr     initMonochrome  ; Turn on monochrome dhgr
 
     ; Set ctrl-y vector
@@ -363,7 +361,7 @@ rotate_after:
     bne     :+
     jsr     inline_print
     StringCR    "Switching tools..."
-    jmp     $4000       ; Maybe should look into the linker
+    jmp     DHGR_LOADER_MENU
 :
 
     ;------------------
@@ -1723,8 +1721,7 @@ drawTitle:
 
 drawText:
 
-    lda     #<$B400
-    sta     DHGR_TILE_7X8
+    ; Use alternate font
     lda     #>$B400
     sta     DHGR_TILE_7X8+1
 
@@ -1745,6 +1742,10 @@ drawText:
     .byte        "the "
     StringBold        "APPLESOFT"
     String       " trail?"
+
+    ; Use restore font
+    lda     #>$B000
+    sta     DHGR_TILE_7X8+1
 
     rts
 

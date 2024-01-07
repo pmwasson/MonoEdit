@@ -9,7 +9,7 @@
 ;-----------------------------------------------------------------------------
 
 .segment "CODE"
-.org    $4000
+.org    $6000
 
 ;-----------------------------------------------------------------------------
 
@@ -436,12 +436,10 @@ drawLoop:
 ;  Exit to monitor
 ;-----------------------------------------------------------------------------
 .proc monitor
-
-    jsr    inline_print
+    sta     TXTSET
+    jsr     inline_print
     StringCR "Enter ctrl-y to quit to ProDos"
-
     jmp     MONZ        ; enter monitor
-
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -592,14 +590,14 @@ imageCount:
 imageTable:
     .word   goblinEven
     .word   goblinOdd
-    .word   ogreEven
-    .word   ogreOdd
+;    .word   ogreEven
+;    .word   ogreOdd
 ;    .word   warriorEven
 ;    .word   warriorOdd
-    .word   warrior2Even
-    .word   warrior2Odd
-    .word   warrior3Even
-    .word   warrior3Odd
+;    .word   warrior2Even
+;    .word   warrior2Odd
+;    .word   warrior3Even
+;    .word   warrior3Odd
 ;    .word   elf1Even
 ;    .word   elf1Odd
 ;    .word   girlEven
@@ -612,12 +610,12 @@ imageTable:
     .word   wizardOdd
     .word   robotEven
     .word   robotOdd
-    .word   gypsy1Even
-    .word   gypsy1Odd
-    .word   computerEven
-    .word   computerOdd
-    .word   ffEven
-    .word   ffOdd
+;    .word   gypsy1Even
+;    .word   gypsy1Odd
+;    .word   computerEven
+;    .word   computerOdd
+;    .word   ffEven
+;    .word   ffOdd
     .word   titleEven
     .word   titleOdd
 imageTableEnd:
