@@ -282,7 +282,15 @@ imageNumber:
     jsr     VTAB
 
     ; init DHGR (monochrome)
+    ; // GS B&W
+    lda     #$21
+    sta     NEWVIDEO    ; B&W mode
+    lda     CLOCKCTL    ; RMW to set border color
+    and     #$f0
+    ora     #$05        ; Gray
+    sta     CLOCKCTL
 
+    ; // E B&W
     sta     MIXCLR
     sta     HIRES
     sta     TXTCLR

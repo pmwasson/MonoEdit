@@ -94,6 +94,10 @@ BUTTON0         := $C061    ; Bit 7 set if paddle button 0 is pressed
 BUTTON1         := $C062    ; Bit 7 set if paddle button 1 is pressed
 BUTTON2         := $C063    ; Bit 7 set if paddle button 2 is pressed
 
+; 2GS
+NEWVIDEO        := $C029 	; New Video: 129=SHR, 1=None, Bit 6=Linearize, Bit 5=BW
+CLOCKCTL        := $C034    ; b0-3=borderColor b5=stopBit b6=read b7=start
+
 ; ROM routines
 ;---------------------------------------------------------
 AUXMOVE         := $C311    ; Aux memory copy
@@ -175,7 +179,7 @@ DIR_DOWN        =   3
 ;---------------------------------------------------------
 
 DHGR_LOADER                 := $C00
-DHGR_INIT                   := $C03
+DHGR_ENGINE_INIT            := $C03
 DHGR_DRAW_7X8               := $C06
 DHGR_DRAW_28X8              := $C09
 DHGR_DRAW_MASK_28X8         := $C0C

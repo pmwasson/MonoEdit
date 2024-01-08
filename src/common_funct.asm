@@ -8,6 +8,15 @@
 ;-----------------------------------------------------------------------------
 
 .proc initMonochrome
+    ; // GS B&W
+    lda     #$21
+    sta     NEWVIDEO    ; B&W mode
+    lda     CLOCKCTL    ; RMW to set border color
+    and     #$f0
+    ora     #$05        ; Gray
+    sta     CLOCKCTL
+
+    ; // E B&W
     sta     MIXCLR
     sta     HIRES
     sta     TXTCLR
@@ -33,6 +42,11 @@
 ; Reset into color mode
 ;-----------------------------------------------------------------------------
 .proc initColorMode
+    ; // GS Color
+    lda     #$01
+    sta     NEWVIDEO    ; Color mode
+
+    ; // E color
     sta     TXTCLR      ; Graphics
     sta     HIRES       ; Hi-res
     sta     MIXSET      ; Mixed

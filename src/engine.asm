@@ -1426,8 +1426,6 @@ loadAssets:
     lda     #>FONT0START
     sta     DHGR_TILE_7X8+1
 
-    jmp     loaderMenu
-
     lda     KBD
     bpl     :+
     sta     KBDSTRB
@@ -1435,11 +1433,9 @@ loadAssets:
     cmp     #KEY_ESC
     beq     loaderMenu
 :
-    jsr     inline_print
-    StringCR "Launching game..."
 
-    ; Jump to executables
-    jmp     EXECSTART
+    lda     #'1'
+    jmp     loadTool
 
 .endproc
 
@@ -1484,7 +1480,9 @@ menuLoop:
 :
     jmp     menuLoop
 
-loadTool:
+.endproc
+
+.proc loadTool
     sta     fileNameToolEnd-1   ; Overwrite final digit
 
     ldx     #assetTool
@@ -1637,6 +1635,7 @@ loadTool:
     .byte  "Unable to create file"
     inc     fileError
     rts
+:
 
     ; open file again!
     jsr     MLI
@@ -1708,7 +1707,7 @@ openGood:
     sta     create_params+1
     lda     fileDescription+3,x
     sta     open_params+2
-    sta     create_params+1
+    sta     create_params+2
 
     ; set address
     lda     fileDescription+4,x
@@ -2060,12 +2059,98 @@ copyLength:     .byte   0
     String "(main/aux interleave 1) $"
     jsr     printDest
 
-    brk     ; Need to copy data to buffer
+    jsr     setStoreCopyParam
+    jsr     interleaveCopy1B    ; main
+
+    jsr     setStoreCopyParamInterleave
+    clc                     ; copy from aux to main
+    jsr     AUXMOVE
+
+    jsr     setStoreCopyParam
+    jsr     interleaveCopy1A    ; aux
 
     jsr     storeData
+
+    ; Need to restore data
+    jsr     inline_print
+    StringCR "Reloading stored data"
+    ldx     assetNum
+    jsr     loadAsset
     rts
 :
     brk     ; Unknown type
+
+moveCopyBuffer:                 ; store
+
+    ldy     #0
+:
+    lda     (A1),y              ; Interleaved
+    sta     copyBuffer,y
+    dey
+    bne     :-
+
+    inc     A1+1
+
+    rts
+
+interleaveCopy1A:
+
+    jsr     moveCopyBuffer
+    ldy     #0
+    ldx     #0
+
+copyLoop1A:
+
+    ; copy 1 bytes
+    lda     copyBuffer,x
+    inx
+    sta     (A4),y
+    iny
+    ; skip 1 byte
+    iny
+    bne     copyLoop1A
+
+    ; inc source page
+    inc     A4+1
+
+    ; check if buffer done
+    cpx     #0
+    bne     copyLoop1A
+
+    ; check if done
+    dec     copyLength
+    bne     interleaveCopy1A
+    rts
+
+interleaveCopy1B:
+
+    jsr     moveCopyBuffer
+
+    ldy     #0
+    ldx     #0
+
+copyLoop1B:
+
+    ; copy 1 bytes
+    lda     copyBuffer,x
+    inx
+    ; skip 1 byte
+    iny
+    sta     (A4),y
+    iny
+    bne     copyLoop1B
+
+    ; inc source page
+    inc     A4+1
+
+    ; check if buffer done
+    cpx     #0
+    bne     copyLoop1B
+
+    ; check if done
+    dec     copyLength
+    bne     interleaveCopy1B
+    rts
 
 setStoreCopyParam:
     ldx     assetNum
@@ -2092,6 +2177,29 @@ setStoreCopyParam:
     lda     fileDescription+7,x     ; length page
     lsr                             ; /2
     sta     copyLength
+
+    rts
+
+setStoreCopyParamInterleave:
+    ldx     assetNum
+
+    ; start
+    lda     fileDescription+10,x
+    sta     A1
+    lda     fileDescription+11,x
+    sta     A1+1
+
+    ; end
+    lda     fileDescription+14,x
+    sta     A2
+    lda     fileDescription+15,x
+    sta     A2+1
+
+    ; destination (aux)
+    lda     fileDescription+10,x
+    sta     A4
+    lda     fileDescription+11,x
+    sta     A4+1
 
     rts
 

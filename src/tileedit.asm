@@ -50,14 +50,11 @@ MODE_MASK       = 1
     jsr     inline_print
     StringCR    "DHGR Monochrome tile editor - ? for help"
 
-    jsr     DHGR_INIT
-
     ; set default size
     lda     #SIZE_56x16
     ldx     #1
     jsr     setTileSize
     jsr     initMonochrome  ; Turn on monochrome dhgr
-    ;jsr     initColorMode
 
     lda     #0
     sta     bgPattern00
@@ -538,6 +535,9 @@ load_exit:
     bmi     save_exit
     ldx     #2*16               ; Tile asset number = 2
     jsr     DHGR_STORE_ASSET
+
+    ; redraw the screen
+    jmp     reset_loop
 
 save_exit:
     jmp     command_loop

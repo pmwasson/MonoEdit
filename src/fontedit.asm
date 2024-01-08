@@ -45,8 +45,6 @@ SIZE_7x8        = 0
     jsr     inline_print
     StringCR    "DHGR font editor - ? for help"
 
-    jsr     DHGR_INIT
-
     jsr     initMonochrome  ; Turn on monochrome dhgr
 
     lda     #$00
