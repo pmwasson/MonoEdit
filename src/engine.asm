@@ -44,6 +44,19 @@
 .segment "CODE"
 .org    $C00
 
+;------------------------------------------------
+; Constants
+;------------------------------------------------
+; Map is hard coded
+
+MAP_OFFSET_X    = 12
+MAP_OFFSET_Y    = 2
+MAP_WIDTH       = 13
+MAP_HEIGHT      = 19
+MAP_RIGHT_EDGE  = MAP_OFFSET_X+MAP_WIDTH
+MAP_BOTTOM_EDGE = MAP_OFFSET_Y+MAP_HEIGHT
+MAP_ADRS       := $6000                     ; AUX
+
 ; Jump table (in fixed locations)
     jmp     loader
     jmp     engineInit
@@ -502,7 +515,7 @@ screenPtr1Copy: .byte   0
     lda     tileX
     clc
     adc     lineOffset,x    ; + lineOffset
-    sta     screenPtr0    
+    sta     screenPtr0
     sta     screen2Ptr0
     lda     linePage,x
     adc     drawPage
@@ -597,7 +610,7 @@ drawLoop:
     dex
     bne     drawLoop
 
-    rts    
+    rts
 
 ; locals
 tilePtr0Copy:     .byte   0
@@ -1059,6 +1072,95 @@ loop8:
 
 .endproc
 
+;-----------------------------------------------------------------------------
+; drawMap
+;-----------------------------------------------------------------------------
+
+.proc drawMap
+
+    sta     CLR80COL        ; Use RAMWRT for aux mem
+
+    lda     #MAP_OFFSET_Y
+    sta     tileY
+
+loopY:
+    lda     #MAP_OFFSET_X
+    sta     tileX
+
+    lda     isoIdxY
+    sta     isoIdxX
+
+    ; Perhaps should make a version of drawTile that expect to start/end in AUX
+    ; to remove 24 instructions below for switching
+loopX1:
+    ldx     isoIdxX
+    sta     RAMRDON
+    lda     MAP_ADRS+0*256,x
+    sta     RAMRDOFF
+    jsr     drawTileBG_28x8
+    ldx     isoIdxX
+    sta     RAMRDON
+    lda     MAP_ADRS+1*256,x
+    sta     RAMRDOFF
+    jsr     drawTileMask_28x8
+    ldx     isoIdxX
+    sta     RAMRDON
+    lda     MAP_ADRS+2*256,x
+    sta     RAMRDOFF
+    jsr     drawTileMask_28x8
+    ldx     isoIdxX
+    sta     RAMRDON
+    lda     MAP_ADRS+3*256,x
+    sta     RAMRDOFF
+    jsr     drawTileMask_28x8
+    ldx     isoIdxX
+    sta     RAMRDON
+    lda     MAP_ADRS+4*256,x
+    sta     RAMRDOFF
+    jsr     drawTileMask_28x8
+    ldx     isoIdxX
+    sta     RAMRDON
+    lda     MAP_ADRS+5*256,x
+    sta     RAMRDOFF
+    jsr     drawTileMask_28x8
+    ldx     isoIdxX
+    sta     RAMRDON
+    lda     MAP_ADRS+6*256,x
+    sta     RAMRDOFF
+    jsr     drawTileMask_28x8
+    ldx     isoIdxX
+    sta     RAMRDON
+    lda     MAP_ADRS+7*256,x
+    sta     RAMRDOFF
+    jsr     drawTileMask_28x8
+
+    inc     isoIdxX
+
+    clc
+    lda     tileX
+    adc     #2
+    sta     tileX
+    cmp     #MAP_RIGHT_EDGE
+    bpl     :+
+    jmp     loopX1
+
+    clc
+    lda     isoIdxY
+    adc     #MAP_WIDTH
+    sta     isoIdxY
+
+    inc     tileY
+    lda     tileY
+    cmp     #MAP_BOTTOM_EDGE
+    bpl     :+
+    jmp     loopY
+:
+    rts
+
+isoIdxX:    .byte    0
+isoIdxY:    .byte    0
+.endproc
+
 auxMemEnd:
 
 
@@ -1434,8 +1536,10 @@ loadAssets:
     beq     loaderMenu
 :
 
-    lda     #'1'
-    jmp     loadTool
+    ldx     #assetGame
+    jsr     loadAsset
+    jmp     EXECSTART
+
 
 .endproc
 

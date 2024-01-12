@@ -8,6 +8,10 @@ cd ..\build
 ca65 -I ..\src -t apple2 ..\src\engine.asm -l engine.dis || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\engine.asm apple2.lib  -o engine.apple2 -C ..\src\startC00.cfg || exit
 
+:: Game
+ca65 -I ..\src -t apple2 ..\src\game.asm -l game.dis || exit
+cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\game.asm apple2.lib  -o game.apple2 -C ..\src\start6000.cfg || exit
+
 ::---------------------------------------------------------------------------
 :: Compile tools
 ::---------------------------------------------------------------------------
@@ -47,6 +51,9 @@ copy ..\disk\template_prodos.dsk mono_prodos.dsk  || exit
 :: Engine
 java -jar C:\jar\AppleCommander.jar -p  mono_prodos.dsk engine.system sys < C:\cc65\target\apple2\util\loader.system || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk engine bin < engine.apple2  || exit
+
+:: Game
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/game bin < game.apple2  || exit
 
 :: Font Editor (tool 0)
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tool.0 bin < fontedit.apple2  || exit
