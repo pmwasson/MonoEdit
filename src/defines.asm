@@ -22,7 +22,7 @@
 ;                             $D7
 ;             $E3
 ;             $EB $EC $ED $EE $EF
-;         $FA $FB $FC $FD $FE $FF 
+;         $FA $FB $FC $FD $FE $FF
 
 ; ROM defined
 ;-------------
@@ -195,18 +195,19 @@ DHGR_SET_BYTE               := $C27
 DHGR_CLEAR_SCREEN           := $C2A
 DHGR_DRAW_INDEX_IMAGE       := $C2D
 DHGR_DRAW_IMAGE             := $C30
-DHGR_DRAW_STRING            := $C33
-DHGR_LOADER_MENU            := $C36
-DHGR_LOAD_ASSET             := $C39
-DHGR_STORE_ASSET            := $C3C
+DHGR_DRAW_IMAGE_AUX         := $C33
+DHGR_DRAW_STRING            := $C36
+DHGR_LOADER_MENU            := $C39
+DHGR_LOAD_ASSET             := $C3C
+DHGR_STORE_ASSET            := $C3F
 
-DHGR_TILE_7X8               := $C40
-DHGR_TILE_28X8              := $C42
-DHGR_IMAGE_WIDTH            := $C44
-DHGR_IMAGE_HEIGHT           := $C45
-DHGR_IMAGE_X                := $C46
-DHGR_IMAGE_Y                := $C47
-DHGR_IMAGE_TABLE            := $C48
+DHGR_TILE_7X8               := $C60
+DHGR_TILE_28X8              := $C62
+DHGR_IMAGE_WIDTH            := $C64
+DHGR_IMAGE_HEIGHT           := $C65
+DHGR_IMAGE_X                := $C66
+DHGR_IMAGE_Y                := $C67
+DHGR_IMAGE_TABLE            := $C68
 
 DHGR_LINE_OFFSET 			:= $C80
 DHGR_LINE_PAGE 				:= $C98

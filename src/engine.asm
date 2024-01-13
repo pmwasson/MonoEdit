@@ -28,8 +28,8 @@
 ;   4000-5FFF   [ DGHR Page 2                   ]
 ;               [ Read data     ]
 ;
-;   6000-7FFF   [ Game / Tools  ][ Dialog/Map   ]
-;
+;   6000-7FFF   [ Game / Tools  ][ Dialog/Script]
+;        7FFF
 ;   8000-AFFF   [ Isometric Tiles (192)         ]
 ;
 ;   B000-B7FF   [ Images        ][ Font x2      ]
@@ -75,14 +75,15 @@ MAP_ADRS       := $6000                     ; AUX
     jmp     clearScreen
     jmp     drawIndexImage
     jmp     drawImage
+    jmp     drawImageAux
     jmp     drawString
     jmp     loaderMenu
     jmp     loadToolAsset
     jmp     storeToolAsset
 
 ; Variables (in fixed locations)
-; xx40
-.align 64
+; xx60
+.align 32
 tileSheet_7x8:          .word   $B000
 tileSheet_28x8:         .word   $8000
 
@@ -98,6 +99,9 @@ imageTable:             .word   $B000+640*0
                         .word   $B000+640*4
                         .word   $B000+640*5
 .align 64
+
+auxMemStart:
+; This code is copied such that it exists in both main and aux memory.
 
 ; xx80
 lineOffset:
@@ -181,7 +185,7 @@ linePage:
     ; background pattern
     lda     #$2a
     sta     bgPattern00
-    lda         #$55    
+    lda         #$55
     sta     bgPattern01
     lda     #$55
     sta     bgPattern10
@@ -191,9 +195,6 @@ linePage:
     rts
 
 .endproc
-
-auxMemStart:
-; This code is copied such that it exists in both main and aux memory.
 
 ;-----------------------------------------------------------------------------
 ; drawTile_7x8
@@ -1161,6 +1162,98 @@ isoIdxX:    .byte    0
 isoIdxY:    .byte    0
 .endproc
 
+
+;-----------------------------------------------------------------------------
+; Draw Image Aux
+;
+;   Draw image stored in Aux memory
+;-----------------------------------------------------------------------------
+.proc drawImageAux
+    sta     CLR80COL        ; Use RAMWRT for aux mem
+
+    ; image parameters in main mem, but need results in AUX
+    sta     RAMWRTON            ; read main, write aux
+    lda     imageY
+    tax
+    clc
+    adc     imageHeight
+    sta     imageEnd
+
+    ; copy parameters to AUX
+    lda     imageX
+    sta     imageXAux
+    lda     imageWidth
+    sta     imageWidthAux
+
+    sta     RAMRDON             ; now read/write AUX
+
+loopY:
+    lda     lineOffset,x        ; AUX copy
+    clc
+    adc     imageXAux           ; AUX
+    sta     screenPtr0          ; ZP
+    lda     linePage,x          ; AUX copy
+    adc     drawPage            ; ZP
+    sta     screenPtr1          ; ZP
+
+    lda     #8
+    sta     lineCount           ; AUX
+loop8:
+
+    ldy     #0
+loopX:
+    lda     (tilePtr0),y
+    sta     (screenPtr0),y
+    sta     RAMWRTOFF           ; main
+    lda     (maskPtr0),y
+    sta     (screenPtr0),y
+    sta     RAMWRTON            ; aux
+    iny
+    cpy     imageWidthAux
+    bne     loopX
+
+    ; increment pointers
+
+    clc
+    lda     imageWidthAux
+    adc     tilePtr0
+    sta     tilePtr0
+    lda     #0
+    adc     tilePtr1
+    sta     tilePtr1
+
+    clc
+    lda     imageWidthAux
+    adc     maskPtr0
+    sta     maskPtr0
+    lda     #0
+    adc     maskPtr1
+    sta     maskPtr1
+
+    clc
+    lda     screenPtr1
+    adc     #4
+    sta     screenPtr1
+
+    dec     lineCount
+    bne     loop8
+
+    inx
+    cpx     imageEnd
+    bne     loopY
+
+    ; switch back to main
+    sta     RAMWRTOFF           ; main
+    sta     RAMRDOFF            ; main
+
+    rts
+
+lineCount:      .byte   0
+imageEnd:       .byte   0
+imageXAux:      .byte   0
+imageWidthAux:  .byte   0
+.endproc
+
 auxMemEnd:
 
 
@@ -1258,7 +1351,6 @@ lineCount:  .byte   0
 imageEnd:   .byte   0
 
 .endproc
-
 
 ;-----------------------------------------------------------------------------
 ; Draw String
@@ -2368,9 +2460,10 @@ ISOLENGTH           =   $4000                           ; 16k
 ISOEND              :=  READBUFFER + ISOLENGTH - 1
 ISOI1END            :=  ISOSTART + ISOLENGTH/2 - 1
 
-IMAGESTART          :=  $B000                           ; MAIN
-IMAGELENGTH         =   3*1280                          ; B000..BEFF : 20 bytes * 64 lines 1280(B) per image -> 3 images
-IMAGEEND            :=  IMAGESTART + IMAGELENGTH - 1
+IMAGESTART          :=  $6000                           ; Aux
+IMAGELENGTH         =   3*1280                          ; 6000..6EFF : 20 bytes * 64 lines 1280(B) per image -> 3 images
+IMAGEEND            :=  READBUFFER + IMAGELENGTH - 1
+IMAGEENDAUX         :=  IMAGESTART + IMAGELENGTH - 1
 
 FONT0START          :=  $B000                           ; AUX
 FONT0LENGTH         =   8*128
@@ -2423,7 +2516,7 @@ fileDescription:    ; type, name, address, size, dest, interleave
     .word   fileTypeFont,   fileNameFont0,    READBUFFER,     FONT0LENGTH,    FONT0END,   FONT0START,     INSTALL_AUX,    FONT0ENDAUX     ; 0
     .word   fileTypeFont,   fileNameFont1,    READBUFFER,     FONT1LENGTH,    FONT1END,   FONT1START,     INSTALL_AUX,    FONT1ENDAUX     ; 16
     .word   fileTypeISO,    fileNameISO,      READBUFFER,     ISOLENGTH,      ISOEND,     ISOSTART,       INSTALL_AUX_I1, ISOI1END        ; 32
-    .word   fileTypeImage,  fileNameImage,    IMAGESTART,     IMAGELENGTH,    IMAGEEND,   IMAGESTART,     INSTALL_MAIN,   0               ; 48
+    .word   fileTypeImage,  fileNameImage,    READBUFFER,     IMAGELENGTH,    IMAGEEND,   IMAGESTART,     INSTALL_AUX,    IMAGEENDAUX     ; 48
     .word   fileTypeExe,    fileNameGame,     EXECSTART,      EXECLENGTH,     0,          EXECSTART,      INSTALL_MAIN,   0               ; 64
     .word   fileTypeExe,    fileNameTool,     EXECSTART,      EXECLENGTH,     0,          EXECSTART,      INSTALL_MAIN,   0               ; 80
     .word   fileTypeTitle,  fileNameTitle0,   TITLESTART,     TITLELENGTH,    TITLEEND,   TITLESTART,     INSTALL_AUX,    TITLEEND        ; 96

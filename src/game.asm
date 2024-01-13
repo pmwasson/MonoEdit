@@ -36,6 +36,8 @@ BOX_LOWER_RIGHT = $1f
 BOX_LEFT_T      = $0f
 BOX_RIGHT_T     = $11
 
+IMAGE_TABLE     := $6000    ; AUX memory
+
 ;------------------------------------------------
 .segment "CODE"
 .org    $6000
@@ -47,6 +49,16 @@ BOX_RIGHT_T     = $11
 .proc main
 
     jsr     initMonochrome
+    sta     CLR80COL
+
+    ; Display Title
+    sta     HISCR
+
+;    ; wait for key (ignore key)
+;:
+;    lda     KBD
+;    bpl     :-
+;    bit     KBDSTRB     ; clean up
 
     ; Clear screen 0 and draw map
     lda     #$00
@@ -152,7 +164,7 @@ exit:
     sta     drawPage
     sta     LOWSCR
     sta     MIXSET  ; mixed screen
-    rts
+    jmp     DHGR_LOADER_MENU
 
 continue:
     jmp     displayLoop
@@ -173,7 +185,7 @@ drawTestScreen:
     jsr     drawTitle
 
     lda     #0
-    jsr     DHGR_DRAW_INDEX_IMAGE
+    jsr     gameDrawImage
 
     jsr     drawText
 
@@ -303,6 +315,37 @@ drawText:
 
 .endproc
 
+;-----------------------------------------------------------------------------
+; Game Draw Image
+;
+;   Calculate pointers and call engine
+;-----------------------------------------------------------------------------
+.proc gameDrawImage
+
+    sta     temp
+    asl
+    asl
+    adc     temp    ; *5
+    adc     #>IMAGE_TABLE
+    sta     tilePtr1
+    adc     #2
+    sta     maskPtr1
+    lda     #0
+    sta     tilePtr0
+    lda     #$80
+    sta     maskPtr0
+
+    jmp     DHGR_DRAW_IMAGE_AUX
+
+temp:   .byte   0
+
+.endproc
+
+;-----------------------------------------------------------------------------
+; Init
+;
+;-----------------------------------------------------------------------------
+
 .proc initMonochrome
     ; // GS B&W
     lda     #$21
@@ -331,8 +374,6 @@ drawText:
     sta     MIXCLR      ; Mixed
     rts
 .endproc
-
-
 
 ;-----------------------------------------------------------------------------
 ; Draw box

@@ -2,7 +2,7 @@
 
 python3 imageConvert.py wizard1.jpg     ..\build\wizard1.png    140 64 >  ..\src\images0.asm  || exit
 python3 imageConvert.py wizard2.jpg     ..\build\wizard2.png    140 64 >> ..\src\images0.asm  || exit
-python3 imageConvert.py robot.jpg       ..\build\robot.png      140 64 >> ..\src\images0.asm  || exit
+python3 imageConvert.py robot2.jpg      ..\build\robot.png      140 64 >> ..\src\images0.asm  || exit
 
 python3 imageConvert.py gypsy1.jpg      ..\build\gypsy1.png     140 64 >  ..\src\images1.asm  || exit
 python3 imageConvert.py computer.jpg    ..\build\computer.png   140 64 >> ..\src\images1.asm  || exit
