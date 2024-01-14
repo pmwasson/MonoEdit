@@ -326,7 +326,7 @@ rotate_after:
     cmp     #KEY_CTRL_O
     bne     :+
     jsr     inline_print
-    StringCR   "Experiment to optimize map to 3 levels"
+    StringCR   "Optimize map to 3 levels for export"
     jsr     optimizeMap
     jmp     refresh_loop
 :
@@ -1017,7 +1017,7 @@ temp:   .byte   0
     sta     isoMap4,x
 :
     ;---------------------------------
-    ; down1 -> map6 (macro 8,9) -- OVERLAY
+    ; down1 -> map3 (macro 8,9) -- OVERLAY
     ldy     #8
     lda     mapCursor
     clc
@@ -1035,7 +1035,7 @@ temp:   .byte   0
     sta     isoMap3,x
 :
     ;---------------------------------
-    ; down1 -> map6 (macro 10,11)
+    ; down1 -> map2 (macro 10,11)
     ldy     #10
     lda     mapCursor
     clc
@@ -1053,7 +1053,7 @@ temp:   .byte   0
     sta     isoMap2,x
 :
     ;---------------------------------
-    ; down2 -> map7 (macro 12,13)
+    ; down2 -> map1 (macro 12,13)
     ldy     #12
     lda     mapCursor
     clc
@@ -1071,7 +1071,7 @@ temp:   .byte   0
     sta     isoMap1,x
 :
     ;---------------------------------
-    ; down3 -> map7 (macro 14,15)
+    ; down3 -> map0 (macro 14,15)
     ldy     #14
     lda     mapCursor
     clc
@@ -1099,68 +1099,36 @@ overwrite:      .byte   0
 ;-----------------------------------------------------------------------------
 .proc printMap
 
-    lda     #<isoMap0
+    lda     #<isoMapOp0
     sta     tilePtr0
-    lda     #>isoMap0
+    lda     #>isoMapOp0
     sta     tilePtr1
     jsr     inline_print
-    StringCR    "isoMap0:"
+    StringCR    "isoMapOp0:"
     jsr     printMapSection
 
-    lda     #<isoMap1
+    lda     #<isoMapOp1
     sta     tilePtr0
-    lda     #>isoMap1
+    lda     #>isoMapOp1
     sta     tilePtr1
     jsr     inline_print
-    StringCR    "isoMap1:"
+    StringCR    "isoMapOp1:"
     jsr     printMapSection
 
-    lda     #<isoMap2
+    lda     #<isoMapOp2
     sta     tilePtr0
-    lda     #>isoMap2
+    lda     #>isoMapOp2
     sta     tilePtr1
     jsr     inline_print
-    StringCR    "isoMap2:"
+    StringCR    "isoMapOp2:"
     jsr     printMapSection
 
-    lda     #<isoMap3
+    lda     #<isoMapOpInfo
     sta     tilePtr0
-    lda     #>isoMap3
+    lda     #>isoMapOpInfo
     sta     tilePtr1
     jsr     inline_print
-    StringCR    "isoMap3:"
-    jsr     printMapSection
-
-    lda     #<isoMap4
-    sta     tilePtr0
-    lda     #>isoMap4
-    sta     tilePtr1
-    jsr     inline_print
-    StringCR    "isoMap4:"
-    jsr     printMapSection
-
-    lda     #<isoMap5
-    sta     tilePtr0
-    lda     #>isoMap5
-    sta     tilePtr1
-    jsr     inline_print
-    StringCR    "isoMap5:"
-    jsr     printMapSection
-
-    lda     #<isoMap6
-    sta     tilePtr0
-    lda     #>isoMap6
-    sta     tilePtr1
-    jsr     inline_print
-    StringCR    "isoMap6:"
-    jsr     printMapSection
-
-    lda     #<isoMap7
-    sta     tilePtr0
-    lda     #>isoMap7
-    sta     tilePtr1
-    jsr     inline_print
-    StringCR    "isoMap7:"
+    StringCR    "isoMapOpInfo:"
     jsr     printMapSection
 
     rts
@@ -1172,6 +1140,7 @@ overwrite:      .byte   0
 
     lda     #0
     sta     dump_count
+    sta     line_count
     jmp     dump_loop
 dump_comma:
     lda     #$80 + ','
@@ -1182,13 +1151,16 @@ dump_loop:
     ldy     dump_count
     lda     (tilePtr0),y
     jsr     PRBYTE
+    inc     line_count
     inc     dump_count
     beq     dump_finish     ; assuming 256 bytes
-    lda     dump_count
-    and     #$f
+    lda     line_count
+    cmp     #MAP_WIDTH
     bne     dump_comma
     jsr     inline_print
     .byte   13,".byte ",0
+    lda     #0
+    sta     line_count
     jmp     dump_loop
 
 dump_finish:
@@ -1197,14 +1169,21 @@ dump_finish:
     rts
 
 dump_count: .byte   0
-
+line_count: .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
 ; optimized map
 ;   find first (3) levels that are non zero and remove the rest
 ;-----------------------------------------------------------------------------
-
+; 7 -- upper
+; 6 -- upper
+; 5 -- overlay (floor)
+; 4 -- floor
+; 3 -- overlay (floor)
+; 2 -- floor
+; 1 -- below
+; 0 -- below
 
 .proc optimizeMap
 
@@ -1258,37 +1237,34 @@ next6:
     brk                 ; should not be possible
 next5:
     clc
-    rol
+    rol     result
 next4:
     clc
-    rol
+    rol     result
 next3:
     clc
-    rol
+    rol     result
 next2:
     clc
-    rol
+    rol     result
 next1:
     clc
-    rol
+    rol     result
 next0:
     ; write results
     txa
-    sta     isoMapLevels,y
     lda     result
-    sta     isoMapInfo,y
-    lda     #0
-    sta     isoMap7,y
-    sta     isoMap6,y
-    sta     isoMap5,y
-    sta     isoMap4,y
-    sta     isoMap3,y
+    lsr
+    lsr
+    lsr
+    sta     isoMapOpInfo,y
+
     lda     stack
-    sta     isoMap2,y
+    sta     isoMapOp2,y
     lda     stack+1
-    sta     isoMap1,y
+    sta     isoMapOp1,y
     lda     stack+2
-    sta     isoMap0,y
+    sta     isoMapOp0,y
 
     iny
     beq     done
@@ -1297,8 +1273,8 @@ done:
     rts
 
 push:
-    beq     :+
-    sta     stack,x    
+    beq     noPush
+    sta     stack,x
     sec
     rol     result      ; set result bit to 1
     inx
@@ -1307,6 +1283,10 @@ push:
     sec
     rts
 :
+    clc
+    rts
+
+noPush:
     clc
     rol     result      ; set result bit to zero
     clc
@@ -2167,6 +2147,8 @@ isoMap7:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
-isoMapInfo:     .res    256
-isoMapLevels:     .res    256
+isoMapOp0:      .res    256
+isoMapOp1:      .res    256
+isoMapOp2:      .res    256
+isoMapOpInfo:   .res    256
 

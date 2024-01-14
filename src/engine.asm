@@ -384,6 +384,7 @@ tilePtr0Copy:     .byte   0
     rts                     ; tile 0 is skip
 :
 
+    stx     tempZP
     sta     tileIdx
     ; calculate tile pointer
     asl                     ; *32
@@ -436,6 +437,7 @@ tilePtr0Copy:     .byte   0
 
     sta     RAMWRTOFF   ; AUX
     sta     RAMRDOFF    ; AUX
+    ldx     tempZP
 
     rts
 
@@ -489,7 +491,7 @@ screenPtr1Copy: .byte   0
 ;   
 ;-----------------------------------------------------------------------------
 .proc drawTileBG_28x8
-
+    stx     tempZP
     sta     tileIdx
     ; calculate tile pointer
     asl                     ; *32
@@ -569,6 +571,7 @@ screenPtr1Copy: .byte   0
     sta     bgPattern10
     sty     bgPattern11
 
+    ldx     tempZP
     rts
 
 drawTile:
@@ -1389,6 +1392,7 @@ printLoop:
 :
     and     #$7f
     jsr     drawTile_7x8
+    sta     SPEAKER             ; Noisy print
 
     inc     tileX
 continue:

@@ -59,8 +59,10 @@ bgPattern01     :=  $cf
 bgPattern10     :=  $ec
 bgPattern11     :=  $ed
 
+; Temp
+tempZP 			:=  $09
+
 ; following are available to use
-;               :=  $09
 ;               :=  $ce
 ;               :=  $cf
 ;               :=  $ec

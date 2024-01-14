@@ -33,6 +33,7 @@ printLoop:
     jsr     COUT
     pla
     tay
+    sta     SPEAKER             ; Noisy print
     jmp     printLoop
 
 printExit:
