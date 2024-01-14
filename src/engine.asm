@@ -28,11 +28,11 @@
 ;   4000-5FFF   [ DGHR Page 2                   ]
 ;               [ Read data     ]
 ;
-;   6000-7FFF   [ Game / Tools  ][ Dialog/Script]
+;   6000-7FFF   [ Game / Tools  ][ Level Data   ]
 ;        7FFF
 ;   8000-AFFF   [ Isometric Tiles (192)         ]
 ;
-;   B000-B7FF   [ Images        ][ Font x2      ]
+;   B000-B7FF   [ Level Map     ][ Font x2      ]
 ;   B800-BEFF   [ "             ]
 ;
 ;   ProDos says addresses D000-FFFF in AUX memory
@@ -47,15 +47,6 @@
 ;------------------------------------------------
 ; Constants
 ;------------------------------------------------
-; Map is hard coded
-
-MAP_OFFSET_X    = 12
-MAP_OFFSET_Y    = 2
-MAP_WIDTH       = 13
-MAP_HEIGHT      = 19
-MAP_RIGHT_EDGE  = MAP_OFFSET_X+MAP_WIDTH
-MAP_BOTTOM_EDGE = MAP_OFFSET_Y+MAP_HEIGHT
-MAP_ADRS       := $6000                     ; AUX
 
 ; Jump table (in fixed locations)
     jmp     loader
@@ -1077,96 +1068,6 @@ loop8:
 .endproc
 
 ;-----------------------------------------------------------------------------
-; drawMap
-;-----------------------------------------------------------------------------
-
-.proc drawMap
-
-    sta     CLR80COL        ; Use RAMWRT for aux mem
-
-    lda     #MAP_OFFSET_Y
-    sta     tileY
-
-loopY:
-    lda     #MAP_OFFSET_X
-    sta     tileX
-
-    lda     isoIdxY
-    sta     isoIdxX
-
-    ; Perhaps should make a version of drawTile that expect to start/end in AUX
-    ; to remove 24 instructions below for switching
-loopX1:
-    ldx     isoIdxX
-    sta     RAMRDON
-    lda     MAP_ADRS+0*256,x
-    sta     RAMRDOFF
-    jsr     drawTileBG_28x8
-    ldx     isoIdxX
-    sta     RAMRDON
-    lda     MAP_ADRS+1*256,x
-    sta     RAMRDOFF
-    jsr     drawTileMask_28x8
-    ldx     isoIdxX
-    sta     RAMRDON
-    lda     MAP_ADRS+2*256,x
-    sta     RAMRDOFF
-    jsr     drawTileMask_28x8
-    ldx     isoIdxX
-    sta     RAMRDON
-    lda     MAP_ADRS+3*256,x
-    sta     RAMRDOFF
-    jsr     drawTileMask_28x8
-    ldx     isoIdxX
-    sta     RAMRDON
-    lda     MAP_ADRS+4*256,x
-    sta     RAMRDOFF
-    jsr     drawTileMask_28x8
-    ldx     isoIdxX
-    sta     RAMRDON
-    lda     MAP_ADRS+5*256,x
-    sta     RAMRDOFF
-    jsr     drawTileMask_28x8
-    ldx     isoIdxX
-    sta     RAMRDON
-    lda     MAP_ADRS+6*256,x
-    sta     RAMRDOFF
-    jsr     drawTileMask_28x8
-    ldx     isoIdxX
-    sta     RAMRDON
-    lda     MAP_ADRS+7*256,x
-    sta     RAMRDOFF
-    jsr     drawTileMask_28x8
-
-    inc     isoIdxX
-
-    clc
-    lda     tileX
-    adc     #2
-    sta     tileX
-    cmp     #MAP_RIGHT_EDGE
-    bpl     :+
-    jmp     loopX1
-
-    clc
-    lda     isoIdxY
-    adc     #MAP_WIDTH
-    sta     isoIdxY
-
-    inc     tileY
-    lda     tileY
-    cmp     #MAP_BOTTOM_EDGE
-    bpl     :+
-    jmp     loopY
-:
-    rts
-
-isoIdxX:    .byte    0
-isoIdxY:    .byte    0
-.endproc
-
-
-;-----------------------------------------------------------------------------
 ; Draw Image Aux
 ;
 ;   Draw image stored in Aux memory
@@ -1601,10 +1502,6 @@ loadAssets:
     jsr     loadAsset
     ldx     #assetImage
     jsr     loadAsset
-    ldx     #assetTitle0
-    jsr     loadAsset
-    ldx     #assetTitle1
-    jsr     loadAsset
 
     lda     fileError
     beq     :+
@@ -1631,12 +1528,7 @@ loadAssets:
     cmp     #KEY_ESC
     beq     loaderMenu
 :
-
-    ldx     #assetGame
-    jsr     loadAsset
-    jmp     EXECSTART
-
-
+    jmp     loadGame
 .endproc
 
 .proc loaderMenu
@@ -1658,9 +1550,7 @@ menuLoop:
     and     #$7f
     cmp     #13
     bne     :+
-    ldx     #assetGame
-    jsr     loadAsset
-    jmp     EXECSTART
+    jmp     loadGame
 
     cmp     #'0'
     beq     loadTool
@@ -1705,6 +1595,30 @@ menuLoop:
 
     jsr     inline_print
     StringCR "Launching tool..."
+
+    ; Jump to executables
+    jmp     EXECSTART
+
+.endproc
+
+.proc loadGame
+
+    ldx     #assetTitle0
+    jsr     loadAsset
+    ldx     #assetTitle1
+    jsr     loadAsset
+    ldx     #assetGame
+    jsr     loadAsset
+
+    lda     fileError
+    beq     :+
+
+    jsr     inline_print
+    StringCR "Error detected"
+    jmp     monitor
+:
+    jsr     inline_print
+    StringCR "Launching game..."
 
     ; Jump to executables
     jmp     EXECSTART
