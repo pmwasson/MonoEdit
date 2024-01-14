@@ -1643,18 +1643,25 @@ loadAssets:
     sta     TXTSET
     jsr     inline_print
     StringCont "Options:"
-    StringCont " [0] Font Editor"
-    StringCont " [1] Tile Editor"
-    StringCont " [2] Map Editor"
-    StringCont " [3] Display Image"
-    StringCont " [7] Reload assets"
-    StringCont " [8] Monitor"
-    StringCont " [9] ProDos"
+    StringCont " [RET] Game"
+    StringCont " [0]   Font Editor"
+    StringCont " [1]   Tile Editor"
+    StringCont " [2]   Map Editor"
+    StringCont " [3]   Display Image"
+    StringCont " [7]   Reload assets"
+    StringCont " [8]   Monitor"
+    StringCont " [9]   ProDos"
     String "Select option:"
 
 menuLoop:
     jsr     RDKEY
     and     #$7f
+    cmp     #13
+    bne     :+
+    ldx     #assetGame
+    jsr     loadAsset
+    jmp     EXECSTART
+
     cmp     #'0'
     beq     loadTool
     cmp     #'1'

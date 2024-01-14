@@ -66,11 +66,11 @@ IMAGE_TABLE     := $6000    ; AUX memory
 
     ; Clear screen 0 and draw map
     lda     #$00
-    jsr     drawTestScreen
+    jsr     drawGameScreen
 
     ; Clear screen 1 and draw map
     lda     #$20
-    jsr     drawTestScreen
+    jsr     drawGameScreen
 
     ; Cycle through map for animation
     lda     #255
@@ -185,8 +185,14 @@ update:         .byte   0
 storeWidth:     .byte   0
 storeOffsetX:   .byte   0
 
+.endproc
 
-drawTestScreen:
+;------------------------------------------------
+; Draw Game Screen
+;
+;   Clear screen and draw all elements
+;------------------------------------------------
+.proc drawGameScreen
     sta     drawPage
 
     ldx     #0
@@ -194,7 +200,7 @@ drawTestScreen:
     jsr     DHGR_CLEAR_SCREEN
     jsr     drawFrame
 
-    jsr     drawTitle
+    jsr     drawTitles
 
     lda     #0
     jsr     gameDrawImage
@@ -207,17 +213,12 @@ drawTestScreen:
 
     rts
 
-drawQuarter:
-    ldx     mapCursor
-    lda     isoMapOp0,x
-    jsr     DHGR_DRAW_BG_28X8
-    lda     isoMapOp1,x
-    jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp2,x
-    jsr     DHGR_DRAW_MASK_28X8
-    rts
+.endproc
 
-drawFrame:
+;------------------------------------------------
+; Draw Frame
+;------------------------------------------------
+.proc drawFrame
 
     lda     #<$B000
     sta     DHGR_TILE_7X8
@@ -258,7 +259,12 @@ drawFrame:
     jsr     drawBox
     rts
 
-drawTitle:
+.endproc
+
+;------------------------------------------------
+; Draw Titles
+;------------------------------------------------
+.proc drawTitles
     lda     #2
     sta     tileX
     lda     #0
@@ -277,8 +283,12 @@ drawTitle:
     .byte   $93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93
     .byte   0
     rts
+.endproc
 
-drawText:
+;------------------------------------------------
+; Draw Text
+;------------------------------------------------
+.proc drawText
 
     ; Use alternate font
     lda     #>$B400
@@ -465,6 +475,21 @@ cont:
 
 .endproc
 
+;------------------------------------------------
+; Draw Quarter
+;------------------------------------------------
+.proc drawQuarter
+    ldy     tileY
+    lda     playerLine,y
+    ldx     mapCursor
+    clc
+    adc     isoMapOpInfo,x
+    tay
+    lda     jumpTable,y
+    sta     *+4
+    jmp     draw012         ; link return
+.endproc
+
 ;-----------------------------------------------------------------------------
 ; isoDrawMap
 ;
@@ -498,10 +523,10 @@ loopX1:
     adc     playerOffset
     tay
     lda     jumpTable,y
-    sta     *+4
 
-    jmp     draw012
-back:
+    sta     *+4
+    jsr     draw012
+
     inx
 
     clc
@@ -523,72 +548,120 @@ back:
 
     rts
 
+isoIdxY:        .byte   0
+playerOffset:   .byte   0
+
+.endproc
+
 .align 256
 
 ; should be draw012
-draw012:
+.proc draw012
     lda     isoMapOp0,x
     jsr     DHGR_DRAW_BG_28X8
     lda     isoMapOp1,x
     jsr     DHGR_DRAW_MASK_28X8
     lda     isoMapOp2,x
     jsr     DHGR_DRAW_MASK_28X8
-    jmp     back
-
-.align 32
-draw012P:
-    lda     isoMapOp0,x
-    jsr     DHGR_DRAW_BG_28X8
-    lda     isoMapOp1,x
-    jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp2,x
-    jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOpP,x
-    jsr     DHGR_DRAW_MASK_28X8
-    jmp     back
-
-.align 32
-draw01P2:
-    lda     isoMapOp0,x
-    jsr     DHGR_DRAW_BG_28X8
-    lda     isoMapOp1,x
-    jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOpP,x
-    jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp2,x
-    jsr     DHGR_DRAW_MASK_28X8
-    jmp     back
-
-.align 32
-draw0P12:
-    lda     isoMapOp0,x
-    jsr     DHGR_DRAW_BG_28X8
-    lda     isoMapOpP,x
-    jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp1,x
-    jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp2,x
-    jsr     DHGR_DRAW_MASK_28X8
-    jmp     back
-
-.align 32
-drawP012:
-    lda     isoMapOpP,x
-    jsr     DHGR_DRAW_BG_28X8
-    lda     isoMapOp0,x
-    jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp1,x
-    jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp2,x
-    jsr     DHGR_DRAW_MASK_28X8
-    jmp     back
-
-isoIdxY:        .byte   0
-playerOffset:   .byte   0
-playerLine:     .res    24
-jumpTable:      .res    32*5
-
+    rts
 .endproc
+
+.proc draw012P
+    lda     isoMapOp0,x
+    jsr     DHGR_DRAW_BG_28X8
+    lda     isoMapOp1,x
+    jsr     DHGR_DRAW_MASK_28X8
+    lda     isoMapOp2,x
+    jsr     DHGR_DRAW_MASK_28X8
+    lda     isoMapOpP,x
+    jsr     DHGR_DRAW_MASK_28X8
+    rts
+.endproc
+
+.proc draw01P2
+    lda     isoMapOp0,x
+    jsr     DHGR_DRAW_BG_28X8
+    lda     isoMapOp1,x
+    jsr     DHGR_DRAW_MASK_28X8
+    lda     isoMapOpP,x
+    jsr     DHGR_DRAW_MASK_28X8
+    lda     isoMapOp2,x
+    jsr     DHGR_DRAW_MASK_28X8
+    rts
+.endproc
+
+.proc draw0P12
+    lda     isoMapOp0,x
+    jsr     DHGR_DRAW_BG_28X8
+    lda     isoMapOpP,x
+    jsr     DHGR_DRAW_MASK_28X8
+    lda     isoMapOp1,x
+    jsr     DHGR_DRAW_MASK_28X8
+    lda     isoMapOp2,x
+    jsr     DHGR_DRAW_MASK_28X8
+    rts
+.endproc
+
+.proc drawP012
+    lda     isoMapOpP,x
+    jsr     DHGR_DRAW_BG_28X8
+    lda     isoMapOp0,x
+    jsr     DHGR_DRAW_MASK_28X8
+    lda     isoMapOp1,x
+    jsr     DHGR_DRAW_MASK_28X8
+    lda     isoMapOp2,x
+    jsr     DHGR_DRAW_MASK_28X8
+    rts
+.endproc
+
+.proc drawBad
+    brk     ; Should not get here!
+.endproc
+
+;-----------------------------------------------------------------------------
+; Tables
+;-----------------------------------------------------------------------------
+
+jumpTable:
+
+    ; including "bad" to catch player/map (blocked) and map/map conflicts (more than 3 levels)
+    ; should probably replace with 012P for release to avoid crashes with just a glitch
+
+    ; no player - $00
+    .byte   <draw012, <draw012, <draw012, <draw012, <draw012, <draw012, <draw012, <draw012
+    .byte   <draw012, <draw012, <draw012, <draw012, <draw012, <draw012, <draw012, <draw012
+    .byte   <draw012, <draw012, <draw012, <draw012, <draw012, <draw012, <draw012, <draw012
+    .byte   <draw012, <draw012, <draw012, <draw012, <draw012, <draw012, <draw012, <draw012
+
+    ; player7   - $20
+    .byte   <draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P
+    .byte   <draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<drawBad
+    .byte   <draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<drawBad
+    .byte   <draw012P,<draw012P,<draw012P,<drawBad, <draw012P,<drawBad, <drawBad, <drawBad
+
+    ; player6   - $40
+    .byte   <draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P
+    .byte   <draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<drawBad
+    .byte   <draw01P2,<draw01P2,<draw01P2,<draw01P2,<draw01P2,<draw01P2,<draw01P2,<drawBad
+    .byte   <draw01P2,<draw01P2,<draw01P2,<drawBad, <draw01P2,<drawBad, <drawBad, <drawBad
+
+    ; player5   - $60
+    .byte   <draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P,<draw012P
+    .byte   <draw01P2,<draw01P2,<draw01P2,<draw01P2,<draw01P2,<draw01P2,<draw01P2,<drawBad
+    .byte   <draw01P2,<draw01P2,<draw01P2,<draw01P2,<draw01P2,<draw01P2,<draw01P2,<drawBad
+    .byte   <draw0P12,<draw0P12,<draw0P12,<drawBad, <draw0P12,<drawBad, <drawBad, <drawBad
+
+    ; player3   - $80
+    .byte   <draw012P,<draw012P,<draw01P2,<draw01P2,<draw01P2,<draw01P2,<draw0P12,<draw0P12
+    .byte   <draw01P2,<draw01P2,<draw0P12,<draw0P12,<draw0P12,<draw0P12,<drawP012,<drawBad
+    .byte   <draw01P2,<draw01P2,<draw0P12,<draw0P12,<draw0P12,<draw0P12,<drawP012,<drawBad
+    .byte   <draw0P12,<draw0P12,<drawP012,<drawBad, <drawP012,<drawBad, <drawBad, <drawBad
+
+; optmizied to use a global Y [0..23]
+playerLine:
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00
+    .byte   $00,$20,$40,$60,$80,$00,$00,$00     ; 9,10,11,12
+    .byte   $00,$00,$00,$00,$00,$00,$00,$00
 
 
 ;-----------------------------------------------------------------------------
@@ -728,4 +801,23 @@ animateMap:
 
 ; player
 isoMapOpP:
-    .res    256
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$58,$59,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$5A,$5B,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$5C,$5D,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$5E,$5F,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00
