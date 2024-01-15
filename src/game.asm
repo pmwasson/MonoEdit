@@ -72,6 +72,10 @@ IMAGE_TABLE     := $6000    ; AUX memory
     ; Display Title
     sta     HISCR
 
+    ; Set starting position before drawing map
+    ldx     #$32
+    jsr     updatePlayerMap
+
     ; Clear screen 0 and draw map
     lda     #$00
     jsr     drawGameScreen
@@ -195,9 +199,14 @@ display1:
     lda     mapCursor
     jsr     drawNumber
 
-    lda     #38
+    lda     #75
     sta     tileX
     lda     playerIdx
+    jsr     drawNumber
+
+    lda     #78
+    sta     tileX
+    lda     newPlayerIdx
     jsr     drawNumber
 
     ;------------------------
@@ -248,7 +257,7 @@ display1:
     ;-----------------------
     cmp     #KEY_SPACE
     bne     :+
-    brk     ; FIXME: do action
+    ; FIXME: do action
 :
 
 noKeyPress:
@@ -265,8 +274,7 @@ move:
     lda     playerIdx
     sta     oldPlayerIdx
     jsr     erasePlayer
-    lda     newPlayerIdx
-    sta     playerIdx
+    ldx     newPlayerIdx
     jsr     updatePlayerMap
 
     lda     oldPlayerIdx
@@ -591,9 +599,8 @@ cont:
 ;   Clear player map and withdraw from screen
 ;------------------------------------------------
 .proc updatePlayerMap
-
+    stx     playerIdx
     ; fixed offsets
-    ldx     playerIdx
     lda     playerTiles+0
     sta     isoMapP-MAP_WIDTH*2,x
     lda     playerTiles+1
@@ -862,7 +869,7 @@ playerOffset:   .byte   0
 
 jumpTable:
 
-    ; including "bad" to catch player/map (blocked) and map/map conflicts (more than 3 levels)
+    ; including "bad" to catch map/map conflicts (more than 3 levels)
     ; should probably replace with 012P for release to avoid crashes with just a glitch
 
     ; no player - $00
@@ -894,13 +901,6 @@ jumpTable:
     .byte   <draw01P2,<draw01P2,<draw0P12,<draw0P12,<draw0P12,<draw0P12,<drawP012,<drawBad
     .byte   <draw01P2,<draw01P2,<draw0P12,<draw0P12,<draw0P12,<draw0P12,<drawP012,<drawBad
     .byte   <draw0P12,<draw0P12,<drawP012,<drawBad, <drawP012,<drawBad, <drawBad, <drawBad
-
-; optmizied to use a global Y [0..23]
-playerLine:
-    .byte   $00,$00,$00,$00,$00,$00,$00,$00
-    .byte   $00,$20,$40,$60,$80,$00,$00,$00     ; 9,10,11,12
-    .byte   $00,$00,$00,$00,$00,$00,$00,$00
-
 
 ;-----------------------------------------------------------------------------
 ; setCoordinate
@@ -999,7 +999,7 @@ oldPlayerIdx:   .byte   0       ; Previous player position
 mapCursor:  .byte   0   ; Offset into map table
 gameTime0:  .byte   0   ; incremented every 256 frames
 gameTime1:  .byte   0   ; incremented every 256*256 frames
-bgColor:    .byte   2*4
+bgColor:    .byte   3*4
 
 boxLeft:        .byte   0
 boxRight:       .byte   0
@@ -1047,24 +1047,6 @@ animateMap:
 .include "map00.asm"
 
 ; player
-isoMapP:
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$58,$59,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$5A,$5B,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$5C,$5D,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$5E,$5F,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-    .byte $00,$00,$00,$00,$00,$00,$00,$00,$00
+isoMapP:        .res    256
+playerLine:     .res    24      ; optmizied to use a global Y [0..23]
+

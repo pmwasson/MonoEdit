@@ -2421,17 +2421,17 @@ fileTypeExe:    String "Executable"
 fileTypeTitle:  String "Title Image"
 
 ; File names
-fileNameFont0:      StringLen "/DHGR/DATA/FONT7X8.0"
-fileNameFont1:      StringLen "/DHGR/DATA/FONT7X8.1"
-fileNameISO:        StringLen "/DHGR/DATA/TILESHEET.0"
+fileNameFont0:      StringLen "DATA/FONT7X8.0"
+fileNameFont1:      StringLen "DATA/FONT7X8.1"
+fileNameISO:        StringLen "DATA/TILESHEET.0"
 fileNameISOEnd:
-fileNameImage:      StringLen "/DHGR/DATA/IMAGESHEET.0"
+fileNameImage:      StringLen "DATA/IMAGESHEET.0"
 fileNameImageEnd:
-fileNameTool:       StringLen "/DHGR/DATA/TOOL.0"
+fileNameTool:       StringLen "DATA/TOOL.0"
 fileNameToolEnd:
-fileNameTitle0:     StringLen "/DHGR/DATA/TITLE.0"
-fileNameTitle1:     StringLen "/DHGR/DATA/TITLE.1"
-fileNameGame:       StringLen "/DHGR/DATA/GAME"
+fileNameTitle0:     StringLen "DATA/TITLE.0"
+fileNameTitle1:     StringLen "DATA/TITLE.1"
+fileNameGame:       StringLen "DATA/GAME"
 
 ; Asset List
 fileDescription:    ; type, name, address, size, dest, interleave
