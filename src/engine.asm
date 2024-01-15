@@ -1551,7 +1551,7 @@ menuLoop:
     cmp     #13
     bne     :+
     jmp     loadGame
-
+:
     cmp     #'0'
     beq     loadTool
     cmp     #'1'

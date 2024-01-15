@@ -1104,7 +1104,7 @@ overwrite:      .byte   0
     lda     #>isoMapOp0
     sta     tilePtr1
     jsr     inline_print
-    StringCR    "isoMapOp0:"
+    StringCR    "isoMap0:"
     jsr     printMapSection
 
     lda     #<isoMapOp1
@@ -1112,7 +1112,7 @@ overwrite:      .byte   0
     lda     #>isoMapOp1
     sta     tilePtr1
     jsr     inline_print
-    StringCR    "isoMapOp1:"
+    StringCR    "isoMap1:"
     jsr     printMapSection
 
     lda     #<isoMapOp2
@@ -1120,15 +1120,15 @@ overwrite:      .byte   0
     lda     #>isoMapOp2
     sta     tilePtr1
     jsr     inline_print
-    StringCR    "isoMapOp2:"
+    StringCR    "isoMap2:"
     jsr     printMapSection
 
-    lda     #<isoMapOpInfo
+    lda     #<isoMapLevel
     sta     tilePtr0
-    lda     #>isoMapOpInfo
+    lda     #>isoMapLevel
     sta     tilePtr1
     jsr     inline_print
-    StringCR    "isoMapOpInfo:"
+    StringCR    "isoMapLevel:"
     jsr     printMapSection
 
     rts
@@ -1257,7 +1257,7 @@ next0:
     lsr
     lsr
     lsr
-    sta     isoMapOpInfo,y
+    sta     isoMapLevel,y
 
     lda     stack
     sta     isoMapOp2,y
@@ -2150,5 +2150,5 @@ isoMap7:
 isoMapOp0:      .res    256
 isoMapOp1:      .res    256
 isoMapOp2:      .res    256
-isoMapOpInfo:   .res    256
+isoMapLevel:    .res    256
 

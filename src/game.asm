@@ -40,6 +40,16 @@ BOX_LOWER_RIGHT = $1f
 BOX_LEFT_T      = $0f
 BOX_RIGHT_T     = $11
 
+KEY_NW          = 'W'|$80
+KEY_NE          = 'E'|$80
+KEY_SW          = 'S'|$80
+KEY_SE          = 'D'|$80
+
+MOVE_NW         = 256-MAP_WIDTH-1
+MOVE_NE         = 256-MAP_WIDTH+1
+MOVE_SW         = MAP_WIDTH-1
+MOVE_SE         = MAP_WIDTH+1
+
 IMAGE_TABLE     := $6000    ; AUX memory
 
 ;------------------------------------------------
@@ -52,11 +62,19 @@ IMAGE_TABLE     := $6000    ; AUX memory
 
 .proc main
 
+    ;------------------------
+    ; Setup
+    ;------------------------
+
     jsr     initMonochrome
     sta     CLR80COL
 
     ; Display Title
     sta     HISCR
+
+    ; Clear screen 0 and draw map
+    lda     #$00
+    jsr     drawGameScreen
 
 ;    ; wait for key (ignore key)
 ;:
@@ -64,9 +82,8 @@ IMAGE_TABLE     := $6000    ; AUX memory
 ;    bpl     :-
 ;    bit     KBDSTRB     ; clean up
 
-    ; Clear screen 0 and draw map
-    lda     #$00
-    jsr     drawGameScreen
+    ; display 0
+    sta     LOWSCR
 
     ; Clear screen 1 and draw map
     lda     #$20
@@ -78,6 +95,10 @@ IMAGE_TABLE     := $6000    ; AUX memory
 
     lda     #0
     sta     update
+
+    ;------------------------
+    ; Game loop
+    ;------------------------
 
 displayLoop:
     lda     drawPage
@@ -92,20 +113,28 @@ displayLoop:
 display1:
     sta     LOWSCR
     lda     #$20
-
 :
     sta     drawPage
-
 
     ; if updated last time, need to draw again on this page
     lda     update
     beq     :+
+    lda     mapCursor
     jsr     setCoordinate
     jsr     drawQuarter
 :
 
+    lda     playerUpdate
+    beq     :+
+    lda     oldPlayerIdx
+    jsr     drawPlayer
+    lda     playerIdx
+    jsr     drawPlayer
+:
+
     lda     #0
     sta     update
+    sta     playerUpdate
 
     ; check next tile
     inc     mapCursor
@@ -115,41 +144,46 @@ display1:
     inc     gameTime1
 :
 
-; Update Tiles
-
+    ;------------------------
+    ; Animate Tiles
+    ;------------------------
     ldx     mapCursor
 
     ; Map 2
-    lda     isoMapOp2,x
+    lda     isoMap2,x
     tay
     lda     animateMap,y
     beq     :+
-    sta     isoMapOp2,x
+    sta     isoMap2,x
     inc     update
 :
     ; Map 1
-    lda     isoMapOp1,x
+    lda     isoMap1,x
     tay
     lda     animateMap,y
     beq     :+
-    sta     isoMapOp1,x
+    sta     isoMap1,x
     inc     update
 :
     ; Map 0
-    lda     isoMapOp0,x
+    lda     isoMap0,x
     tay
     lda     animateMap,y
     beq     :+
-    sta     isoMapOp0,x
+    sta     isoMap0,x
     inc     update
 :
 
     lda     update
     beq     :+
+    lda     mapCursor
     jsr     setCoordinate
     jsr     drawQuarter
 :
 
+    ;------------------------
+    ; Debug
+    ;------------------------
     lda     #0
     sta     tileX
     lda     #23
@@ -161,26 +195,92 @@ display1:
     lda     mapCursor
     jsr     drawNumber
 
+    lda     #38
+    sta     tileX
+    lda     playerIdx
+    jsr     drawNumber
+
+    ;------------------------
+    ; Poll keyboard
+    ;------------------------
     ;   check for keypress
-    lda     mapCursor
-    bne     continue
     lda     KBD
-    bpl     continue
+    bmi     :+
+    jmp     noKeyPress
+:
+    sta     KBDSTRB
 
-exit:
-    bit     KBDSTRB     ; clean up
-
+    ;-----------------------
+    cmp     #KEY_ESC
+    bne     :+
+    ; Exit
     ; Make sure to display and draw on page 1 on exit
     lda     #$00
     sta     drawPage
     sta     LOWSCR
     sta     MIXSET  ; mixed screen
     jmp     DHGR_LOADER_MENU
+:
+    ;-----------------------
+    cmp     #KEY_NW
+    bne     :+
+    lda     #MOVE_NW
+    jmp     move
+:
+    ;-----------------------
+    cmp     #KEY_NE
+    bne     :+
+    lda     #MOVE_NE
+    jmp     move
+:
+    ;-----------------------
+    cmp     #KEY_SW
+    bne     :+
+    lda     #MOVE_SW
+    jmp     move
+:
+    ;-----------------------
+    cmp     #KEY_SE
+    bne     :+
+    lda     #MOVE_SE
+    jmp     move
+:
+    ;-----------------------
+    cmp     #KEY_SPACE
+    bne     :+
+    brk     ; FIXME: do action
+:
 
-continue:
-
+noKeyPress:
     jmp     displayLoop
 
+move:
+    clc
+    adc     playerIdx
+    sta     newPlayerIdx
+    tax
+    lda     isoMapInfo,x
+    bpl     noMove
+
+    lda     playerIdx
+    sta     oldPlayerIdx
+    jsr     erasePlayer
+    lda     newPlayerIdx
+    sta     playerIdx
+    jsr     updatePlayerMap
+
+    lda     oldPlayerIdx
+    jsr     drawPlayer
+    lda     playerIdx
+    jsr     drawPlayer
+    inc     playerUpdate
+    jmp     displayLoop
+
+noMove:
+    jmp     displayLoop
+
+playerUpdate:   .byte   0
+newPlayerIdx:   .byte   0
 update:         .byte   0
 storeWidth:     .byte   0
 storeOffsetX:   .byte   0
@@ -209,6 +309,16 @@ storeOffsetX:   .byte   0
 
     ldx     bgColor
     jsr     setBackground
+
+    lda     #MAP_OFFSET_X
+    sta     tileX
+    lda     #MAP_OFFSET_Y
+    sta     tileY
+    lda     #MAP_RIGHT_EDGE
+    sta     tileX2
+    lda     #MAP_BOTTOM_EDGE
+    sta     tileY2
+    lda     #0              ; starting index
     jsr     isoDrawMap
 
     rts
@@ -476,6 +586,137 @@ cont:
 .endproc
 
 ;------------------------------------------------
+; Update Player Map
+;
+;   Clear player map and withdraw from screen
+;------------------------------------------------
+.proc updatePlayerMap
+
+    ; fixed offsets
+    ldx     playerIdx
+    lda     playerTiles+0
+    sta     isoMapP-MAP_WIDTH*2,x
+    lda     playerTiles+1
+    sta     isoMapP-MAP_WIDTH*2+1,x
+    lda     playerTiles+2
+    sta     isoMapP-MAP_WIDTH,x
+    lda     playerTiles+3
+    sta     isoMapP-MAP_WIDTH+1,x
+    lda     playerTiles+4
+    sta     isoMapP,x
+    lda     playerTiles+5
+    sta     isoMapP+1,x
+    lda     playerTiles+6
+    sta     isoMapP+MAP_WIDTH,x
+    lda     playerTiles+7
+    sta     isoMapP+MAP_WIDTH+1,x
+
+    ; update player line
+    lda     playerIdx
+    jsr     setCoordinate
+    ldy     tileY
+    lda     #$20
+    sta     playerLine-2,y
+    lda     #$40
+    sta     playerLine-1,y
+    lda     #$60
+    sta     playerLine,y
+    lda     #$80
+    sta     playerLine+1,y
+
+    rts
+.endproc
+
+;------------------------------------------------
+; Erase Player
+;
+;   Clear player map and withdraw from screen
+;------------------------------------------------
+.proc erasePlayer
+
+    ; First clear map
+    ldx     oldPlayerIdx
+    lda     #0
+    sta     isoMapP-MAP_WIDTH*2,x
+    sta     isoMapP-MAP_WIDTH*2+1,x
+    sta     isoMapP-MAP_WIDTH,x
+    sta     isoMapP-MAP_WIDTH+1,x
+    sta     isoMapP,x
+    sta     isoMapP+1,x
+    sta     isoMapP+MAP_WIDTH,x
+    sta     isoMapP+MAP_WIDTH+1,x
+
+    ; clear player line
+    ldx     #23
+    lda     #0
+:
+    sta     playerLine,x
+    dex
+    bpl     :-
+
+    rts
+.endproc
+
+;------------------------------------------------
+; Draw Player
+;
+;   Draw map of player size at index passed in A
+;------------------------------------------------
+.proc drawPlayer
+    ; copy map cursor
+    ldx     mapCursor
+    stx     mapCursorCopy
+
+    sta     mapCursor
+    jsr     setCoordinate
+    jsr     drawQuarter
+    inc     mapCursor
+    inc     tileX
+    inc     tileX
+    jsr     drawQuarter
+
+    lda     mapCursor
+    clc
+    adc     #MAP_WIDTH-1
+    sta     mapCursor
+    jsr     setCoordinate
+    jsr     drawQuarter
+    inc     mapCursor
+    inc     tileX
+    inc     tileX
+    jsr     drawQuarter
+
+    lda     mapCursor
+    sec
+    sbc     #MAP_WIDTH*3+1
+    sta     mapCursor
+    jsr     setCoordinate
+    jsr     drawQuarter
+    inc     mapCursor
+    inc     tileX
+    inc     tileX
+    jsr     drawQuarter
+
+    lda     mapCursor
+    clc
+    adc     #MAP_WIDTH-1
+    sta     mapCursor
+    jsr     setCoordinate
+    jsr     drawQuarter
+    inc     mapCursor
+    inc     tileX
+    inc     tileX
+    jsr     drawQuarter
+
+    lda     mapCursorCopy
+    sta     mapCursor
+    rts
+
+temp:           .byte   0
+mapCursorCopy:  .byte   0
+.endproc
+
+;------------------------------------------------
 ; Draw Quarter
 ;------------------------------------------------
 .proc drawQuarter
@@ -483,7 +724,7 @@ cont:
     lda     playerLine,y
     ldx     mapCursor
     clc
-    adc     isoMapOpInfo,x
+    adc     isoMapLevel,x
     tay
     lda     jumpTable,y
     sta     *+4
@@ -498,27 +739,23 @@ cont:
 
 .proc isoDrawMap
 
-    sta     CLR80COL        ; Use RAMWRT for aux mem
-
-    ldx     #0
-    stx     isoIdxY
-
-    lda     #MAP_OFFSET_Y
-    sta     tileY
+    sta     isoIdxY
+    lda     tileX
+    sta     tileXCopy
 
 loopY:
     tay
     lda     playerLine,y
     sta     playerOffset
 
-    lda     #MAP_OFFSET_X
+    lda     tileXCopy
     sta     tileX
 
     lda     isoIdxY
     tax
 
 loopX1:
-    lda     isoMapOpInfo,x
+    lda     isoMapLevel,x
     clc
     adc     playerOffset
     tay
@@ -533,7 +770,7 @@ loopX1:
     lda     tileX
     adc     #2
     sta     tileX
-    cmp     #MAP_RIGHT_EDGE
+    cmp     tileX2
     bmi     loopX1
 
     clc
@@ -543,11 +780,12 @@ loopX1:
 
     inc     tileY
     lda     tileY
-    cmp     #MAP_BOTTOM_EDGE
+    cmp     tileY2
     bmi     loopY
 
     rts
 
+tileXCopy:      .byte   0
 isoIdxY:        .byte   0
 playerOffset:   .byte   0
 
@@ -557,59 +795,59 @@ playerOffset:   .byte   0
 
 ; should be draw012
 .proc draw012
-    lda     isoMapOp0,x
+    lda     isoMap0,x
     jsr     DHGR_DRAW_BG_28X8
-    lda     isoMapOp1,x
+    lda     isoMap1,x
     jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp2,x
+    lda     isoMap2,x
     jsr     DHGR_DRAW_MASK_28X8
     rts
 .endproc
 
 .proc draw012P
-    lda     isoMapOp0,x
+    lda     isoMap0,x
     jsr     DHGR_DRAW_BG_28X8
-    lda     isoMapOp1,x
+    lda     isoMap1,x
     jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp2,x
+    lda     isoMap2,x
     jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOpP,x
+    lda     isoMapP,x
     jsr     DHGR_DRAW_MASK_28X8
     rts
 .endproc
 
 .proc draw01P2
-    lda     isoMapOp0,x
+    lda     isoMap0,x
     jsr     DHGR_DRAW_BG_28X8
-    lda     isoMapOp1,x
+    lda     isoMap1,x
     jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOpP,x
+    lda     isoMapP,x
     jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp2,x
+    lda     isoMap2,x
     jsr     DHGR_DRAW_MASK_28X8
     rts
 .endproc
 
 .proc draw0P12
-    lda     isoMapOp0,x
+    lda     isoMap0,x
     jsr     DHGR_DRAW_BG_28X8
-    lda     isoMapOpP,x
+    lda     isoMapP,x
     jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp1,x
+    lda     isoMap1,x
     jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp2,x
+    lda     isoMap2,x
     jsr     DHGR_DRAW_MASK_28X8
     rts
 .endproc
 
 .proc drawP012
-    lda     isoMapOpP,x
+    lda     isoMapP,x
     jsr     DHGR_DRAW_BG_28X8
-    lda     isoMapOp0,x
+    lda     isoMap0,x
     jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp1,x
+    lda     isoMap1,x
     jsr     DHGR_DRAW_MASK_28X8
-    lda     isoMapOp2,x
+    lda     isoMap2,x
     jsr     DHGR_DRAW_MASK_28X8
     rts
 .endproc
@@ -667,14 +905,14 @@ playerLine:
 ;-----------------------------------------------------------------------------
 ; setCoordinate
 ;
+;   Index passed in A
 ;-----------------------------------------------------------------------------
 .proc setCoordinate
     ; cursor = yyyyxxxx
 
-    lda     #MAP_OFFSET_Y
-    sta     tileY
+    ldy     #MAP_OFFSET_Y
+    sty     tileY
 
-    lda     mapCursor
 divideLoop:
     sec
     sbc     #MAP_WIDTH
@@ -753,6 +991,11 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
 ;-----------------------------------------------------------------------------
 ; Global
 ;-----------------------------------------------------------------------------
+playerIdx:      .byte   $7C     ; Player position
+oldPlayerIdx:   .byte   0       ; Previous player position
+;playerX:        .byte   7       ; X (global)
+;playerY:        .byte   11      ; Y (global)
+
 mapCursor:  .byte   0   ; Offset into map table
 gameTime0:  .byte   0   ; incremented every 256 frames
 gameTime1:  .byte   0   ; incremented every 256*256 frames
@@ -763,7 +1006,11 @@ boxRight:       .byte   0
 boxTop:         .byte   0
 boxBottom:      .byte   0
 
-.align 256
+playerTiles:
+    .byte   $58,$59
+    .byte   $5a,$5b
+    .byte   $5c,$5d
+    .byte   $5e,$5f
 
 
 ; Lookup table for animation sequence
@@ -800,7 +1047,7 @@ animateMap:
 .include "map00.asm"
 
 ; player
-isoMapOpP:
+isoMapP:
     .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
     .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
     .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
