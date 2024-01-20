@@ -41,6 +41,8 @@ screenPtr0      :=  $1b     ; Screen pointer
 screenPtr1      :=  $1c
 screen2Ptr0     :=  $1d
 screen2Ptr1     :=  $1e
+scriptPtr0 		:=  $fa
+scriptPtr1 		:=  $fb
 stringPtr0      :=  $fe
 stringPtr1      :=  $ff
 
@@ -199,9 +201,10 @@ DHGR_DRAW_INDEX_IMAGE       := $C2D
 DHGR_DRAW_IMAGE             := $C30
 DHGR_DRAW_IMAGE_AUX         := $C33
 DHGR_DRAW_STRING            := $C36
-DHGR_LOADER_MENU            := $C39
-DHGR_LOAD_ASSET             := $C3C
-DHGR_STORE_ASSET            := $C3F
+DHGR_DRAW_STRING_INLINE     := $C39
+DHGR_LOADER_MENU            := $C3C
+DHGR_LOAD_ASSET             := $C3F
+DHGR_STORE_ASSET            := $C42
 
 DHGR_TILE_7X8               := $C60
 DHGR_TILE_28X8              := $C62

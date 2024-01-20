@@ -80,11 +80,11 @@ IMAGE_TABLE     := $6000    ; AUX memory
     lda     #$00
     jsr     drawGameScreen
 
-;    ; wait for key (ignore key)
-;:
-;    lda     KBD
-;    bpl     :-
-;    bit     KBDSTRB     ; clean up
+    ; wait for key (ignore key)
+:
+    lda     KBD
+    bpl     :-
+    bit     KBDSTRB     ; clean up
 
     ; display 0
     sta     LOWSCR
@@ -105,6 +105,13 @@ IMAGE_TABLE     := $6000    ; AUX memory
     ;------------------------
 
 displayLoop:
+
+    ; sync on vertical blank -- not sure if this is useful
+:
+    lda     RDVBLBAR
+    bpl     :-
+
+
     lda     drawPage
     beq     display1
 
@@ -199,6 +206,11 @@ display1:
     lda     mapCursor
     jsr     drawNumber
 
+    lda     #72
+    sta     tileX
+    lda     oldPlayerIdx
+    jsr     drawNumber
+
     lda     #75
     sta     tileX
     lda     playerIdx
@@ -288,7 +300,6 @@ noMove:
     jmp     displayLoop
 
 playerUpdate:   .byte   0
-newPlayerIdx:   .byte   0
 update:         .byte   0
 storeWidth:     .byte   0
 storeOffsetX:   .byte   0
@@ -387,7 +398,7 @@ storeOffsetX:   .byte   0
     sta     tileX
     lda     #0
     sta     tileY
-    jsr     DHGR_DRAW_STRING
+    jsr     DHGR_DRAW_STRING_INLINE
 
     .byte   $93,$93,$93,$93,$93," Merlin-8 ",$93,$93,$93,$93,$93,0
 
@@ -395,7 +406,7 @@ storeOffsetX:   .byte   0
     sta     tileX
     lda     #0
     sta     tileY
-    jsr     DHGR_DRAW_STRING
+    jsr     DHGR_DRAW_STRING_INLINE
     .byte   $93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93
     .byte   " Somewhere in the forest "
     .byte   $93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93
@@ -416,7 +427,7 @@ storeOffsetX:   .byte   0
     sta     tileX
     lda     #11
     sta     tileY
-    jsr     DHGR_DRAW_STRING
+    jsr     DHGR_DRAW_STRING_INLINE
     ;             <-- 20 columns ---->
     StringBold   "H"
     StringCont    "ello!"
@@ -947,15 +958,15 @@ divideLoop:
     rts
 
 pattern:
-    .byte   $00,$00,$00,$00     ; black
-    .byte   $ff,$ff,$ff,$ff     ; white
-    .byte   $55,$2a,$2a,$55     ; gray1
-    .byte   $2a,$55,$55,$2a     ; gray2
-    .byte   $7f,$7f,$00,$00     ; horizontal
-    .byte   $63,$63,$63,$63     ; vertical
-    .byte   $54,$15,$6a,$2b     ; pattern
-    .byte   $2a,$57,$57,$2a     ; border
-    .byte   $7f,$00,$00,$7f     ; checker
+    .byte   $00,$00,$00,$00     ; 00 - black
+    .byte   $ff,$ff,$ff,$ff     ; 04 - white
+    .byte   $55,$2a,$2a,$55     ; 08 - gray1
+    .byte   $2a,$55,$55,$2a     ; 0C - gray2
+    .byte   $7f,$7f,$00,$00     ; 10 - horizontal
+    .byte   $63,$63,$63,$63     ; 14 - vertical
+    .byte   $54,$15,$6a,$2b     ; 18 - pattern
+    .byte   $2a,$57,$57,$2a     ; 1C - border
+    .byte   $7f,$00,$00,$7f     ; 20 - checker
 
 .endproc
 
@@ -991,15 +1002,7 @@ numberLookup:   .byte   '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
 ;-----------------------------------------------------------------------------
 ; Global
 ;-----------------------------------------------------------------------------
-playerIdx:      .byte   $7C     ; Player position
-oldPlayerIdx:   .byte   0       ; Previous player position
-;playerX:        .byte   7       ; X (global)
-;playerY:        .byte   11      ; Y (global)
-
 mapCursor:  .byte   0   ; Offset into map table
-gameTime0:  .byte   0   ; incremented every 256 frames
-gameTime1:  .byte   0   ; incremented every 256*256 frames
-bgColor:    .byte   3*4
 
 boxLeft:        .byte   0
 boxRight:       .byte   0
@@ -1011,7 +1014,6 @@ playerTiles:
     .byte   $5a,$5b
     .byte   $5c,$5d
     .byte   $5e,$5f
-
 
 ; Lookup table for animation sequence
 ; Water:    $14 <-> $64
@@ -1050,3 +1052,24 @@ animateMap:
 isoMapP:        .res    256
 playerLine:     .res    24      ; optmizied to use a global Y [0..23]
 
+; events (in priority order)        ; Jump - Description
+eventEnterMap:      .byte   1       ; $00  - Entered a map -- vector 0
+eventTimer:         .byte   0       ; $02  - Game timer event
+eventPlayerAction:  .byte   0       ; $04  - Player tried to do an action
+eventPlayerMove:    .byte   0       ; $06  - Player moved to a new location
+eventPlayerBlocked: .byte   0       ; $08  - Player tried to move but was blocked
+eventScriptEvent0:  .byte   0       ; $0A  - Scripted triggered event
+eventReserved0C:    .byte   0       ; $0C  - Reserved
+eventReserved0E:    .byte   0       ; $0E  - Reserved
+
+.align 256
+; Game State
+gameStateStart:
+mapNumber:      .byte   $0      ; Current map
+playerIdx:      .byte   $7C     ; Player position
+newPlayerIdx:   .byte   $0      ; Failed move position
+oldPlayerIdx:   .byte   $0      ; Previous player position
+gameTime0:      .byte   $0      ; incremented every 256 frames
+gameTime1:      .byte   $0      ; incremented every 256*256 frames
+bgColor:        .byte   $0C     ; Background pattern
+playerLocked:   .byte   $0      ; Prevent player input

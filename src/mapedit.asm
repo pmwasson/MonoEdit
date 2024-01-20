@@ -1692,7 +1692,7 @@ drawTitle:
     sta     tileX
     lda     #0
     sta     tileY
-    jsr     DHGR_DRAW_STRING
+    jsr     DHGR_DRAW_STRING_INLINE
 
     .byte   $93,$93,$93,$93,$93," Merlin-8 ",$93,$93,$93,$93,$93,0
 
@@ -1700,7 +1700,7 @@ drawTitle:
     sta     tileX
     lda     #0
     sta     tileY
-    jsr     DHGR_DRAW_STRING
+    jsr     DHGR_DRAW_STRING_INLINE
     .byte   $93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93
     .byte   " Somewhere in the forest "
     .byte   $93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93,$93
@@ -1717,7 +1717,7 @@ drawText:
     sta     tileX
     lda     #11
     sta     tileY
-    jsr     DHGR_DRAW_STRING
+    jsr     DHGR_DRAW_STRING_INLINE
     ;             <-- 20 columns ---->
     StringBold   "H"
     StringCont    "ello!"

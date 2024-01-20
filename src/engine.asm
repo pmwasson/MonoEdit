@@ -48,6 +48,13 @@
 ; Constants
 ;------------------------------------------------
 
+; Reuse string input buffer ($200) as copy buffer to save space
+copyBuffer :=   $200
+
+;------------------------------------------------
+; Fixed location
+;------------------------------------------------
+
 ; Jump table (in fixed locations)
     jmp     loader
     jmp     engineInit
@@ -68,6 +75,7 @@
     jmp     drawImage
     jmp     drawImageAux
     jmp     drawString
+    jmp     drawStringInline
     jmp     loaderMenu
     jmp     loadToolAsset
     jmp     storeToolAsset
@@ -272,9 +280,7 @@ drawLoop:
 ;
 ;-----------------------------------------------------------------------------
 .proc drawTile_28x8
-;    bne     :+
-;    rts
-;:
+
     sta     tileIdx
     ; calculate tile pointer
     asl                     ; *16
@@ -543,8 +549,8 @@ screenPtr1Copy: .byte   0
     sta     screenPtr1
 
     ; transfer to aux memory
-    sta     RAMWRTON  
-    sta     RAMRDON  
+    sta     RAMWRTON
+    sta     RAMRDON
 
     ; draw half of tile in aux mem
     jsr     drawTile    ; AUX
@@ -701,7 +707,7 @@ pixelMask:
 ;   A      = 00    -- set pixel to 0 (black), don't change mask
 ;          = ff    -- set pixel to 1 (white), don't change mask
 ;          all other values reserved
-;          
+;
 ;-----------------------------------------------------------------------------
 .proc setPixel_28x8
     sta     pixelResult
@@ -1158,6 +1164,24 @@ imageXAux:      .byte   0
 imageWidthAux:  .byte   0
 .endproc
 
+;-----------------------------------------------------------------------------
+; Read Script Byte
+;   Read a byte pointed to by scriptPtr0 out of aux memory and
+;   increment pointer.
+;-----------------------------------------------------------------------------
+
+.proc readScriptByte
+
+    ldy     #0
+    sta     RAMRDON     ; Read from AUX
+    lda     (scriptPtr0),y
+    inc     scriptPtr0
+    bne     :+
+    inc     scriptPtr1
+:
+    rts
+.endProc
+
 auxMemEnd:
 
 
@@ -1259,16 +1283,11 @@ imageEnd:   .byte   0
 ;-----------------------------------------------------------------------------
 ; Draw String
 ;
-;   Use tileX and tileY for start and string inlined
+;   Use tileX and tileY for start
 ;-----------------------------------------------------------------------------
 
 .proc drawString
 
-    ; Pop return address to find string
-    pla
-    sta     stringPtr0
-    pla
-    sta     stringPtr1
     ldy     #0
 
     lda     tileX
@@ -1281,9 +1300,13 @@ printLoop:
     inc     stringPtr1
 :
     tya
-    pha
+    pha                     ; save Y
     lda     (stringPtr0),y
-    beq     printExit
+    bne     :+
+
+    pla     ; clean up stack
+    rts
+:
     cmp     #13
     bne     :+
     inc     tileY
@@ -1293,7 +1316,6 @@ printLoop:
 :
     and     #$7f
     jsr     drawTile_7x8
-    sta     SPEAKER             ; Noisy print
 
     inc     tileX
 continue:
@@ -1301,11 +1323,29 @@ continue:
     tay
     jmp     printLoop
 
-printExit:
-    pla                 ; clean up stack
-    ; calculate return address after print string
+offset: .byte   0
+.endproc
+
+;-----------------------------------------------------------------------------
+; Draw String
+;
+;   Use tileX and tileY for start and string inlined
+;-----------------------------------------------------------------------------
+
+.proc drawStringInline
+
+    ; Pop return address to find string
+    pla
+    sta     stringPtr0
+    pla
+    sta     stringPtr1
+    ldy     #0
+
+    jsr     drawString
+
     clc
     tya
+
     adc     stringPtr0  ; add low-byte first
     tax                 ; save in X
     lda     stringPtr1  ; carry to high-byte
@@ -1315,8 +1355,6 @@ printExit:
     pha                 ; push return low-byte
     rts                 ; return
 
-char:   .byte   0
-offset: .byte   0
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -2455,15 +2493,6 @@ assetGame     =   16*4
 assetTool     =   16*5
 assetTitle0   =   16*6
 assetTitle1   =   16*7
-
-;-----------------------------------------------------------------------------
-; Buffer
-;-----------------------------------------------------------------------------
-
-; I wonder if I could use the string input buffer ($200) to save space?
-
-.align  256
-copyBuffer:     .res    256
 
 ;-----------------------------------------------------------------------------
 ; Utilies
