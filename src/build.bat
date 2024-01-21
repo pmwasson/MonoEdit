@@ -40,6 +40,9 @@ cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\tilesheet_0.asm apple2.lib  -o til
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_0.asm apple2.lib  -o font7x8_0.apple2 -C ..\src\start6000.cfg || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\font7x8_1.asm apple2.lib  -o font7x8_1.apple2 -C ..\src\start6000.cfg || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\imagesheet_0.asm apple2.lib  -o imagesheet_0.apple2 -C ..\src\start6000.cfg || exit
+
+
+ca65 -I ..\src -t apple2 ..\src\level_00.asm -l level_00.dis || exit
 cl65 -I ..\src -t apple2 -u __EXEHDR__ ..\src\level_00.asm apple2.lib  -o level_00.apple2 -C ..\src\start6000.cfg || exit
 
 ::---------------------------------------------------------------------------
@@ -76,6 +79,8 @@ java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/tilesheet.0 bin < t
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.0 bin < font7x8_0.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/font7x8.1 bin < font7x8_1.apple2  || exit
 java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/imagesheet.0 bin < imagesheet_0.apple2  || exit
+java -jar C:\jar\AppleCommander.jar -as mono_prodos.dsk data/level.00 bin < level_00.apple2  || exit
+
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk data/title.0 bin < title.0  || exit
 java -jar C:\jar\AppleCommander.jar -p mono_prodos.dsk data/title.1 bin < title.1  || exit
 

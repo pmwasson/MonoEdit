@@ -171,14 +171,6 @@ KEY_F           = $C6
 KEY_Z           = $DA
 KEY_DEL         = $FF
 
-; Constants
-;---------------------------------------------------------
-DIR_LEFT        =   0
-DIR_RIGHT       =   1
-DIR_UP          =   2
-DIR_DOWN        =   3
-
-
 ; DHGR Engine
 ;---------------------------------------------------------
 
@@ -197,14 +189,15 @@ DHGR_DUMP_INIT              := $C21
 DHGR_DUMP_BYTE              := $C24
 DHGR_SET_BYTE               := $C27
 DHGR_CLEAR_SCREEN           := $C2A
-DHGR_DRAW_INDEX_IMAGE       := $C2D
-DHGR_DRAW_IMAGE             := $C30
-DHGR_DRAW_IMAGE_AUX         := $C33
-DHGR_DRAW_STRING            := $C36
-DHGR_DRAW_STRING_INLINE     := $C39
-DHGR_LOADER_MENU            := $C3C
-DHGR_LOAD_ASSET             := $C3F
-DHGR_STORE_ASSET            := $C42
+DHGR_READ_SCRIPT_BYTE       := $C2D
+DHGR_READ_STRING_BYTE       := $C30
+DHGR_DRAW_IMAGE             := $C33
+DHGR_DRAW_IMAGE_AUX         := $C36
+DHGR_DRAW_STRING            := $C39
+DHGR_DRAW_STRING_INLINE     := $C3C
+DHGR_LOADER_MENU            := $C3F
+DHGR_LOAD_ASSET             := $C42
+DHGR_STORE_ASSET            := $C45
 
 DHGR_TILE_7X8               := $C60
 DHGR_TILE_28X8              := $C62

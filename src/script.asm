@@ -4,60 +4,34 @@
 ; Script
 ;-----------------------------------------------------------------------------
 
-; Loading a room:
-;   - Loading any assest needed
-;       - Map of the room
-;       - Script for the room
-;       - Dialog for the room
-;       - Tiles
-;       - Pictures
-;
-; Bespoke byte code script for game
-;
-; Each map has its own script.
-; Could also have a global script, but may not be needed.
-;
-; A script is invoked by events such as:
-;   - entering a room
-;   - player interacting with object / NPC
-;   - stepping on a special spot
-; All of these can be generalized to just be a location with a qualifier
-; of active or passive.
-;
-; The script is a sequence of actions.
-;
-; Actions:
-;   - Enter a room (room # and location)
-;   - Display a picture (picture #)
-;   - Display a dialog (dialog #)
-
 ;---------------------------------
 ; Instruction Bytes
 ;---------------------------------
-.define     INST_DONE       $00
-.define     INST_GOTO       $01
-.define     INST_BRANCH     $02
+.define     INST_DONE           $00
+.define     INST_GOTO           $01
+.define     INST_BRANCH         $02
 
-.define     INST_TRUE       $10
-.define     INST_FALSE      $11
-.define     INST_AND        $12
-.define     INST_OR         $13
-.define     INST_ADJACENT   $14
-.define     INST_AT         $15
+.define     INST_TRUE           $10
+.define     INST_FALSE          $11
+.define     INST_AND            $12
+.define     INST_OR             $13
+.define     INST_ADJACENT       $14
+.define     INST_COMPARE_VALUE  $15
 
-.define     INST_READ       $20
-.define     INST_CLEAR      $21
-.define     INST_SET        $22
-.define     INST_INC        $23
+.define     INST_READ           $20
+.define     INST_CLEAR          $21
+.define     INST_SET            $22
+.define     INST_INC            $23
 
-.define     INST_IMAGE      $30
-.define     INST_DIALOG     $31
+.define     INST_IMAGE          $30
+.define     INST_DIALOG         $31
 
 ;---------------------------------
 ; Helper macros
 ;---------------------------------
 .macro  GS_OFFSET label
-    .byte   label-*
+    ; FIXME: forward only
+    .byte   label-*-1
 .endmacro
 
 ;---------------------------------
@@ -107,11 +81,10 @@
     .byte   INST_ADJACENT, coordinate
 .endmacro
 
-; Set condition flag if player is at map coordinate
-.macro GS_AT coordinate
-    .byte   INST_AT, coordinate
+; Set condition flag if state matches argument
+.macro GS_COMPARE_VALUE state, value
+    .byte   INST_COMPARE_VALUE, state, value
 .endmacro
-
 
 ; Read condition flag from game state
 .macro GS_READ state
@@ -141,6 +114,6 @@
 
 ; Display dialog
 .macro  GS_DIALOG address
-    .byte   INST_IMAGE, <address, >address
+    .byte   INST_DIALOG, <address, >address
 .endmacro
 

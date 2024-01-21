@@ -7,6 +7,7 @@
 ;------------------------------------------------
 .include "defines.asm"
 .include "macros.asm"
+.include "script.asm"
 
 ;-----------------------------------------------------------------------------
 ; Constants
@@ -40,6 +41,11 @@ BOX_LOWER_RIGHT = $1f
 BOX_LEFT_T      = $0f
 BOX_RIGHT_T     = $11
 
+DIALOG_LEFT     = 2
+DIALOG_RIGHT    = 20
+DIALOG_TOP      = 11
+DIALOG_BOTTOM   = 20
+
 KEY_NW          = 'W'|$80
 KEY_NE          = 'E'|$80
 KEY_SW          = 'S'|$80
@@ -50,7 +56,18 @@ MOVE_NE         = 256-MAP_WIDTH+1
 MOVE_SW         = MAP_WIDTH-1
 MOVE_SE         = MAP_WIDTH+1
 
-IMAGE_TABLE     := $6000    ; AUX memory
+LEVEL_DATA      := $6000    ; AUX memory
+IMAGE_TABLE     := $6100    ; AUX memory
+
+;                       ; Vector
+eventEnter      = $01   ; $00  - Entered a map
+eventTimer      = $02   ; $02  - Game timer event
+eventAction     = $04   ; $04  - Player tried to do an action
+eventMoved      = $08   ; $06  - Player moved to a new location
+eventBlocked    = $10   ; $08  - Player tried to move but was blocked
+;                       ; $0A  - Reserved
+;                       ; $0C  - Reserved
+;                       ; $0E  - Reserved
 
 ;------------------------------------------------
 .segment "CODE"
@@ -69,6 +86,8 @@ IMAGE_TABLE     := $6000    ; AUX memory
     jsr     initMonochrome
     sta     CLR80COL
 
+    jsr     initScript
+
     ; Display Title
     sta     HISCR
 
@@ -80,11 +99,11 @@ IMAGE_TABLE     := $6000    ; AUX memory
     lda     #$00
     jsr     drawGameScreen
 
-    ; wait for key (ignore key)
-:
-    lda     KBD
-    bpl     :-
-    bit     KBDSTRB     ; clean up
+;    ; wait for key (ignore key)
+;:
+;    lda     KBD
+;    bpl     :-
+;    bit     KBDSTRB     ; clean up
 
     ; display 0
     sta     LOWSCR
@@ -92,6 +111,10 @@ IMAGE_TABLE     := $6000    ; AUX memory
     ; Clear screen 1 and draw map
     lda     #$20
     jsr     drawGameScreen
+
+    ; Set init event (clearing others)
+    lda     #eventEnter
+    sta     scriptEvents
 
     ; Cycle through map for animation
     lda     #255
@@ -105,12 +128,6 @@ IMAGE_TABLE     := $6000    ; AUX memory
     ;------------------------
 
 displayLoop:
-
-    ; sync on vertical blank -- not sure if this is useful
-:
-    lda     RDVBLBAR
-    bpl     :-
-
 
     lda     drawPage
     beq     display1
@@ -206,6 +223,13 @@ display1:
     lda     mapCursor
     jsr     drawNumber
 
+    lda     #40
+    sta     tileX
+    lda     scriptPtr1
+    jsr     drawNumber
+    lda     scriptPtr0
+    jsr     drawNumber
+
     lda     #72
     sta     tileX
     lda     oldPlayerIdx
@@ -221,6 +245,147 @@ display1:
     lda     newPlayerIdx
     jsr     drawNumber
 
+    ;------------------------
+    ; Display Dialog
+    ;------------------------
+    lda     scriptDialogActive
+    beq     checkScript
+
+    jsr     processDialog
+    cmp     #0
+    bne     :+
+    sta     scriptDialogActive
+:
+    jmp     displayLoop
+
+    ;------------------------
+    ; Execute Script
+    ;------------------------
+checkScript:
+    lda     scriptActive        ; Are we still processing script?
+    bne     :+
+    jmp     checkEvents
+:
+    jsr     DHGR_READ_SCRIPT_BYTE
+
+checkDone:
+    cmp     #INST_DONE
+    bne     checkGoto
+    jsr     initScript          ; reset script pointer
+    jmp     displayLoop
+
+checkGoto:
+    cmp     #INST_GOTO
+    bne     checkBranch
+branchTrue:
+    jsr     DHGR_READ_SCRIPT_BYTE   ; read offset
+    ; FIXME: handle negative
+    clc
+    adc     scriptPtr0
+    sta     scriptPtr0          ; Right now, only forward!
+    bcc     :+
+    inc     scriptPtr1
+:
+    jmp     displayLoop
+
+checkBranch:
+    cmp     #INST_BRANCH
+    bne     checkImage
+    lda     scriptCondition
+    bne     branchTrue
+    jsr     DHGR_READ_SCRIPT_BYTE   ; discard offset
+    jmp     displayLoop
+
+
+checkImage:
+    cmp     #INST_IMAGE
+    bne     checkDialog
+    jsr     DHGR_READ_SCRIPT_BYTE
+    sta     scriptArg0
+    jsr     DHGR_READ_SCRIPT_BYTE
+    sta     scriptArg1
+    ; Since drawing an image is slow, go it for both pages
+    lda     drawPage
+    sta     temp
+    lda     #$00
+    jsr     scriptDrawImage
+    lda     #$20
+    jsr     scriptDrawImage
+    lda     temp
+    sta     drawPage
+    jmp     displayLoop
+
+checkDialog:
+    cmp     #INST_DIALOG
+    bne     checkClear
+    jsr     DHGR_READ_SCRIPT_BYTE
+    sta     stringPtr0
+    jsr     DHGR_READ_SCRIPT_BYTE
+    sta     stringPtr1
+    inc     scriptDialogActive
+    lda     #0
+    sta     dialogCount
+    ; Use alternate font
+    lda     #>$B400
+    sta     DHGR_TILE_7X8+1
+    jmp     displayLoop
+
+checkClear:
+    cmp     #INST_CLEAR
+    bne     checkAdjacent
+    jsr     DHGR_READ_SCRIPT_BYTE
+    tax
+    lda     #0
+    sta     gameState,x
+    jmp     displayLoop
+
+checkAdjacent:
+    brk
+
+checkEvents:
+    lda     scriptEvents
+    beq     checkKeyboard
+
+    lsr
+    bcc     :+
+    ldx     #0
+    lda     #%11111110
+    jmp     setEvent
+:
+    lsr
+    bcc     :+
+    ldx     #2
+    lda     #%11111100
+    jmp     setEvent
+:
+    lsr
+    bcc     :+
+    ldx     #4
+    lda     #%11111000
+    jmp     setEvent
+:
+    lsr
+    bcc     :+
+    ldx     #6
+    lda     #%11110000
+    jmp     setEvent
+:
+    lsr
+    bcc     :+
+    ldx     #8
+    lda     #%11100000
+    jmp     setEvent
+:
+    brk     ; unexpected event
+
+setEvent:
+    and     scriptEvents
+    sta     scriptEvents
+    stx     scriptPtr0
+    inc     scriptActive    ; must have been 0, so set to 1
+    jmp     displayLoop
+
+checkKeyboard:
     ;------------------------
     ; Poll keyboard
     ;------------------------
@@ -269,7 +434,11 @@ display1:
     ;-----------------------
     cmp     #KEY_SPACE
     bne     :+
-    ; FIXME: do action
+
+    lda     #eventAction
+    sta     scriptEvents    ; assume no other events
+    jmp     displayLoop
+
 :
 
 noKeyPress:
@@ -294,16 +463,53 @@ move:
     lda     playerIdx
     jsr     drawPlayer
     inc     playerUpdate
+
+    lda     #eventMoved
+    sta     scriptEvents    ; assume no other events
+    sta     SPEAKER
     jmp     displayLoop
 
 noMove:
+    lda     #eventBlocked
+    sta     scriptEvents    ; assume no other events
     jmp     displayLoop
 
 playerUpdate:   .byte   0
 update:         .byte   0
 storeWidth:     .byte   0
 storeOffsetX:   .byte   0
+temp:           .byte   0
+.endproc
 
+;------------------------------------------------
+; Init Script
+;------------------------------------------------
+.proc initScript
+    lda     #<LEVEL_DATA
+    sta     scriptPtr0
+    lda     #>LEVEL_DATA
+    sta     scriptPtr1
+    lda     #0
+    sta     scriptActive
+    rts
+.endproc
+
+;------------------------------------------------
+; Script Draw Image
+;------------------------------------------------
+.proc scriptDrawImage
+    sta     drawPage
+    lda     scriptArg0
+    sta     tilePtr0
+    clc
+    adc     #$80
+    sta     maskPtr0
+    lda     scriptArg1
+    sta     tilePtr1
+    adc     #$2
+    sta     maskPtr1
+    jsr     DHGR_DRAW_IMAGE_AUX
+    rts
 .endproc
 
 ;------------------------------------------------
@@ -320,11 +526,6 @@ storeOffsetX:   .byte   0
     jsr     drawFrame
 
     jsr     drawTitles
-
-    lda     #0
-    jsr     gameDrawImage
-
-    jsr     drawText
 
     ldx     bgColor
     jsr     setBackground
@@ -415,63 +616,78 @@ storeOffsetX:   .byte   0
 .endproc
 
 ;------------------------------------------------
-; Draw Text
+; processDialog
 ;------------------------------------------------
-.proc drawText
+.proc processDialog
 
-    ; Use alternate font
-    lda     #>$B400
-    sta     DHGR_TILE_7X8+1
+    sta     SPEAKER         ; noisy
 
-    lda     #2
+    ; set drawing coordinate
+    lda     dialogX
     sta     tileX
-    lda     #11
+    lda     dialogY
     sta     tileY
-    jsr     DHGR_DRAW_STRING_INLINE
-    ;             <-- 20 columns ---->
-    StringBold   "H"
-    StringCont    "ello!"
-    StringCont   "You can call me"
-    StringBold   "MERLIN"
-    StringCont          "-8 as I come"
-    StringCont   "from a long line of"
-    StringCont   "wizards."
-    StringCont   "Are you looking for"
-    .byte        "the "
-    StringBold        "APPLESOFT"
-    String       " trail?"
 
-    ; Use restore font
-    lda     #>$B000
-    sta     DHGR_TILE_7X8+1
+    lda     dialogCount     ; need to process everything twice
+    and     #1
+    bne     :+
+    jsr     DHGR_READ_STRING_BYTE
+    sta     lastByte
+:
+    inc     dialogCount
+    lda     lastByte
+    bne     :+
+    lda     dialogCount
+    and     #1
+    rts                     ; return with zero value == done
+:
+    cmp     #13             ; return
+    beq     carriageReturn
 
+    and     #$7f
+    jsr     DHGR_DRAW_7X8
+
+    lda     dialogCount     ; only advance the second time
+    and     #1
+    bne     :+
+    inc     dialogX
+:
+    lda     #1              ; not done
     rts
 
-.endproc
+carriageReturn:
 
-;-----------------------------------------------------------------------------
-; Game Draw Image
-;
-;   Calculate pointers and call engine
-;-----------------------------------------------------------------------------
-.proc gameDrawImage
+    ; scroll if on the last line
+    lda     dialogY
+    cmp     #DIALOG_BOTTOM
+    bne     :+
 
-    sta     temp
-    asl
-    asl
-    adc     temp    ; *5
-    adc     #>IMAGE_TABLE
-    sta     tilePtr1
-    adc     #2
-    sta     maskPtr1
-    lda     #0
-    sta     tilePtr0
-    lda     #$80
-    sta     maskPtr0
+    lda     #DIALOG_LEFT/2
+    sta     tileX
+    lda     #DIALOG_RIGHT/2
+    sta     tileX2
+    lda     #DIALOG_TOP
+    sta     tileY
+    lda     #DIALOG_BOTTOM
+    sta     tileY2
+    jsr     DHGR_SCROLL_LINE
+:
 
-    jmp     DHGR_DRAW_IMAGE_AUX
+    lda     dialogCount     ; only advance the second time
+    and     #1
+    bne     :+
+    inc     dialogY
+    lda     #DIALOG_LEFT
+    sta     dialogX
+    lda     dialogY
+    cmp     #DIALOG_BOTTOM+1
+    bne     :+
+    dec     dialogY
+:
+    lda     #1
+    rts
 
-temp:   .byte   0
+lastByte:   .byte   0
 
 .endproc
 
@@ -1052,19 +1268,19 @@ animateMap:
 isoMapP:        .res    256
 playerLine:     .res    24      ; optmizied to use a global Y [0..23]
 
-; events (in priority order)        ; Jump - Description
-eventEnterMap:      .byte   1       ; $00  - Entered a map -- vector 0
-eventTimer:         .byte   0       ; $02  - Game timer event
-eventPlayerAction:  .byte   0       ; $04  - Player tried to do an action
-eventPlayerMove:    .byte   0       ; $06  - Player moved to a new location
-eventPlayerBlocked: .byte   0       ; $08  - Player tried to move but was blocked
-eventScriptEvent0:  .byte   0       ; $0A  - Scripted triggered event
-eventReserved0C:    .byte   0       ; $0C  - Reserved
-eventReserved0E:    .byte   0       ; $0E  - Reserved
+scriptActive:       .byte   0
+scriptCondition:    .byte   0
+scriptEvents:       .byte   0       ; 8 bit vector
+scriptArg0:         .byte   0
+scriptArg1:         .byte   0
+scriptDialogActive: .byte   0
+dialogX:            .byte   DIALOG_LEFT
+dialogY:            .byte   DIALOG_TOP
+dialogCount:        .byte   0       ; Used to display twice (lo/hi page)
 
 .align 256
 ; Game State
-gameStateStart:
+gameState:
 mapNumber:      .byte   $0      ; Current map
 playerIdx:      .byte   $7C     ; Player position
 newPlayerIdx:   .byte   $0      ; Failed move position
@@ -1073,3 +1289,6 @@ gameTime0:      .byte   $0      ; incremented every 256 frames
 gameTime1:      .byte   $0      ; incremented every 256*256 frames
 bgColor:        .byte   $0C     ; Background pattern
 playerLocked:   .byte   $0      ; Prevent player input
+gameStateEnd:
+                .res    256-(gameStateEnd-gameState)
+

@@ -1601,13 +1601,13 @@ drawTestScreen:
     jsr     drawTitle
 
     ; Set image in Aux memory
-    lda     #<$6000
+    lda     #<$6100
     sta     tilePtr0
-    lda     #>$6000
+    lda     #>$6100
     sta     tilePtr1
-    lda     #<$6280
+    lda     #<$6380
     sta     maskPtr0
-    lda     #>$6280
+    lda     #>$6380
     sta     maskPtr1
     jsr     DHGR_DRAW_IMAGE_AUX
 

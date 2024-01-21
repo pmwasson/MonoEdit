@@ -29,7 +29,6 @@
 ;               [ Read data     ]
 ;
 ;   6000-7FFF   [ Game / Tools  ][ Level Data   ]
-;        7FFF
 ;   8000-AFFF   [ Isometric Tiles (192)         ]
 ;
 ;   B000-B7FF   [ Level Map     ][ Font x2      ]
@@ -71,7 +70,8 @@ copyBuffer :=   $200
     jmp     dumpByte
     jmp     setByte
     jmp     clearScreen
-    jmp     drawIndexImage
+    jmp     readScriptByte
+    jmp     readStringByte
     jmp     drawImage
     jmp     drawImageAux
     jmp     drawString
@@ -91,12 +91,6 @@ imageHeight:            .byte   8
 imageX:                 .byte   1       ; [0..39-width]
 imageY:                 .byte   2       ; [0..23-height]
 
-imageTable:             .word   $B000+640*0
-                        .word   $B000+640*1
-                        .word   $B000+640*2
-                        .word   $B000+640*3
-                        .word   $B000+640*4
-                        .word   $B000+640*5
 .align 64
 
 auxMemStart:
@@ -1051,7 +1045,7 @@ loop8:
     sta     RAMWRTOFF
     sta     RAMRDOFF
 
-    ; line line
+    ; next line
     clc
     lda     screenPtr1
     adc     #$4
@@ -1068,6 +1062,56 @@ loop8:
     ldx     tileY
     cpx     tileY2
     bcc     loop
+
+    ;-------------------------------
+    ; clear new line
+
+    lda     lineOffset,x
+    sta     screenPtr0
+    lda     linePage,x
+    clc
+    adc     drawPage
+    sta     screenPtr1
+
+    ldx     #0
+
+clear8:
+    ldy     tileX
+    lda     #0
+:
+    sta     (screenPtr0),y
+
+    iny
+    cpy     tileX2
+    bcc     :-
+    beq     :-          ; one more!
+
+    ; transfer to aux memory
+    sta     RAMWRTON
+    sta     RAMRDON
+
+    ldy     tileX
+:
+    sta     (screenPtr0),y
+
+    iny
+    cpy     tileX2
+    bcc     :-
+    beq     :-          ; one more!
+
+    ; back to main
+    sta     RAMWRTOFF
+    sta     RAMRDOFF
+
+    ; next line
+    clc
+    lda     screenPtr1
+    adc     #$4
+    sta     screenPtr1
+
+    inx
+    cpx     #8
+    bne     clear8
 
     rts
 
@@ -1175,6 +1219,7 @@ imageWidthAux:  .byte   0
     ldy     #0
     sta     RAMRDON     ; Read from AUX
     lda     (scriptPtr0),y
+    sta     RAMRDOFF    ; Read from main
     inc     scriptPtr0
     bne     :+
     inc     scriptPtr1
@@ -1182,26 +1227,26 @@ imageWidthAux:  .byte   0
     rts
 .endProc
 
+;-----------------------------------------------------------------------------
+; Read String Byte
+;   Read a byte pointed to by stringPtr0 out of aux memory and
+;   increment pointer.
+;-----------------------------------------------------------------------------
+
+.proc readStringByte
+
+    ldy     #0
+    sta     RAMRDON     ; Read from AUX
+    lda     (stringPtr0),y
+    sta     RAMRDOFF    ; Read from main
+    inc     stringPtr0
+    bne     :+
+    inc     stringPtr1
+:
+    rts
+.endProc
+
 auxMemEnd:
-
-
-;-----------------------------------------------------------------------------
-; Draw Index Image
-;-----------------------------------------------------------------------------
-.proc drawIndexImage
-    asl
-    asl     ; *4
-    tax
-    lda     imageTable,x
-    sta     tilePtr0
-    lda     imageTable+1,x
-    sta     tilePtr1
-    lda     imageTable+2,x
-    sta     maskPtr0
-    lda     imageTable+3,x
-    sta     maskPtr1
-    jmp     drawImage
-.endproc
 
 ;-----------------------------------------------------------------------------
 ; Draw Image
@@ -1538,7 +1583,7 @@ loadAssets:
     jsr     loadAsset
     ldx     #assetISO
     jsr     loadAsset
-    ldx     #assetImage
+    ldx     #assetLevel
     jsr     loadAsset
 
     lda     fileError
@@ -2428,6 +2473,11 @@ IMAGELENGTH         =   3*1280                          ; 6000..6EFF : 20 bytes 
 IMAGEEND            :=  READBUFFER + IMAGELENGTH - 1
 IMAGEENDAUX         :=  IMAGESTART + IMAGELENGTH - 1
 
+LEVELSTART          :=  $6000                           ; Aux
+LEVELLENGTH         =   $2000
+LEVELEND            :=  READBUFFER + LEVELLENGTH - 1
+LEVELENDAUX         :=  LEVELSTART + LEVELLENGTH - 1
+
 FONT0START          :=  $B000                           ; AUX
 FONT0LENGTH         =   8*128
 FONT0END            :=  READBUFFER + FONT0LENGTH - 1
@@ -2457,6 +2507,7 @@ fileTypeISO:    String "Isometric Tilesheet"
 fileTypeImage:  String "Image Sheet"
 fileTypeExe:    String "Executable"
 fileTypeTitle:  String "Title Image"
+fileTypeLevel:  String "Level Data"
 
 ; File names
 fileNameFont0:      StringLen "DATA/FONT7X8.0"
@@ -2465,6 +2516,8 @@ fileNameISO:        StringLen "DATA/TILESHEET.0"
 fileNameISOEnd:
 fileNameImage:      StringLen "DATA/IMAGESHEET.0"
 fileNameImageEnd:
+fileNameLevel:      StringLen "DATA/LEVEL.00"
+fileNameLevelEnd:
 fileNameTool:       StringLen "DATA/TOOL.0"
 fileNameToolEnd:
 fileNameTitle0:     StringLen "DATA/TITLE.0"
@@ -2484,6 +2537,7 @@ fileDescription:    ; type, name, address, size, dest, interleave
     .word   fileTypeExe,    fileNameTool,     EXECSTART,      EXECLENGTH,     0,          EXECSTART,      INSTALL_MAIN,   0               ; 80
     .word   fileTypeTitle,  fileNameTitle0,   TITLESTART,     TITLELENGTH,    TITLEEND,   TITLESTART,     INSTALL_AUX,    TITLEEND        ; 96
     .word   fileTypeTitle,  fileNameTitle1,   TITLESTART,     TITLELENGTH,    TITLEEND,   TITLESTART,     INSTALL_MAIN,   0               ; 112
+    .word   fileTypeLevel,  fileNameLevel,    READBUFFER,     LEVELLENGTH,    LEVELEND,   LEVELSTART,     INSTALL_AUX,    LEVELENDAUX     ; 128
 
 assetFont0    =   16*0
 assetFont1    =   16*1
@@ -2493,6 +2547,7 @@ assetGame     =   16*4
 assetTool     =   16*5
 assetTitle0   =   16*6
 assetTitle1   =   16*7
+assetLevel    =   16*8
 
 ;-----------------------------------------------------------------------------
 ; Utilies
