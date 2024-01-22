@@ -22,12 +22,18 @@ wizardState     =   $FF         ; reserve state from back to front
 
 enterMap:       GS_GOTO     init
 timer:          GS_DONE                     ; Not used
+                GS_DONE                     ; padding
 playerAction:   GS_GOTO     action          ; Not used
 playerMove:     GS_DONE                     ; Not used
+                GS_DONE                     ; padding
 playerBlocked:  GS_DONE                     ; Not used
+                GS_DONE                     ; padding
 scriptEvent0:   GS_DONE                     ; Not used
+                GS_DONE                     ; padding
 reserved0C:     GS_DONE                     ; Not used
+                GS_DONE                     ; padding
 reserved0E:     GS_DONE                     ; Not used
+                GS_DONE                     ; padding
 
 ;-----------------------------------------------------------------------------
 ; Script

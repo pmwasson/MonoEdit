@@ -21,10 +21,12 @@
 .define     INST_READ           $20
 .define     INST_CLEAR          $21
 .define     INST_SET            $22
-.define     INST_INC            $23
+.define     INST_SET_VALUE      $23
+.define     INST_INC            $24
 
 .define     INST_IMAGE          $30
 .define     INST_DIALOG         $31
+.define     INST_SET_TIMER      $32
 
 ;---------------------------------
 ; Helper macros
@@ -101,6 +103,11 @@
     .byte   INST_SET, state
 .endmacro
 
+; Set game state to value
+.macro GS_SET_VALUE state, value
+    .byte   INST_SET_value, state, value
+.endmacro
+
 ; Increment game state
 .macro GS_INC state
     .byte   INST_INC, state
@@ -116,4 +123,10 @@
 .macro  GS_DIALOG address
     .byte   INST_DIALOG, <address, >address
 .endmacro
+
+; Set countdown timer
+.macro  GS_SET_TIMER value
+    .byte   INST_SET_TIMER, value
+.endmacro
+
 

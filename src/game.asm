@@ -332,14 +332,65 @@ checkDialog:
 
 checkClear:
     cmp     #INST_CLEAR
-    bne     checkAdjacent
-    jsr     DHGR_READ_SCRIPT_BYTE
+    bne     checkSet
+    jsr     DHGR_READ_SCRIPT_BYTE   ; state
     tax
     lda     #0
     sta     gameState,x
     jmp     displayLoop
 
+checkSet:
+    cmp     #INST_SET
+    bne     checkRead
+    jsr     DHGR_READ_SCRIPT_BYTE   ; state
+    tax
+    lda     #1
+    sta     gameState,x
+    jmp     displayLoop
+
+checkRead:
+    cmp     #INST_READ
+    bne     checkAdjacent
+    jsr     DHGR_READ_SCRIPT_BYTE   ; state
+    tax
+    lda     gameState,x
+    sta     scriptCondition
+    jmp     displayLoop
+
 checkAdjacent:
+    cmp     #INST_ADJACENT
+    bne     checkNext
+    jsr     DHGR_READ_SCRIPT_BYTE   ; location
+    sta     temp
+    clc
+    adc     #MOVE_NE
+    cmp     playerIdx
+    beq     adjacentMatch
+    lda     temp
+    clc
+    adc     #MOVE_NW
+    cmp     playerIdx
+    beq     adjacentMatch
+    lda     temp
+    clc
+    adc     #MOVE_SE
+    cmp     playerIdx
+    beq     adjacentMatch
+    lda     temp
+    clc
+    adc     #MOVE_SW
+    cmp     playerIdx
+    beq     adjacentMatch
+    lda     #0
+    sta     scriptCondition
+    jmp     displayLoop
+adjacentMatch:
+    lda     #1
+    sta     scriptCondition
+    jmp     displayLoop
+
+
+checkNext:
     brk
 
 checkEvents:
