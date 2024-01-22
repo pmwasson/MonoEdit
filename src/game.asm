@@ -166,11 +166,20 @@ display1:
 
     ; check next tile
     inc     mapCursor
+    bne     doneTime
+
+    lda     scriptTimer
+    beq     :+
+    dec     scriptTimer
     bne     :+
-    inc     gameTime0
-    bne     :+
-    inc     gameTime1
+    lda     scriptEvents
+    ora     #eventTimer
+    sta     scriptEvents
 :
+    inc     gameTime0
+    bne     doneTime
+    inc     gameTime1
+doneTime:
 
     ;------------------------
     ; Animate Tiles
@@ -221,6 +230,10 @@ display1:
     lda     gameTime0
     jsr     drawNumber
     lda     mapCursor
+    jsr     drawNumber
+
+    inc     tileX
+    lda     scriptTimer
     jsr     drawNumber
 
     lda     #40
@@ -359,7 +372,7 @@ checkRead:
 
 checkAdjacent:
     cmp     #INST_ADJACENT
-    bne     checkNext
+    bne     checkSetTimer
     jsr     DHGR_READ_SCRIPT_BYTE   ; location
     sta     temp
     clc
@@ -389,6 +402,13 @@ adjacentMatch:
     sta     scriptCondition
     jmp     displayLoop
 
+
+checkSetTimer:
+    cmp     #INST_SET_TIMER
+    bne     checkNext
+    jsr     DHGR_READ_SCRIPT_BYTE   ; timer
+    sta     scriptTimer
+    jmp     displayLoop
 
 checkNext:
     brk
@@ -1340,6 +1360,8 @@ gameTime0:      .byte   $0      ; incremented every 256 frames
 gameTime1:      .byte   $0      ; incremented every 256*256 frames
 bgColor:        .byte   $0C     ; Background pattern
 playerLocked:   .byte   $0      ; Prevent player input
+scriptTimer:    .byte   $0      ; count down timer
+
 gameStateEnd:
                 .res    256-(gameStateEnd-gameState)
 
