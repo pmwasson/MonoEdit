@@ -1585,6 +1585,8 @@ loadAssets:
     jsr     loadAsset
     ldx     #assetLevel
     jsr     loadAsset
+    ldx     #assetMap
+    jsr     loadAsset
 
     lda     fileError
     beq     :+
@@ -2478,6 +2480,9 @@ LEVELLENGTH         =   $2000
 LEVELEND            :=  READBUFFER + LEVELLENGTH - 1
 LEVELENDAUX         :=  LEVELSTART + LEVELLENGTH - 1
 
+MAPSTART            :=  $B000
+MAPLENGTH           :=  $E00
+
 FONT0START          :=  $B000                           ; AUX
 FONT0LENGTH         =   8*128
 FONT0END            :=  READBUFFER + FONT0LENGTH - 1
@@ -2508,6 +2513,7 @@ fileTypeImage:  String "Image Sheet"
 fileTypeExe:    String "Executable"
 fileTypeTitle:  String "Title Image"
 fileTypeLevel:  String "Level Data"
+fileTypeMap:    String "Map"
 
 ; File names
 fileNameFont0:      StringLen "DATA/FONT7X8.0"
@@ -2518,6 +2524,8 @@ fileNameImage:      StringLen "DATA/IMAGESHEET.0"
 fileNameImageEnd:
 fileNameLevel:      StringLen "DATA/LEVEL.00"
 fileNameLevelEnd:
+fileNameMap:        StringLen "DATA/MAP.00"
+fileNameMapEnd:
 fileNameTool:       StringLen "DATA/TOOL.0"
 fileNameToolEnd:
 fileNameTitle0:     StringLen "DATA/TITLE.0"
@@ -2538,6 +2546,7 @@ fileDescription:    ; type, name, address, size, dest, interleave
     .word   fileTypeTitle,  fileNameTitle0,   TITLESTART,     TITLELENGTH,    TITLEEND,   TITLESTART,     INSTALL_AUX,    TITLEEND        ; 96
     .word   fileTypeTitle,  fileNameTitle1,   TITLESTART,     TITLELENGTH,    TITLEEND,   TITLESTART,     INSTALL_MAIN,   0               ; 112
     .word   fileTypeLevel,  fileNameLevel,    READBUFFER,     LEVELLENGTH,    LEVELEND,   LEVELSTART,     INSTALL_AUX,    LEVELENDAUX     ; 128
+    .word   fileTypeMap,    fileNameMap,      MAPSTART,       MAPLENGTH,      0,          MAPSTART,       INSTALL_MAIN,   0               ; 144
 
 assetFont0    =   16*0
 assetFont1    =   16*1
@@ -2548,6 +2557,7 @@ assetTool     =   16*5
 assetTitle0   =   16*6
 assetTitle1   =   16*7
 assetLevel    =   16*8
+assetMap      =   16*9
 
 ;-----------------------------------------------------------------------------
 ; Utilies

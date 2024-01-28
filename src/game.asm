@@ -69,6 +69,11 @@ eventBlocked    = $10   ; $08  - Player tried to move but was blocked
 ;                       ; $0C  - Reserved
 ;                       ; $0E  - Reserved
 
+isoMap0         := $B800
+isoMap1         := $B900
+isoMap2         := $BA00
+isoMapLevel     := $BB00
+
 ;------------------------------------------------
 .segment "CODE"
 .org    $6000
@@ -1362,7 +1367,3 @@ scriptTimer:    .byte   $0      ; count down timer
 
 gameStateEnd:
                 .res    256-(gameStateEnd-gameState)
-
-
-.align 256
-.include "map00.asm"
