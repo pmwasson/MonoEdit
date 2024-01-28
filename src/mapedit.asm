@@ -131,11 +131,17 @@ skip_prompt:
     bne     :+
     ; dont display anything
     lda     TEXTMODE
-    bmi     toggle_text_off
-    bit     TXTSET
+    bmi     toggle_text_on
+    lda     MIXED
+    bmi     toggle_full_on
+    bit     TXTSET          ; text mode
     jmp     skip_prompt
-toggle_text_off:
-    bit     TXTCLR
+toggle_text_on:
+    bit     TXTCLR          ; turn on graphics
+    bit     MIXSET          ; turn on mixed
+    jmp     skip_prompt
+toggle_full_on:
+    bit     MIXCLR          ; full mode
     jmp     skip_prompt
 :
 
