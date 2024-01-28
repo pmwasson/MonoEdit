@@ -70,9 +70,9 @@ skip_prompt:
     ; Parse command
 
     ;------------------
-    ; ESC = Toggle Text
+    ; Tab = Toggle Text
     ;------------------
-    cmp     #KEY_ESC
+    cmp     #KEY_TAB
     bne     :+
     ; dont display anything
     lda     TEXTMODE
@@ -294,9 +294,9 @@ fill_cancel:
 :
 
     ;------------------
-    ; Tab = switch tools
+    ; Esc = switch tools
     ;------------------
-    cmp     #KEY_TAB
+    cmp     #KEY_ESC
     bne     :+
     jsr     inline_print
     StringCR    "Switching tools..."
@@ -559,8 +559,8 @@ finishChangeTile_cont:
     StringCont  "  ?:       This help screen"
     StringCont  "  \:       Monitor"
     StringCont  "  Ctrl-Q:  Quit"
-    StringCont  "  Escape:  Toggle text/graphics"
-    StringCont  "  Tab:     Switch Tools"
+    StringCont  "  Tab:     Toggle text/graphics"
+    StringCont  "  Escape:  Switch Tools"
     .byte   0
 
     rts

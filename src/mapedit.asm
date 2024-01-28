@@ -72,6 +72,7 @@ isoMapOp0       := $B800
 isoMapOp1       := $B900
 isoMapOp2       := $BA00
 isoMapLevel     := $BB00
+isoMap8         := $BB00    ; alias to help with rotate commands
 
 ;------------------------------------------------
 .segment "CODE"
@@ -125,9 +126,9 @@ skip_prompt:
     jsr     getInput
 
     ;------------------
-    ; ESC = Toggle Text
+    ; TAB = Toggle Text
     ;------------------
-    cmp     #KEY_ESC
+    cmp     #KEY_TAB
     bne     :+
     ; dont display anything
     lda     TEXTMODE
@@ -451,9 +452,9 @@ loadsave_exit:
 :
 
     ;------------------
-    ; Tab = switch tools
+    ; ESC = switch tools
     ;------------------
-    cmp     #KEY_TAB
+    cmp     #KEY_ESC
     bne     :+
     jsr     inline_print
     StringCR    "Switching tools..."
@@ -624,8 +625,8 @@ temp:       .byte   0
     StringCont  "  ?:       This help screen"
     StringCont  "  \:       Monitor"
     StringCont  "  Ctrl-Q:  Quit"
-    StringCont  "  Escape:  Toggle text/graphics"
-    StringCont  "  Tab:     Switch Tools"
+    StringCont  "  Tab:     Toggle text/graphics"
+    StringCont  "  Escape:  Switch Tools"
     .byte   0
 
     rts
@@ -1500,6 +1501,7 @@ stack:      .byte   0,0,0,0
     ldy     #0
 loop:
     lda     #0
+    sta     isoMap8,y   ; level
     sta     isoMap7,y
     sta     isoMap6,y
     sta     isoMap5,y
@@ -1518,15 +1520,24 @@ loop:
 ;-----------------------------------------------------------------------------
 
 rotateRight:
+
+    ldy     #0
+    lda     isoMap0,y
+    tax
+    lda     isoMap0+1,y
+    sta     isoMap0,y
+    txa
+    sta     isoMap0+1,y
+
 rotateLeft:
     rts             ; FIXME
 
 .proc rotateDown
-    ldy     #255
+    ldy     #MAP_LENGTH-CURSOR_S
 
 loop:
 
-.repeat 8,I
+.repeat 9,I
     ; swap rows
     lda     .ident(.concat("isoMap",.string(I))),y
     tax
@@ -1539,7 +1550,9 @@ loop:
     dey
 
     cpy     #CURSOR_S
-    bne     loop
+    beq     :+
+    jmp     loop
+:
     rts
 
 .endproc
@@ -1550,7 +1563,7 @@ loop:
 
 loop:
 
-.repeat 8,I
+.repeat 9,I
     ; swap rows
     lda     .ident(.concat("isoMap",.string(I))),y
     tax
@@ -1562,8 +1575,10 @@ loop:
 
     iny
 
-    cpy     #256-CURSOR_S
-    bne     loop
+    cpy     #MAP_LENGTH-CURSOR_S
+    beq     :+
+    jmp     loop
+:
     rts
 
 .endproc
