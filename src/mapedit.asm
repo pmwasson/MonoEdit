@@ -27,6 +27,8 @@ MAP_WIDTH       = 13
 MAP_HEIGHT      = 19
 MAP_LENGTH      = MAP_WIDTH*MAP_HEIGHT
 
+MAP_ASSET       = 9*16
+
 CURSOR_TILE     = $1c
 CURSOR_INIT     = 2*MAP_WIDTH
 
@@ -378,6 +380,48 @@ afterToggleMovement:
 :
 
     ;------------------
+    ; ^L = Load
+    ;------------------
+    cmp     #KEY_CTRL_L
+    bne     :+
+    jsr     inline_print
+    .byte   "Load",13,"Read slot (0-9):",0
+    lda     #10
+    jsr     getInputNumber
+    bmi     loadsave_exit
+    sta     temp
+    lda     #13
+    jsr     COUT
+    lda     temp
+    ldx     #MAP_ASSET
+    jsr     DHGR_LOAD_ASSET
+    jmp     refresh_loop
+
+loadsave_exit:
+    jmp     command_loop
+:
+
+    ;------------------
+    ; ^S = Save
+    ;------------------
+    cmp     #KEY_CTRL_S
+    bne     :+
+    jsr     inline_print
+    .byte   "Save",13,"Save slot (0-9):",0
+    lda     #10
+    jsr     getInputNumber
+    bmi     loadsave_exit
+    sta     temp
+    lda     #13
+    jsr     COUT
+    jsr     optimizeMap
+    lda     temp
+    ldx     #MAP_ASSET
+    jsr     DHGR_STORE_ASSET
+    jmp     command_loop
+
+:
+    ;------------------
     ; ^T = Test map
     ;------------------
     cmp     #KEY_CTRL_T
@@ -547,7 +591,9 @@ doneCursorMove:
     jsr     COUT
     jmp     command_loop
 
-prevCursor:  .byte   0
+prevCursor: .byte   0
+temp:       .byte   0
+
 .endproc
 
 ;-----------------------------------------------------------------------------
@@ -561,9 +607,14 @@ prevCursor:  .byte   0
     StringCont  "  [ZXC]:   Move cursor South-West, South, or South-East"
     StringCont  "  Space:   Set current map position to selected macro"
     StringCont  "  Del:     Clear current map position"
-    StringCont  "  Ctrl-P:  Print all tiles (do a 1^P in monitor first, 3^P after!)"
+    StringCont  "  Ctrl-O:  Optimize map to 3 levels"
+    StringCont  "  Ctrl-M:  Toggle displaying movement flags"
+    StringCont  "  M:       Toggle movement flag"
     StringCont  "  Ctrl-B:  Display in black and white"
     StringCont  "  Ctrl-C:  Display in color (not recommended)"
+    StringCont  "  Ctrl-L:  Load Map"
+    StringCont  "  Ctrl-S:  Save Map"
+    StringCont  "  Ctrl-P:  Print all tiles (do a 1^P in monitor first, 3^P after!)"
     StringCont  "  ?:       This help screen"
     StringCont  "  \:       Monitor"
     StringCont  "  Ctrl-Q:  Quit"

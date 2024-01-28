@@ -84,7 +84,7 @@ quit_params:
 .proc getInputNumber
     clc
     adc     #$80 + '0'  ; convert A to ascii number
-    sta     max_digit     
+    sta     max_digit
     jsr     getInput
     cmp     #$80 + '0'
     bmi     cancel

@@ -1751,7 +1751,7 @@ menuLoop:
 .proc loadData
 
     jsr    inline_print
-    String "Reading "
+    String "  Reading "
 
     lda     open_params+1
     sta     stringPtr0
@@ -1811,7 +1811,7 @@ menuLoop:
 .proc storeData
 
     jsr    inline_print
-    String "Writing "
+    String "  Writing "
 
     lda     open_params+1
     sta     stringPtr0
@@ -1903,7 +1903,7 @@ openGood:
     jsr     print
 
     jsr    inline_print
-    .byte  ":",13,"  ",0
+    .byte  ":",13,0
 
     ldx     assetNum
 
