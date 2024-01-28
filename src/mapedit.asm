@@ -30,6 +30,8 @@ MAP_LENGTH      = MAP_WIDTH*MAP_HEIGHT
 CURSOR_TILE     = $1c
 CURSOR_INIT     = 2*MAP_WIDTH
 
+FLAG_TILE       = $1
+
 CURSOR_W        = 256 - 2
 CURSOR_E        =       2
 CURSOR_N        = 256 - MAP_WIDTH*2
@@ -310,7 +312,7 @@ rotate_cancel:
 
 rotate_after:
     ;------------------
-    ; ^E = erase map 
+    ; ^E = erase map
     ;------------------
     cmp     #KEY_CTRL_E
     bne     :+
@@ -319,6 +321,39 @@ rotate_after:
     jsr     eraseMap
     jmp     refresh_loop
 :
+
+    ;------------------
+    ; ^M = Toggle display movement flag
+    ;------------------
+    cmp     #KEY_RETURN
+    bne     :+
+    jsr     inline_print
+    StringCR   "Toggle Display Flag"
+    lda     showFlag
+    eor     #$1
+    sta     showFlag
+    jmp     refresh_loop
+:
+
+    ;------------------
+    ; M = Toggle movement flag
+    ;------------------
+    cmp     #$80 | 'M'
+    bne     afterToggleMovement
+    jsr     inline_print
+    StringCR   "Toggle Movement Flag"
+    ldx     mapCursor
+    lda     isoMapLevel,x
+    eor     #$80
+    sta     isoMapLevel,x
+    lda     showFlag
+    bne     :+
+    lda     #1
+    sta     showFlag
+    jmp     refresh_loop
+:
+    jmp     command_loop
+afterToggleMovement:
 
     ;------------------
     ; ^O = Optimize map
@@ -406,7 +441,7 @@ rotate_after:
     jsr     inline_print
     StringCR   "Toggle Color Mode"
     lda     colorMode
-    beq     doBW 
+    beq     doBW
     lda     #0
     sta     colorMode
     jsr     initColorMode
@@ -617,6 +652,14 @@ loopX1:
     lda     isoMap7,x
     jsr     DHGR_DRAW_MASK_28X8
 
+    ; check if level flag set
+    lda     showFlag
+    beq     :+
+    lda     isoMapLevel,x
+    bpl     :+
+    lda     #FLAG_TILE
+    jsr     DHGR_DRAW_MASK_28X8
+:
     inc     isoIdxX
 
     clc
@@ -634,8 +677,9 @@ loopX1:
     inc     tileY
     lda     tileY
     cmp     bottomEdge
-    bmi     loopY
-
+    bpl     :+
+    jmp     loopY
+:
     rts
 
 isoIdxX:    .byte    0
@@ -798,6 +842,15 @@ drawQuarter:
     ldx     index
     lda     isoMap7,x
     jsr     DHGR_DRAW_MASK_28X8
+
+    ; check if level flag set
+    lda     showFlag
+    beq     :+
+    lda     isoMapLevel,x
+    bpl     :+
+    lda     #FLAG_TILE
+    jsr     DHGR_DRAW_MASK_28X8
+:
     rts
 
 index:   .byte   0
@@ -1257,6 +1310,10 @@ next0:
     lsr
     lsr
     lsr
+    sta     result
+    lda     isoMapLevel,y
+    and     #$80            ; perserve flag
+    ora     result
     sta     isoMapLevel,y
 
     lda     stack
@@ -1763,6 +1820,8 @@ boxRight:       .byte   0
 boxTop:         .byte   0
 boxBottom:      .byte   0
 
+showFlag:       .byte   0
+
 ;-----------------------------------------------------------------------------
 ; Data
 ;-----------------------------------------------------------------------------
@@ -2150,5 +2209,25 @@ isoMap7:
 isoMapOp0:      .res    256
 isoMapOp1:      .res    256
 isoMapOp2:      .res    256
-isoMapLevel:    .res    256
+isoMapLevel:
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00   ; $00 .. $0C
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00   ; $0D .. $1B
+.byte $80,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00   ; $1A .. $26
+.byte $00,$80,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$00   ; $27 .. $33
+.byte $00,$00,$80,$00,$00,$00,$00,$00,$00,$00,$80,$00,$00   ; $34 .. $40
+.byte $00,$00,$00,$80,$00,$00,$00,$00,$00,$80,$00,$00,$00   ; $41 .. $4D
+.byte $00,$00,$80,$00,$80,$00,$80,$00,$80,$00,$00,$00,$00   ; $4E .. $5A
+.byte $00,$80,$00,$00,$00,$80,$00,$80,$00,$80,$00,$00,$00   ; $5B .. $67
+.byte $00,$00,$00,$00,$80,$00,$80,$00,$80,$00,$00,$00,$00   ; $68 .. $74
+.byte $00,$00,$00,$00,$00,$00,$00,$80,$00,$80,$00,$00,$00   ; $75 .. $81
+.byte $00,$00,$00,$00,$80,$00,$80,$00,$80,$00,$00,$00,$00   ; $82 .. $8E
+.byte $00,$00,$00,$00,$00,$80,$00,$80,$00,$00,$00,$00,$00   ; $8F .. $9B
+.byte $00,$00,$00,$00,$80,$00,$80,$00,$00,$00,$00,$00,$00   ; $9C .. $A8
+.byte $00,$00,$00,$80,$00,$80,$00,$80,$00,$00,$00,$00,$00   ; $A9 .. $B5
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$80,$00,$00,$00,$00   ; $B6 .. $C2
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$00,$00,$00   ; $C3 .. $CF
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00   ; $D0 .. $DC
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00   ; $DD .. $E9
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00   ; $EA .. $F6
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00
 

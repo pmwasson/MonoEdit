@@ -520,7 +520,7 @@ move:
     adc     playerIdx
     sta     newPlayerIdx
     tax
-    lda     isoMapInfo,x
+    lda     isoMapLevel,x
     bpl     noMove
 
     lda     playerIdx
@@ -1025,11 +1025,12 @@ mapCursorCopy:  .byte   0
 ; Draw Quarter
 ;------------------------------------------------
 .proc drawQuarter
-    ldy     tileY
-    lda     playerLine,y
     ldx     mapCursor
+    lda     isoMapLevel,x
+    and     #$7f            ; ignore bit 7 (movement flag)
     clc
-    adc     isoMapLevel,x
+    ldy     tileY
+    adc     playerLine,y
     tay
     lda     jumpTable,y
     sta     *+4
@@ -1061,6 +1062,7 @@ loopY:
 
 loopX1:
     lda     isoMapLevel,x
+    and     #$7f            ; ignore bit 7 (movement flag)
     clc
     adc     playerOffset
     tay
@@ -1331,10 +1333,6 @@ animateMap:
     .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; Ex
     .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00     ; Fx
 
-
-.align 256
-.include "map00.asm"
-
 ; player
 isoMapP:        .res    256
 playerLine:     .res    24      ; optmizied to use a global Y [0..23]
@@ -1365,3 +1363,6 @@ scriptTimer:    .byte   $0      ; count down timer
 gameStateEnd:
                 .res    256-(gameStateEnd-gameState)
 
+
+.align 256
+.include "map00.asm"

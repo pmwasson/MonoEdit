@@ -50,6 +50,12 @@ MODE_MASK       = 1
     jsr     inline_print
     StringCR    "DHGR Monochrome tile editor - ? for help"
 
+    ; set screen font
+    lda     #<$B000
+    sta     DHGR_TILE_7X8
+    lda     #>$B000
+    sta     DHGR_TILE_7X8+1
+
     ; set default size
     lda     #SIZE_56x16
     ldx     #1
