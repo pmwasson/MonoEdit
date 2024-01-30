@@ -2175,14 +2175,35 @@ macroList:
 .byte   $18,$19
 .byte   $1a,$1b
 
-; 13
-.res    16
+; 13 - road
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
+.byte   $74,$75
+.byte   $00,$00
+.byte   $76,$77
+.byte   $00,$00
+.byte   $00,$00
 
-; 14
-.res    16
+; 14 - road
+.byte   $00,$00
+.byte   $00,$00
+.byte   $00,$00
+.byte   $78,$79
+.byte   $00,$00
+.byte   $7a,$7b
+.byte   $00,$00
+.byte   $00,$00
 
-; 15
-.res    16
+; 15 - computer
+.byte   $7c,$7d
+.byte   $7e,$7f
+.byte   $00,$00
+.byte   $80,$81
+.byte   $00,$00
+.byte   $82,$83
+.byte   $08,$09
+.byte   $00,$00
 
 ; 16
 ; 16 - alt Wizard
